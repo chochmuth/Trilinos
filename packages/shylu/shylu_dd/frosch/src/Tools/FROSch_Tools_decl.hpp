@@ -58,6 +58,8 @@ namespace FROSch {
     
     enum NullSpace {LaplaceNullSpace=0,LinearElasticityNullSpace=1};
     
+    enum CombinationType {Averaging,Full,Restricted};
+    
     template <class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Map<LO,GO,NO> > BuildUniqueMap(const Teuchos::RCP<const Xpetra::Map<LO,GO,NO> > map);
     

@@ -43,7 +43,8 @@
 #define _FROSCH_SUMOPERATOR_DECL_HPP
 
 #include <FROSch_SchwarzOperator_def.hpp>
-
+#include <FROSch_CoarseOperator_decl.hpp>
+#include <FROSch_OverlappingOperator_decl.hpp>
 namespace FROSch {
     
     template <class SC = Xpetra::Operator<>::scalar_type,
@@ -62,6 +63,10 @@ namespace FROSch {
         typedef typename SchwarzOperator<SC,LO,GO,NO>::MultiVector MultiVector;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::MultiVectorPtr MultiVectorPtr;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::CrsMatrixPtr CrsMatrixPtr;
+        
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::ImporterPtr ImporterPtr;
+        
         typedef typename SchwarzOperator<SC,LO,GO,NO>::SchwarzOperatorPtr SchwarzOperatorPtr;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::SchwarzOperatorPtrVec SchwarzOperatorPtrVec;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::SchwarzOperatorPtrVecPtr SchwarzOperatorPtrVecPtr;
@@ -69,7 +74,17 @@ namespace FROSch {
         typedef typename SchwarzOperator<SC,LO,GO,NO>::UN UN;
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::BoolVec BoolVec;
+        
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::MapPtrVecPtr MapPtrVecPtr;
+        
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::SCVecPtr SCVecPtr;
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::ConstSCVecPtr ConstSCVecPtr;
 
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::SubdomainSolverPtr SubdomainSolverPtr;
+        
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::Time_Type Time_Type;
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimePtr_Type TimePtr_Type;
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
         
         SumOperator(CommPtr comm);
         
@@ -117,6 +132,7 @@ namespace FROSch {
         
         BoolVec EnableOperators_;
 
+        TimePtr_Type ApplyTimer_;
     };
     
 }

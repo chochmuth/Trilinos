@@ -94,10 +94,13 @@ namespace FROSch {
                                                                             MapPtr repeatedMap)
     {
         //if (this->Verbose_) std::cout << "WARNING: Can we just copy the pointers like that without changing the matrix...?\n";
-
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type ExtractTM(*this->ExtractTimer_);
+        TimeMonitor_Type FullTM(*this->FullSetupTimer_);
+#endif
         this->OverlappingMap_ = repeatedMap;
         this->OverlappingMatrix_ = this->K_;
-        for (int i=0; i<overlap; i++) {
+        for (int i=0; i<overlap; i++) { //here on subcom if parallel SumOperator is used
             ExtendOverlapByOneLayer(this->OverlappingMatrix_,this->OverlappingMap_);
         }
 

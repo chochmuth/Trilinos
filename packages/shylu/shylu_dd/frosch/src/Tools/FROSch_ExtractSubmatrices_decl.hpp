@@ -52,12 +52,14 @@ namespace FROSch {
     
     template <class SC,class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > ExtractLocalSubdomainMatrix(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > globalMatrix,
-                                                          Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map);
+                                                                           Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map,
+                                                                           bool OnLocalComm = true);
     
     template <class SC,class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > ExtractLocalSubdomainMatrix(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > globalMatrix,
-                                                      Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map,
-                                                      SC value);
+                                                                           Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map,
+                                                                           SC value,
+                                                                           bool OnLocalComm = true);
     
     template <class SC,class LO,class GO,class NO>
     int UpdateLocalSubdomainMatrix(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > globalMatrix,

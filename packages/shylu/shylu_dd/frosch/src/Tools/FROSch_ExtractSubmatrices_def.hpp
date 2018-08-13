@@ -47,43 +47,49 @@ namespace FROSch {
     
     template <class SC,class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > ExtractLocalSubdomainMatrix(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > globalMatrix,
-                                                                           Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map)
+                                                                           Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map,
+                                                                           bool OnLocalComm)
     {
         Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > subdomainMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(map,2*globalMatrix->getGlobalMaxNumRowEntries());
         Teuchos::RCP<Xpetra::Import<LO,GO,NO> > scatter = Xpetra::ImportFactory<LO,GO,NO>::Build(globalMatrix->getRowMap(),map);
         subdomainMatrix->doImport(*globalMatrix,*scatter,Xpetra::ADD);
         //cout << *subdomainMatrix << std::endl;
-        Teuchos::RCP<const Teuchos::Comm<LO> > SerialComm = rcp(new Teuchos::MpiComm<LO>(MPI_COMM_SELF));
-        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > localSubdomainMap = Xpetra::MapFactory<LO,GO,NO>::Build(map->lib(),map->getNodeNumElements(),0,SerialComm);
-        Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > localSubdomainMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(localSubdomainMap,globalMatrix->getNodeMaxNumRowEntries());
-        
-        for (unsigned i=0; i<localSubdomainMap->getNodeNumElements(); i++) {
-            Teuchos::ArrayView<const GO> indices;
-            Teuchos::ArrayView<const SC> values;
-            subdomainMatrix->getGlobalRowView(map->getGlobalElement(i),indices,values);
+        Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > localSubdomainMatrix;
+        if (OnLocalComm) {
+            Teuchos::RCP<const Teuchos::Comm<LO> > SerialComm = rcp(new Teuchos::MpiComm<LO>(MPI_COMM_SELF));
+            Teuchos::RCP<Xpetra::Map<LO,GO,NO> > localSubdomainMap = Xpetra::MapFactory<LO,GO,NO>::Build(map->lib(),map->getNodeNumElements(),0,SerialComm);
+             localSubdomainMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(localSubdomainMap,globalMatrix->getNodeMaxNumRowEntries());
             
-            LO size = indices.size();
-            if (size>0) {
-                Teuchos::Array<GO> indicesLocal;
-                Teuchos::Array<SC> valuesLocal;
-                for (LO j=0; j<size; j++) {
-                    GO localIndex = map->getLocalElement(indices[j]);
-                    if (localIndex>=0) {
-                        indicesLocal.push_back(localIndex);
-                        valuesLocal.push_back(values[j]);
+            for (unsigned i=0; i<localSubdomainMap->getNodeNumElements(); i++) {
+                Teuchos::ArrayView<const GO> indices;
+                Teuchos::ArrayView<const SC> values;
+                subdomainMatrix->getGlobalRowView(map->getGlobalElement(i),indices,values);
+                
+                LO size = indices.size();
+                if (size>0) {
+                    Teuchos::Array<GO> indicesLocal;
+                    Teuchos::Array<SC> valuesLocal;
+                    for (LO j=0; j<size; j++) {
+                        GO localIndex = map->getLocalElement(indices[j]);
+                        if (localIndex>=0) {
+                            indicesLocal.push_back(localIndex);
+                            valuesLocal.push_back(values[j]);
+                        }
                     }
+                    localSubdomainMatrix->insertGlobalValues(i,indicesLocal(),valuesLocal());
                 }
-                localSubdomainMatrix->insertGlobalValues(i,indicesLocal(),valuesLocal());
             }
+            localSubdomainMatrix->fillComplete();        
+            
         }
-        localSubdomainMatrix->fillComplete();        
         return localSubdomainMatrix;
     }
     
     template <class SC,class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > ExtractLocalSubdomainMatrix(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > globalMatrix,
                                                                            Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map,
-                                                                           SC value)
+                                                                           SC value,
+                                                                           bool OnLocalComm)
     {
         Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > subdomainMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(map,2*globalMatrix->getGlobalMaxNumRowEntries());
         Teuchos::RCP<Xpetra::Import<LO,GO,NO> > scatter = Xpetra::ImportFactory<LO,GO,NO>::Build(globalMatrix->getRowMap(),map);

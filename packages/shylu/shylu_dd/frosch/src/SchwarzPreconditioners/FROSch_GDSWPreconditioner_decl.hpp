@@ -72,6 +72,7 @@ namespace FROSch {
         
         typedef typename SchwarzPreconditioner<SC,LO,GO,NO>::GOVecPtr GOVecPtr;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
         
         GDSWPreconditioner(CrsMatrixPtr k,
                            ParameterListPtr parameterList);

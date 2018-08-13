@@ -91,6 +91,7 @@ namespace FROSch {
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::BoolVecPtr BoolVecPtr;
             
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
         
         GDSWCoarseOperator(CrsMatrixPtr k,
                            ParameterListPtr parameterList);

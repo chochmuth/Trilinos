@@ -62,6 +62,7 @@ namespace FROSch {
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::ParameterListPtr ParameterListPtr;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
         
         AlgebraicOverlappingOperator(CrsMatrixPtr k,
                                      ParameterListPtr parameterList);

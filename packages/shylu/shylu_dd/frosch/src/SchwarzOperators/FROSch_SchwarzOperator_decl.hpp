@@ -44,6 +44,8 @@
 
 #define FROSCH_ASSERT(A,S) if(!(A)) { std::cerr<<"Assertion failed. "<<S<<std::endl; std::cout.flush(); throw std::out_of_range("Assertion.");};
 
+#define FROSCH_TIMER
+
 #include <Xpetra_MatrixMatrix.hpp>
 #include <Xpetra_TripleMatrixMultiply.hpp>
 #include <Xpetra_Export.hpp>
@@ -141,7 +143,10 @@ namespace FROSch {
         
         typedef Teuchos::Array<bool> BoolVec;
         typedef Teuchos::ArrayRCP<bool> BoolVecPtr;
-        
+
+        typedef Teuchos::Time Time_Type;
+        typedef Teuchos::RCP<Time_Type> TimePtr_Type;
+        typedef Teuchos::TimeMonitor TimeMonitor_Type;
         
         SchwarzOperator(CommPtr comm);
         
@@ -183,6 +188,7 @@ namespace FROSch {
         
         int resetMatrix(CrsMatrixPtr &k);
         
+        ParameterListPtr getParameterList();
     protected:
         
         CommPtr MpiComm_;

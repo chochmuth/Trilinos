@@ -320,20 +320,26 @@ namespace FROSch {
             coarseSpaceFunctions[8] = false;
         }
         
+        
+        
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type InterfaceTM(*this->InterfaceTimer_);
+        InterfaceTM.setStackedTimer(Teuchos::null);
+#endif
+        
         this->DofsMaps_[blockId] = dofsMaps;
         this->DofsPerNode_[blockId] = dofsPerNode;
 
         Teuchos::Array<GO> tmpDirichletBoundaryDofs(dirichletBoundaryDofs()); // Here, we do a copy. Maybe, this is not necessary
         sortunique(tmpDirichletBoundaryDofs);
-
+        
         DDInterface_.reset(new DDInterface<SC,LO,GO,NO>(dimension,dofsPerNode,nodesMap));
         DDInterface_->resetGlobalDofs(dofsMaps);
         DDInterface_->removeDirichletNodes(tmpDirichletBoundaryDofs());
         if (this->ParameterList_->get("Test Unconnected Interface",true)) {
             DDInterface_->divideUnconnectedEntities(this->K_);
         }
-
-
+        
         DDInterface_->sortEntities(nodeList);
         
         EntitySetPtr vertices,shortEdges,straightEdges,edges,faces,interface,interior;
@@ -351,7 +357,6 @@ namespace FROSch {
                 this->IDofs_[blockId][dofsPerNode*i+k] = interior->getEntity(0)->getLocalDofID(i,k);
             }
         }
-        
         if (useForCoarseSpace && (coarseSpaceFunctions[0]||coarseSpaceFunctions[1]||coarseSpaceFunctions[2]||coarseSpaceFunctions[3]||coarseSpaceFunctions[4]||coarseSpaceFunctions[5]||coarseSpaceFunctions[6]||coarseSpaceFunctions[7]||coarseSpaceFunctions[8])) {
             
             ////////////////////////////////
@@ -491,6 +496,11 @@ namespace FROSch {
                 }
             }
 
+#ifdef FROSCH_TIMER
+            InterfaceTM.~TimeMonitor();
+#endif
+
+            
             if (this->Verbose_) {
                 
                 std::cout << "\n\
@@ -523,10 +533,18 @@ namespace FROSch {
             LOVecPtr2D partMappings;
             this->BlockCoarseMaps_[blockId] = AssembleMaps(mapVector(),partMappings);
 
+            
             ////////////////////
             // Build PhiGamma //
             ////////////////////
+#ifdef FROSCH_TIMER
+            TimeMonitor_Type ComputePhiTM(*this->ComputePhiTimer_);
+            ComputePhiTM.setStackedTimer(Teuchos::null);
+            TimeMonitor_Type FullTM(*this->FullSetupTimer_);
+            FullTM.setStackedTimer(Teuchos::null);
+#endif
             phiGammaGDSW(blockId,useRotations,dimension,dofsPerNode,nodeList,partMappings,vertices,shortEdges,straightEdges,edges,faces,coarseSpaceFunctions);
+
         }
         
         return 0;
@@ -553,7 +571,10 @@ namespace FROSch {
 
         //Epetra_SerialComm serialComm;
         MapPtr serialGammaMap = Xpetra::MapFactory<LO,GO,NO>::Build(this->BlockCoarseMaps_[blockId]->lib(),this->GammaDofs_[blockId].size(),0,this->SerialComm_);
-        this->MVPhiGamma_[blockId] = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(serialGammaMap,this->BlockCoarseMaps_[blockId]->getNodeNumElements());
+
+        if (this->NotOnCoarseSolveComm_) {
+            this->MVPhiGamma_[blockId] = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(serialGammaMap,this->BlockCoarseMaps_[blockId]->getNodeNumElements());
+        }
 
         LO ii=0;
         SC x,y,z,rx,ry,rz;

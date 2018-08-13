@@ -82,6 +82,11 @@ namespace FROSch {
             if (this->Verbose_) std::cout << "\nWarning: Rotations cannot be used!\n";
         }
         
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type InterfaceTM(*this->InterfaceTimer_);
+        InterfaceTM.setStackedTimer(Teuchos::null);
+#endif
+        
         this->DofsMaps_[blockId] = dofsMaps;
         this->DofsPerNode_[blockId] = dofsPerNode;
 
@@ -190,7 +195,10 @@ namespace FROSch {
                     numEntitiesGlobal[i] = 0;
                 }
             }
-
+            
+#ifdef FROSCH_TIMER
+            InterfaceTM.~TimeMonitor();
+#endif
             if (this->MpiComm_->getRank() == 0) {
                 std::cout << "\n\
                 --------------------------------------------\n\
@@ -210,6 +218,12 @@ namespace FROSch {
             ////////////////////
             // Build PhiGamma //
             ////////////////////
+#ifdef FROSCH_TIMER
+            TimeMonitor_Type ComputePhiTM(*this->ComputePhiTimer_);
+            ComputePhiTM.setStackedTimer(Teuchos::null);
+            TimeMonitor_Type FullTM(*this->FullSetupTimer_);
+            FullTM.setStackedTimer(Teuchos::null);
+#endif
             phiGammaReducedGDSW(blockId,option,useRotations,dimension,dofsPerNode,nodeList,partMappings,vertices,edges,faces);
         }
         

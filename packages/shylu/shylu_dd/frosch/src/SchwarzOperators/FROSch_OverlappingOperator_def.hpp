@@ -56,7 +56,16 @@ namespace FROSch {
     SubdomainSolver_ (),
     Multiplicity_(),
     Combine_(),
-    levelID_(this->ParameterList_->get("Level ID",1))
+    levelID_(this->ParameterList_->get("Level ID",1)),
+    OnFirstLevelComm_(false),
+    FirstLevelSolveComm_()
+#ifdef FROSCH_TIMER
+    ,OverlapTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Build Overlap")),
+    ExtractTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Extract Local Matrices")),
+    ComputeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Compute")),
+    FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Full Setup")),
+    ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Apply"))
+#endif
     {
         if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Averaging")) {
             Combine_ = Averaging;
@@ -65,6 +74,10 @@ namespace FROSch {
         } else if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Restricted")) {
             Combine_ = Restricted;
         }
+        if ( this->MpiComm_->getRank() < this->MpiComm_->getSize() - this->ParameterList_->get("Mpi Ranks Coarse",0)) {
+            OnFirstLevelComm_ = true;
+        }
+        FirstLevelSolveComm_ = this->MpiComm_->split(!OnFirstLevelComm_,this->MpiComm_->getRank());
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -84,6 +97,9 @@ namespace FROSch {
     {
         FROSCH_ASSERT(this->IsComputed_,"ERROR: OverlappingOperator has to be computed before calling apply()");
 
+#ifdef FROSCH_TIMER
+            TimeMonitor_Type ApplyTM(*ApplyTimer_);
+#endif
         MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
         *xTmp = x;
         
@@ -92,14 +108,14 @@ namespace FROSch {
         }
         
         MultiVectorPtr xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
-        MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMatrix_->getDomainMap(),x.getNumVectors());
+        MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
 
         xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
-
-        xOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
-        
-        SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
-
+        if (OnFirstLevelComm_) {
+            yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
+            xOverlap->replaceMap(OverlappingMatrix_->getDomainMap());
+            SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
+        }
         xTmp->putScalar(0.0);
         yOverlap->replaceMap(OverlappingMap_);
 
@@ -136,7 +152,11 @@ namespace FROSch {
     template <class SC,class LO,class GO,class NO>
     int OverlappingOperator<SC,LO,GO,NO>::initializeOverlappingOperator()
     {
-
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type OverlapTM(*OverlapTimer_);
+        TimeMonitor_Type FullTM(*FullSetupTimer_);
+#endif
+        // subcom for parallel SumOperator
         Scatter_ = Xpetra::ImportFactory<LO,GO,NO>::Build(this->getDomainMap(),OverlappingMap_);
         if (Combine_ == Averaging) {
             Multiplicity_ = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(this->getRangeMap(),1);
@@ -146,28 +166,88 @@ namespace FROSch {
             ExporterPtr multiplicityExporter = Xpetra::ExportFactory<LO,GO,NO>::Build(multiplicityRepeated->getMap(),this->getRangeMap());
             Multiplicity_->doExport(*multiplicityRepeated,*multiplicityExporter,Xpetra::ADD);
         }
-        
+//                }
         return 0; // RETURN VALUE
     }
     
     template <class SC,class LO,class GO,class NO>
     int OverlappingOperator<SC,LO,GO,NO>::computeOverlappingOperator()
     {
-
+        int ret = 0;
         if (this->IsComputed_) {// already computed once and we want to recycle the information. That is why we reset OverlappingMatrix_ to K_, because K_ has been reset at this point
             OverlappingMatrix_ = this->K_;
         }
+//        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+        {
+#ifdef FROSCH_TIMER
+            TimeMonitor_Type OverlapTM(*ExtractTimer_);
+            TimeMonitor_Type FullTM(*FullSetupTimer_);
+#endif
+            OverlappingMatrix_ = ExtractLocalSubdomainMatrix(OverlappingMatrix_,OverlappingMap_,OnFirstLevelComm_);
+        }
         
-        OverlappingMatrix_ = ExtractLocalSubdomainMatrix(OverlappingMatrix_,OverlappingMap_);
-        
-        SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
-        SubdomainSolver_->initialize();
-
-        int ret = SubdomainSolver_->compute();
-
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type OverlapTM(*ComputeTimer_);
+        TimeMonitor_Type FullTM(*FullSetupTimer_);
+#endif
+         if (OnFirstLevelComm_) {
+            SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
+            SubdomainSolver_->initialize();
+            ret = SubdomainSolver_->compute();
+        }
+    
         return ret; // RETURN VALUE
     }
     
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::MapPtr OverlappingOperator<SC,LO,GO,NO>::getOverlappingMap()
+    {
+        return OverlappingMap_;
+    }
+
+
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::CrsMatrixPtr OverlappingOperator<SC,LO,GO,NO>::getOverlappingMatrix()
+    {
+        return OverlappingMatrix_;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::SubdomainSolverPtr OverlappingOperator<SC,LO,GO,NO>::getSubdomainSolver()
+    {
+        return SubdomainSolver_;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::MultiVectorPtr OverlappingOperator<SC,LO,GO,NO>::getMultiplicity()
+    {
+        return Multiplicity_;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::ImporterPtr OverlappingOperator<SC,LO,GO,NO>::getScatter()
+    {
+        return Scatter_;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::CommPtr OverlappingOperator<SC,LO,GO,NO>::getLevelComm()
+    {
+        return FirstLevelSolveComm_;
+    }
+
+    template <class SC,class LO,class GO,class NO>
+    bool OverlappingOperator<SC,LO,GO,NO>::getOnLevelComm()
+    {
+        return OnFirstLevelComm_;
+    }
+
+    
+    template <class SC,class LO,class GO,class NO>
+    CombinationType OverlappingOperator<SC,LO,GO,NO>::getCombineMode()
+    {
+        return Combine_;
+    }
 }
 
 #endif

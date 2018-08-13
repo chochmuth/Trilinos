@@ -80,6 +80,8 @@ namespace FROSch {
         typedef typename SchwarzOperator<SC,LO,GO,NO>::GOVec2D GOVec2D;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::SCVec SCVec;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
+        
         HarmonicCoarseOperator(CrsMatrixPtr k,
                                ParameterListPtr parameterList);
         

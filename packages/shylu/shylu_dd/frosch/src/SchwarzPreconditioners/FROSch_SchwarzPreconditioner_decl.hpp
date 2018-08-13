@@ -87,6 +87,7 @@ namespace FROSch {
         typedef Teuchos::RCP<RGDSWCoarseOperator<SC,LO,GO,NO> > RGDSWCoarseOperatorPtr;
         typedef Teuchos::RCP<IPOUHarmonicCoarseOperator<SC,LO,GO,NO> > IPOUHarmonicCoarseOperatorPtr;
         
+        
         typedef unsigned UN;
         
         typedef Teuchos::ArrayRCP<GO> GOVecPtr;

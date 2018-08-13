@@ -57,7 +57,9 @@ namespace FROSch {
     UseMultiplicative_(false)
     {
         if (!this->ParameterList_->get("OverlappingOperator Type","AlgebraicOverlappingOperator").compare("AlgebraicOverlappingOperator")) {
+            parameterList->sublist("AlgebraicOverlappingOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
             OverlappingOperator_ = AlgebraicOverlappingOperatorPtr(new AlgebraicOverlappingOperator<SC,LO,GO,NO>(k,sublist(parameterList,"AlgebraicOverlappingOperator")));
+            
         } else {
             FROSCH_ASSERT(0!=0,"OverlappingOperator Type unkown.");
         }
@@ -70,7 +72,7 @@ namespace FROSch {
         else{
             SumOperator_->addOperator(OverlappingOperator_);
         }
-
+        
     }
     
     template <class SC,class LO,class GO,class NO>

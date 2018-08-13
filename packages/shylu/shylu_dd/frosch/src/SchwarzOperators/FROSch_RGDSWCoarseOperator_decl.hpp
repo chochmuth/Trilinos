@@ -82,6 +82,7 @@ namespace FROSch {
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::SCVecPtr SCVecPtr;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
         
         RGDSWCoarseOperator(CrsMatrixPtr k,
                             ParameterListPtr parameterList);

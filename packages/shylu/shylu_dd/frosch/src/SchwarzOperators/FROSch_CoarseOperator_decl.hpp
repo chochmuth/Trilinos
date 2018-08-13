@@ -90,6 +90,10 @@ namespace FROSch {
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::ConstSCVecView ConstSCVecView;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::Time_Type Time_Type;
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimePtr_Type TimePtr_Type;
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
+        
         CoarseOperator(CrsMatrixPtr k,
                        ParameterListPtr parameterList);
         
@@ -116,6 +120,7 @@ namespace FROSch {
         virtual void applyPhi(MultiVector& x,
                              MultiVector& y) const;
 
+        MapPtrVecPtr getGatheringMaps();
         
     protected:
         
@@ -146,6 +151,18 @@ namespace FROSch {
         ParameterListPtr DistributionList_;
         
         ExporterPtrVecPtr CoarseSolveExporters_;
+        
+        bool NotOnCoarseSolveComm_;
+        
+#ifdef FROSCH_TIMER
+        TimePtr_Type InterfaceTimer_;
+        TimePtr_Type ComputePhiTimer_;
+        TimePtr_Type BuildCoarseTimer_;
+        TimePtr_Type ComputeTimer_;
+        TimePtr_Type FullSetupTimer_;
+        TimePtr_Type ApplyTimer_;
+        TimePtr_Type GatheringTimer_;
+#endif
         
     };
     

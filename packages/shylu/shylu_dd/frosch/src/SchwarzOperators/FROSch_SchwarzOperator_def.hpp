@@ -122,6 +122,11 @@ namespace FROSch {
         K_ = k;
         return 0;
     }
+    
+    template<class SC,class LO,class GO,class NO>
+    typename SchwarzOperator<SC,LO,GO,NO>::ParameterListPtr SchwarzOperator<SC,LO,GO,NO>::getParameterList() {
+        return ParameterList_;
+    }
 
 }
 

@@ -61,9 +61,21 @@ namespace FROSch {
     BlockCoarseSize_(),
     CoarseSolver_ (),
     DistributionList_ (sublist(parameterList,"Distribution")),
-    CoarseSolveExporters_ (0)
+    CoarseSolveExporters_ (0),
+    NotOnCoarseSolveComm_(false)
+#ifdef FROSCH_TIMER
+    ,InterfaceTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Build Interface")),
+    ComputePhiTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis")),
+    BuildCoarseTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Build Coarse Problem")),
+    ComputeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Coarse Problem")),
+    FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Full Setup")),
+    ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply")),
+    GatheringTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Gathering"))
+#endif
     {
-        
+        if (this->MpiComm_->getRank() < this->MpiComm_->getSize() - this->ParameterList_->get("Mpi Ranks Coarse",0)) {
+            NotOnCoarseSolveComm_ = true;
+        }
     }
     
     template<class SC,class LO,class GO,class NO>
@@ -80,6 +92,9 @@ namespace FROSch {
                                             SC alpha,
                                             SC beta) const
     {
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type ApplyTM(*ApplyTimer_);
+#endif
         static int i = 0;
         if (this->IsComputed_) {
             MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
@@ -168,97 +183,118 @@ namespace FROSch {
     {
 
         // Build CoarseMatrix_
-        CrsMatrixPtr k0 = buildCoarseMatrix();
-
-        // Build CoarseMap_
-        buildCoarseSolveMap(k0);
-
-        //------------------------------------------------------------------------------------------------------------------------
-        // Communicate coarse matrix
+        CrsMatrixPtr k0;
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type FullTM(*FullSetupTimer_);
+#endif
         
-        if (DistributionList_->get("Type","linear").compare("Zoltan2")) {
-            CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseMap_,GatheringMaps_[0]);
-            
-            CrsMatrixPtr tmpCoarseMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[0],k0->getGlobalMaxNumRowEntries());
-            
-            tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[0],Xpetra::INSERT);
+        {
+#ifdef FROSCH_TIMER
+            TimeMonitor_Type ApplyTM(*BuildCoarseTimer_);
+#endif
+            k0 = buildCoarseMatrix();
+        }
+        {
+#ifdef FROSCH_TIMER
+            TimeMonitor_Type GatheringTM(*GatheringTimer_);
+#endif
+            // Build CoarseMap_
+            buildCoarseSolveMap(k0);
 
-            for (UN j=1; j<GatheringMaps_.size(); j++) {
-                tmpCoarseMatrix->fillComplete();
-                k0 = tmpCoarseMatrix;
-                CoarseSolveExporters_[j] = Xpetra::ExportFactory<LO,GO,NO>::Build(GatheringMaps_[j-1],GatheringMaps_[j]);
-                tmpCoarseMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[j],k0->getGlobalMaxNumRowEntries());
-                
-                tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[j],Xpetra::INSERT);
-            }
             //------------------------------------------------------------------------------------------------------------------------
-            // Matrix to the new communicator
-            if (OnCoarseSolveComm_) {
-                CoarseMatrix_ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,k0->getGlobalMaxNumRowEntries());
-                ConstGOVecView indices;
-                ConstSCVecView values;
-                for (UN i=0; i<tmpCoarseMatrix->getNodeNumRows(); i++) {
-                    tmpCoarseMatrix->getGlobalRowView(CoarseSolveMap_->getGlobalElement(i),indices,values);
-                    if (indices.size()>0) {
-                        CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indices,values);
-                    } else { // Add diagonal unit for zero rows // Todo: Do you we need to sort the coarse matrix "NodeWise"?
-                        GOVec indices(1,CoarseSolveMap_->getGlobalElement(i));
-                        SCVec values(1,1.0);
-                        CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indices(),values());
-                    }
-                    
-                }
-                
-                CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_); //Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
-                CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
-                CoarseSolver_->initialize();
-
-                CoarseSolver_->compute();
-                
-            }
-
+            // Communicate coarse matrix
             
-        }    //------------------------------------------------------------------------------------------------------------------------
-        else{//coarse matrix already communicated with Zoltan2. Communicate to CoarseSolveComm.
-             //------------------------------------------------------------------------------------------------------------------------
-            // Matrix to the new communicator
-            if (OnCoarseSolveComm_) {
-                CoarseMatrix_ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,k0->getGlobalMaxNumRowEntries());
-                ConstLOVecView indices;
-                ConstSCVecView values;
-                for (UN i=0; i<k0->getNodeNumRows(); i++) {
-                    // different sorted maps: CoarseSolveMap_ and k0
-                    LO locRow = k0->getRowMap()->getLocalElement(CoarseSolveMap_->getGlobalElement(i));
-                    k0->getLocalRowView(locRow,indices,values);
-                    if (indices.size()>0) {
-                        GOVec indicesGlob(indices.size());
-                        for (UN j=0; j<indices.size(); j++) {
-                            indicesGlob[j] = k0->getColMap()->getGlobalElement(indices[j]);
+            if (DistributionList_->get("Type","linear").compare("Zoltan2")) {
+                CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseMap_,GatheringMaps_[0]);
+                
+                CrsMatrixPtr tmpCoarseMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[0],k0->getGlobalMaxNumRowEntries());
+                
+                tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[0],Xpetra::INSERT);
+
+                for (UN j=1; j<GatheringMaps_.size(); j++) {
+                    tmpCoarseMatrix->fillComplete();
+                    k0 = tmpCoarseMatrix;
+                    CoarseSolveExporters_[j] = Xpetra::ExportFactory<LO,GO,NO>::Build(GatheringMaps_[j-1],GatheringMaps_[j]);
+                    tmpCoarseMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[j],k0->getGlobalMaxNumRowEntries());
+                    
+                    tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[j],Xpetra::INSERT);
+                }
+                //------------------------------------------------------------------------------------------------------------------------
+                // Matrix to the new communicator
+                if (OnCoarseSolveComm_) {
+                    CoarseMatrix_ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,k0->getGlobalMaxNumRowEntries());
+                    ConstGOVecView indices;
+                    ConstSCVecView values;
+                    for (UN i=0; i<tmpCoarseMatrix->getNodeNumRows(); i++) {
+                        tmpCoarseMatrix->getGlobalRowView(CoarseSolveMap_->getGlobalElement(i),indices,values);
+                        if (indices.size()>0) {
+                            CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indices,values);
+                        } else { // Add diagonal unit for zero rows // Todo: Do you we need to sort the coarse matrix "NodeWise"?
+                            GOVec indices(1,CoarseSolveMap_->getGlobalElement(i));
+                            SCVec values(1,1.0);
+                            CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indices(),values());
                         }
-                        CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indicesGlob(),values);
-                    } else { // Add diagonal unit for zero rows // Todo: Do you we need to sort the coarse matrix "NodeWise"?
-                        GOVec indices(1,CoarseSolveMap_->getGlobalElement(i));
-                        SCVec values(1,1.0);
-                        CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indices(),values());
+                        
                     }
                     
-                }
-                
-                CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_); //Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
-
-                if (!this->ParameterList_->sublist("CoarseSolver").get("SolverType","Amesos").compare("MueLu")) {
-                    CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseSize_));
-                }
-                else{
+                    CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_); //Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
+#ifdef FROSCH_TIMER
+                    GatheringTM.~TimeMonitor();
+                    TimeMonitor_Type ComputeTM(*ComputeTimer_);
+#endif
                     CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
+                    CoarseSolver_->initialize();
+
+                    CoarseSolver_->compute();
+                    
                 }
 
-                CoarseSolver_->initialize();
+                
+            }    //------------------------------------------------------------------------------------------------------------------------
+            else{//coarse matrix already communicated with Zoltan2. Communicate to CoarseSolveComm.
+                 //------------------------------------------------------------------------------------------------------------------------
+                // Matrix to the new communicator
+                if (OnCoarseSolveComm_) {
+                    CoarseMatrix_ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,k0->getGlobalMaxNumRowEntries());
+                    ConstLOVecView indices;
+                    ConstSCVecView values;
+                    for (UN i=0; i<k0->getNodeNumRows(); i++) {
+                        // different sorted maps: CoarseSolveMap_ and k0
+                        LO locRow = k0->getRowMap()->getLocalElement(CoarseSolveMap_->getGlobalElement(i));
+                        k0->getLocalRowView(locRow,indices,values);
+                        if (indices.size()>0) {
+                            GOVec indicesGlob(indices.size());
+                            for (UN j=0; j<indices.size(); j++) {
+                                indicesGlob[j] = k0->getColMap()->getGlobalElement(indices[j]);
+                            }
+                            CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indicesGlob(),values);
+                        } else { // Add diagonal unit for zero rows // Todo: Do you we need to sort the coarse matrix "NodeWise"?
+                            GOVec indices(1,CoarseSolveMap_->getGlobalElement(i));
+                            SCVec values(1,1.0);
+                            CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indices(),values());
+                        }
+                        
+                    }
+                    
+                    CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_); //Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
+#ifdef FROSCH_TIMER
+                    GatheringTM.~TimeMonitor();
+                    TimeMonitor_Type ComputeTM(*ComputeTimer_);
+#endif
+                    if (!this->ParameterList_->sublist("CoarseSolver").get("SolverType","Amesos").compare("MueLu")) {
+                        CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseSize_));
+                    }
+                    else{
+                        CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
+                    }
 
-                CoarseSolver_->compute();
+                    CoarseSolver_->initialize();
 
+                    CoarseSolver_->compute();
+
+                }
+                //------------------------------------------------------------------------------------------------------------------------
             }
-            //------------------------------------------------------------------------------------------------------------------------
         }
 
        
@@ -288,135 +324,176 @@ namespace FROSch {
     template<class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::buildCoarseSolveMap(CrsMatrixPtr &k0)
     {
-        NumProcsCoarseSolve_ = DistributionList_->get("NumProcs",0);
-        double fac = DistributionList_->get("Factor",1.0);
         
-        // Redistribute Matrix
-        if (NumProcsCoarseSolve_==0) {
-            NumProcsCoarseSolve_ = this->MpiComm_->getSize();//Phi->DomainMap().Comm().getSize();
-        } else if (NumProcsCoarseSolve_==1) {
-            NumProcsCoarseSolve_ = 1;
-        } else if (NumProcsCoarseSolve_==-1) {
-            NumProcsCoarseSolve_ = int(1+std::max(k0->getGlobalNumRows()/10000,k0->getGlobalNumEntries()/100000));
-        } else if (NumProcsCoarseSolve_>1) {
+        if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
+            NumProcsCoarseSolve_ = this->ParameterList_->get("Mpi Ranks Coarse",0);
             
-        } else if (NumProcsCoarseSolve_<-1) {
-            NumProcsCoarseSolve_ = round(pow(1.0*this->MpiComm_->getSize(), 1./(-NumProcsCoarseSolve_)));
+            if (!DistributionList_->get("Type","linear").compare("linear")) {
+                
+                int gatheringSteps = 1;//DistributionList_->get("GatheringSteps",1);
+                GatheringMaps_.resize(gatheringSteps);
+                CoarseSolveExporters_.resize(gatheringSteps);
+                
+
+                LO numMyRows = (LO) (((CoarseMap_->getMaxAllGlobalIndex()+1) / NumProcsCoarseSolve_) + 100.*std::numeric_limits<double>::epsilon());
+                LO remainingEl = CoarseMap_->getMaxAllGlobalIndex()+1 - NumProcsCoarseSolve_*numMyRows;
+                if (remainingEl > this->MpiComm_->getRank() - (this->MpiComm_->getSize() - NumProcsCoarseSolve_) && this->MpiComm_->getRank() >= this-> MpiComm_->getSize() - NumProcsCoarseSolve_) {
+                    numMyRows++;
+                }
+                if (!(this->MpiComm_->getRank() >= this->MpiComm_->getSize() - NumProcsCoarseSolve_)) {
+                    numMyRows = 0;
+                }
+                
+                GatheringMaps_[0] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,numMyRows,0,this->MpiComm_);
+                
+                //------------------------------------------------------------------------------------------------------------------------
+                // Use a separate Communicator for the coarse problem
+                MapPtr tmpCoarseMap = GatheringMaps_[GatheringMaps_.size()-1];
+                
+                if (tmpCoarseMap->getNodeNumElements()>0) {
+                    OnCoarseSolveComm_=true;
+                }
+                CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
+                CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
+                
+            }
+
         } else {
-            FROSCH_ASSERT(0!=0,"This should never happen...");
-        }
-        
-        NumProcsCoarseSolve_ = (LO)  NumProcsCoarseSolve_ * fac;
-        if (NumProcsCoarseSolve_<1) {
-            NumProcsCoarseSolve_ = 1;
-        }
-        
-        if (NumProcsCoarseSolve_ >= this->MpiComm_->getSize() && DistributionList_->get("Type","linear").compare("Zoltan2")) {
-            GatheringMaps_.resize(1);
-            CoarseSolveExporters_.resize(1);
-            GatheringMaps_[0] = BuildUniqueMap<LO,GO,NO>(Phi_->getColMap()); // DO WE NEED THIS IN ANY CASE???
-            return 0;
-        }
-        //cout << DistributionList_->get("Type","linear") << std::endl;
-        if (!DistributionList_->get("Type","linear").compare("linear")) {
+            NumProcsCoarseSolve_ = DistributionList_->get("NumProcs",0);
+            double fac = DistributionList_->get("Factor",1.0);
             
-            int gatheringSteps = DistributionList_->get("GatheringSteps",1);
-            GatheringMaps_.resize(gatheringSteps);
-            CoarseSolveExporters_.resize(gatheringSteps);
+            // Redistribute Matrix
+            if (NumProcsCoarseSolve_==0) {
+                NumProcsCoarseSolve_ = this->MpiComm_->getSize();//Phi->DomainMap().Comm().getSize();
+            } else if (NumProcsCoarseSolve_==1) {
+                NumProcsCoarseSolve_ = 1;
+            } else if (NumProcsCoarseSolve_==-1) {
+                NumProcsCoarseSolve_ = int(1+std::max(k0->getGlobalNumRows()/10000,k0->getGlobalNumEntries()/100000));
+            } else if (NumProcsCoarseSolve_>1) {
+                
+            } else if (NumProcsCoarseSolve_<-1) {
+                NumProcsCoarseSolve_ = round(pow(1.0*this->MpiComm_->getSize(), 1./(-NumProcsCoarseSolve_)));
+            } else {
+                FROSCH_ASSERT(0!=0,"This should never happen...");
+            }
             
-            LO numProcsGatheringStep = this->MpiComm_->getSize();
-            GO numGlobalIndices = CoarseMap_->getMaxAllGlobalIndex()+1;
-            GO numMyRows;
-            double gatheringFactor = pow(double(this->MpiComm_->getSize())/double(NumProcsCoarseSolve_),1.0/double(gatheringSteps));
+            NumProcsCoarseSolve_ = (LO)  NumProcsCoarseSolve_ * fac;
+            if (NumProcsCoarseSolve_<1) {
+                NumProcsCoarseSolve_ = 1;
+            }
             
-            for (int i=0; i<gatheringSteps-1; i++) {
+            if (NumProcsCoarseSolve_ >= this->MpiComm_->getSize() && DistributionList_->get("Type","linear").compare("Zoltan2")) {
+                GatheringMaps_.resize(1);
+                CoarseSolveExporters_.resize(1);
+                GatheringMaps_[0] = BuildUniqueMap<LO,GO,NO>(Phi_->getColMap()); // DO WE NEED THIS IN ANY CASE???
+                return 0;
+            }
+            //cout << DistributionList_->get("Type","linear") << std::endl;
+            if (!DistributionList_->get("Type","linear").compare("linear")) {
+                
+                int gatheringSteps = DistributionList_->get("GatheringSteps",1);
+                GatheringMaps_.resize(gatheringSteps);
+                CoarseSolveExporters_.resize(gatheringSteps);
+                
+                LO numProcsGatheringStep = this->MpiComm_->getSize();
+                GO numGlobalIndices = CoarseMap_->getMaxAllGlobalIndex()+1;
+                GO numMyRows;
+                double gatheringFactor = pow(double(this->MpiComm_->getSize())/double(NumProcsCoarseSolve_),1.0/double(gatheringSteps));
+                
+                for (int i=0; i<gatheringSteps-1; i++) {
+                    numMyRows = 0;
+                    numProcsGatheringStep = LO(numProcsGatheringStep/gatheringFactor);
+                    //if (this->Verbose_) std::cout << i << " " << numProcsGatheringStep << " " << numGlobalIndices << std::endl;
+                    if (this->MpiComm_->getRank()%(this->MpiComm_->getSize()/numProcsGatheringStep) == 0 && this->MpiComm_->getRank()/(this->MpiComm_->getSize()/numProcsGatheringStep) < numProcsGatheringStep) {
+                        if (this->MpiComm_->getRank()==0) {
+                            numMyRows = numGlobalIndices - (numGlobalIndices/numProcsGatheringStep)*(numProcsGatheringStep-1);
+                        } else {
+                            numMyRows = numGlobalIndices/numProcsGatheringStep;
+                        }
+                    }
+                    GatheringMaps_[i] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,numMyRows,0,this->MpiComm_);
+                }
+                
                 numMyRows = 0;
-                numProcsGatheringStep = LO(numProcsGatheringStep/gatheringFactor);
-                //if (this->Verbose_) std::cout << i << " " << numProcsGatheringStep << " " << numGlobalIndices << std::endl;
-                if (this->MpiComm_->getRank()%(this->MpiComm_->getSize()/numProcsGatheringStep) == 0 && this->MpiComm_->getRank()/(this->MpiComm_->getSize()/numProcsGatheringStep) < numProcsGatheringStep) {
+                if (this->MpiComm_->getRank()%(this->MpiComm_->getSize()/NumProcsCoarseSolve_) == 0 && this->MpiComm_->getRank()/(this->MpiComm_->getSize()/NumProcsCoarseSolve_) < NumProcsCoarseSolve_) {
                     if (this->MpiComm_->getRank()==0) {
-                        numMyRows = numGlobalIndices - (numGlobalIndices/numProcsGatheringStep)*(numProcsGatheringStep-1);
+                        numMyRows = numGlobalIndices - (numGlobalIndices/NumProcsCoarseSolve_)*(NumProcsCoarseSolve_-1);
                     } else {
-                        numMyRows = numGlobalIndices/numProcsGatheringStep;
+                        numMyRows = numGlobalIndices/NumProcsCoarseSolve_;
                     }
                 }
-                GatheringMaps_[i] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,numMyRows,0,this->MpiComm_);
-            }
-            
-            numMyRows = 0;
-            if (this->MpiComm_->getRank()%(this->MpiComm_->getSize()/NumProcsCoarseSolve_) == 0 && this->MpiComm_->getRank()/(this->MpiComm_->getSize()/NumProcsCoarseSolve_) < NumProcsCoarseSolve_) {
-                if (this->MpiComm_->getRank()==0) {
-                    numMyRows = numGlobalIndices - (numGlobalIndices/NumProcsCoarseSolve_)*(NumProcsCoarseSolve_-1);
-                } else {
-                    numMyRows = numGlobalIndices/NumProcsCoarseSolve_;
-                }
-            }
-            GatheringMaps_[gatheringSteps-1] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,numMyRows,0,this->MpiComm_);
-            //cout << *GatheringMaps_->at(gatheringSteps-1);
-            
-            //------------------------------------------------------------------------------------------------------------------------
-            // Use a separate Communicator for the coarse problem
-            MapPtr tmpCoarseMap = GatheringMaps_[GatheringMaps_.size()-1];
-            
-            if (tmpCoarseMap->getNodeNumElements()>0) {
-                OnCoarseSolveComm_=true;
-            }
-            CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
-            CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
-            
-        }
-        else if(!DistributionList_->get("Type","linear").compare("Zoltan2")){
-            Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
-
-            GatheringMaps_.resize(1);
-            CoarseSolveExporters_.resize(1);
-
-            GatheringMaps_[0] = Teuchos::rcp_const_cast<Map> (BuildUniqueMap(k0->getRowMap()));
-            //
-            CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseMap_,GatheringMaps_[0]);
-            
-            CrsMatrixPtr k0Unique = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[0],k0->getGlobalMaxNumRowEntries());
-            
-            k0Unique->doExport(*k0,*CoarseSolveExporters_[0],Xpetra::INSERT);
-            k0Unique->fillComplete(GatheringMaps_[0],GatheringMaps_[0]);
-            if (NumProcsCoarseSolve_<this->MpiComm_->getSize()) {
-                ParameterListPtr tmpList = sublist(DistributionList_,"Zoltan2 Parameter");
-                ParameterListPtr zoltanParameterList = Teuchos::rcp(new ParameterList("Zoltan2 Parameter"));
+                GatheringMaps_[gatheringSteps-1] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,numMyRows,0,this->MpiComm_);
+                //cout << *GatheringMaps_->at(gatheringSteps-1);
                 
-                zoltanParameterList->set("algorithm", tmpList->get("algorithm","parmetis"));
-                zoltanParameterList->set("debug_level", tmpList->get("debug_level","basic_status"));
-                zoltanParameterList->set("debug_procs", tmpList->get("debug_procs","0"));
-                zoltanParameterList->set("error_check_level", tmpList->get("error_check_level","basic_assertions"));
-                zoltanParameterList->set("imbalance_tolerance",tmpList->get("imbalance_tolerance",1.1));
-                zoltanParameterList->set("num_global_parts", NumProcsCoarseSolve_);
-                FROSch::RepartionMatrixZoltan2(k0Unique,zoltanParameterList);
+                //------------------------------------------------------------------------------------------------------------------------
+                // Use a separate Communicator for the coarse problem
+                MapPtr tmpCoarseMap = GatheringMaps_[GatheringMaps_.size()-1];
+                
+                if (tmpCoarseMap->getNodeNumElements()>0) {
+                    OnCoarseSolveComm_=true;
+                }
+                CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
+                CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
+                
             }
+            else if(!DistributionList_->get("Type","linear").compare("Zoltan2")){
+                Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
 
-            k0 = k0Unique;
+                GatheringMaps_.resize(1);
+                CoarseSolveExporters_.resize(1);
 
-            GatheringMaps_[0] = Teuchos::rcp_const_cast<Map>(k0->getRowMap());
-            CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseMap_,GatheringMaps_[0]);
+                GatheringMaps_[0] = Teuchos::rcp_const_cast<Map> (BuildUniqueMap(k0->getRowMap()));
+                //
+                CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseMap_,GatheringMaps_[0]);
+                
+                CrsMatrixPtr k0Unique = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[0],k0->getGlobalMaxNumRowEntries());
+                
+                k0Unique->doExport(*k0,*CoarseSolveExporters_[0],Xpetra::INSERT);
+                k0Unique->fillComplete(GatheringMaps_[0],GatheringMaps_[0]);
+                if (NumProcsCoarseSolve_<this->MpiComm_->getSize()) {
+                    ParameterListPtr tmpList = sublist(DistributionList_,"Zoltan2 Parameter");
+                    ParameterListPtr zoltanParameterList = Teuchos::rcp(new ParameterList("Zoltan2 Parameter"));
+                    
+                    zoltanParameterList->set("algorithm", tmpList->get("algorithm","parmetis"));
+                    zoltanParameterList->set("debug_level", tmpList->get("debug_level","basic_status"));
+                    zoltanParameterList->set("debug_procs", tmpList->get("debug_procs","0"));
+                    zoltanParameterList->set("error_check_level", tmpList->get("error_check_level","basic_assertions"));
+                    zoltanParameterList->set("imbalance_tolerance",tmpList->get("imbalance_tolerance",1.1));
+                    zoltanParameterList->set("num_global_parts", NumProcsCoarseSolve_);
+                    FROSch::RepartionMatrixZoltan2(k0Unique,zoltanParameterList);
+                }
 
-            MapPtr tmpCoarseMap = GatheringMaps_[0];
+                k0 = k0Unique;
 
-            if (tmpCoarseMap->getNodeNumElements()>0) {
-                OnCoarseSolveComm_=true;
+                GatheringMaps_[0] = Teuchos::rcp_const_cast<Map>(k0->getRowMap());
+                CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseMap_,GatheringMaps_[0]);
+
+                MapPtr tmpCoarseMap = GatheringMaps_[0];
+
+                if (tmpCoarseMap->getNodeNumElements()>0) {
+                    OnCoarseSolveComm_=true;
+                }
+                
+                GOVec elementList(tmpCoarseMap->getNodeElementList());
+                CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
+                CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,elementList,0,CoarseSolveComm_);
+                
+            } else {
+                FROSCH_ASSERT(0!=0,"Distribution type not defined...");
             }
-            
-            GOVec elementList(tmpCoarseMap->getNodeElementList());
-            CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
-            CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,elementList,0,CoarseSolveComm_);
-            
-        } else {
-            FROSCH_ASSERT(0!=0,"Distribution type not defined...");
         }
-        
         if (this->Verbose_) {
             std::cout << "### ------------------------------ ###" << std::endl;
             std::cout << "### - NumProcs CoarseMatrix : " << NumProcsCoarseSolve_ << std::endl;
             std::cout << "### ------------------------------ ### " << std::endl;
         }
         return 0;
+    }
+    
+    template<class SC,class LO,class GO,class NO>
+    typename CoarseOperator<SC,LO,GO,NO>::MapPtrVecPtr CoarseOperator<SC,LO,GO,NO>::getGatheringMaps()
+    {
+        return GatheringMaps_;
     }
     
 }

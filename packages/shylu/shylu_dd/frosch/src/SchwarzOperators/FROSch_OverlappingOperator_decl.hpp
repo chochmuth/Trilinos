@@ -52,7 +52,7 @@ namespace FROSch {
     class NO = typename Xpetra::Operator<SC,LO,GO>::node_type>
     class OverlappingOperator : public SchwarzOperator<SC,LO,GO,NO> {
     
-    public:
+    public:            
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::CommPtr CommPtr;
         
@@ -73,6 +73,9 @@ namespace FROSch {
         typedef typename SchwarzOperator<SC,LO,GO,NO>::SCVecPtr SCVecPtr;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::ConstSCVecPtr ConstSCVecPtr;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::Time_Type Time_Type;
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimePtr_Type TimePtr_Type;
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
 
         OverlappingOperator(CrsMatrixPtr k,
                             ParameterListPtr parameterList);
@@ -90,9 +93,23 @@ namespace FROSch {
                           SC alpha=Teuchos::ScalarTraits<SC>::one(),
                           SC beta=Teuchos::ScalarTraits<SC>::zero()) const;
         
-    protected:
+        MapPtr getOverlappingMap();
         
-        enum CombinationType {Averaging,Full,Restricted};
+        CrsMatrixPtr getOverlappingMatrix();
+        
+        SubdomainSolverPtr getSubdomainSolver();
+        
+        MultiVectorPtr getMultiplicity();
+        
+        ImporterPtr getScatter();
+        
+        CommPtr getLevelComm();
+        
+        bool getOnLevelComm();
+        
+        CombinationType getCombineMode();
+        
+    protected:
         
         virtual int initializeOverlappingOperator();
         
@@ -112,6 +129,16 @@ namespace FROSch {
         
         int levelID_;
         
+        bool OnFirstLevelComm_;
+        CommPtr FirstLevelSolveComm_;
+        
+#ifdef FROSCH_TIMER
+        TimePtr_Type OverlapTimer_;
+        TimePtr_Type ExtractTimer_;
+        TimePtr_Type ComputeTimer_;
+        TimePtr_Type FullSetupTimer_;
+        TimePtr_Type ApplyTimer_;
+#endif
     };
     
 }
