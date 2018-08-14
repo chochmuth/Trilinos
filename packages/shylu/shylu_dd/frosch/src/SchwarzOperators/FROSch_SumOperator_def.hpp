@@ -110,64 +110,6 @@ namespace FROSch {
         return 0;
     }
     
-//    // Y = alpha * A^mode * X + beta * Y
-//    template <class SC,class LO,class GO,class NO>
-//    void SumOperator<SC,LO,GO,NO>::apply(const MultiVector &x,
-//                                         MultiVector &y,
-//                                         bool usePreconditionerOnly,
-//                                         Teuchos::ETransp mode,
-//                                         SC alpha,
-//                                         SC beta) const
-//    {
-//
-//        if (OperatorVector_.size()>0) {
-//            if (OperatorVector_.size()==2 && OperatorVector_[OperatorVector_.size()-1]->getParameterList()->get("Mpi Ranks Coarse",0)>0) {
-//
-//                Teuchos::RCP<CoarseOperator<SC,LO,GO,NO>> coarseOp =
-//                    Teuchos::rcp_dynamic_cast<CoarseOperator<SC,LO,GO,NO> >(OperatorVector_[1]);
-//
-//                FROSCH_ASSERT(coarseOp->isComputed(),"Coarse Operator is not computed");
-//                
-//                MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
-//                *xTmp = x;
-//
-//                if (!usePreconditionerOnly && mode == Teuchos::NO_TRANS) {
-//                    this->K_->apply(x,*xTmp,mode,1.0,0.0);
-//                }
-//                
-//                MapPtrVecPtr gatheringMaps = coarseOp->getGatheringMaps();
-//
-//                MultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(gatheringMaps[gatheringMaps.size()-1],x.getNumVectors());
-//                MultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(gatheringMaps[gatheringMaps.size()-1],y.getNumVectors());
-//                coarseOp->applyPhiT(*xTmp,*xCoarseSolve);
-//                OperatorVector_[0]->apply(*xTmp,y,usePreconditionerOnly,mode,alpha,beta);
-//                cout << this->MpiComm_->getRank() << " first Level done."<< endl;
-//                coarseOp->applyCoarseSolve(*xCoarseSolve,*yCoarseSolve,mode);
-//                coarseOp->applyPhi(*yCoarseSolve,*xTmp);
-//                y.update(alpha,*xTmp,1.);
-////                if (!usePreconditionerOnly && mode != Teuchos::NO_TRANS) {
-////                    this->K_->apply(*xTmp,*xTmp,mode,1.0,0.0);
-////                }
-////                
-////                y.update(alpha,*xTmp,beta);
-//            }
-//            else{
-//                 
-//                MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
-//                *xTmp = x; // Das brauche ich für den Fall das x=y
-//                UN itmp = 0;
-//                for (UN i=0; i<OperatorVector_.size(); i++) {
-//                    if (EnableOperators_[i]) {
-//                        OperatorVector_[i]->apply(*xTmp,y,usePreconditionerOnly,mode,alpha,beta);
-//                        if (itmp==0) beta = Teuchos::ScalarTraits<SC>::one();
-//                        itmp++;
-//                    }
-//                }
-//            }
-//        } else {
-//            y.update(alpha,x,beta);
-//        }
-//    }
     
     // Y = alpha * A^mode * X + beta * Y
     template <class SC,class LO,class GO,class NO>
@@ -200,16 +142,18 @@ namespace FROSch {
                 MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
                 *xTmp = x;
                 
-                MapPtrVecPtr gatheringMaps = coarseOp->getGatheringMaps();
-                
+//                MapPtrVecPtr gatheringMaps = coarseOp->getGatheringMaps();
+                MapPtr swapMap = coarseOp->getSwapMap();
                 MapPtr overlappingMap = overlappingOp->getOverlappingMap();
                 CrsMatrixPtr overlappingMatrix = overlappingOp->getOverlappingMatrix();
                 SubdomainSolverPtr subdomainSolver = overlappingOp->getSubdomainSolver();
                 ImporterPtr scatter = overlappingOp->getScatter();
                 bool onFristLevelComm = overlappingOp->getOnLevelComm();
-                MultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(gatheringMaps[gatheringMaps.size()-1],x.getNumVectors());
-                MultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(gatheringMaps[gatheringMaps.size()-1],y.getNumVectors());
                 
+//                MultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(gatheringMaps[gatheringMaps.size()-1],x.getNumVectors());
+//                MultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(gatheringMaps[gatheringMaps.size()-1],y.getNumVectors());
+                MultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(swapMap,x.getNumVectors());
+                MultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(swapMap,y.getNumVectors());
                 coarseOp->applyPhiT(*xTmp,*xCoarseSolve);
                 
                 MultiVectorPtr xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(overlappingMap,x.getNumVectors());

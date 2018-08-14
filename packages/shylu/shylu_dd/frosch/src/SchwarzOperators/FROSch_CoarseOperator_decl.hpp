@@ -66,7 +66,7 @@ namespace FROSch {
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::MultiVector MultiVector;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::MultiVectorPtr MultiVectorPtr;
-        
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::ExporterPtr ExporterPtr;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::ExporterPtrVecPtr ExporterPtrVecPtr;
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::ParameterList    ParameterList;
@@ -122,6 +122,7 @@ namespace FROSch {
 
         MapPtrVecPtr getGatheringMaps();
         
+        MapPtr getSwapMap();
     protected:
         
         virtual int setUpCoarseOperator();
@@ -153,6 +154,10 @@ namespace FROSch {
         ExporterPtrVecPtr CoarseSolveExporters_;
         
         bool NotOnCoarseSolveComm_;
+        
+        MapPtr SwapMap_;
+        
+        ExporterPtr SwapExporter_;
         
 #ifdef FROSCH_TIMER
         TimePtr_Type InterfaceTimer_;
