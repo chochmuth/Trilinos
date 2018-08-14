@@ -247,8 +247,9 @@ namespace FROSch {
         }
         
         MapPtr serialGammaMap = Xpetra::MapFactory<LO,GO,NO>::Build(this->BlockCoarseMaps_[blockId]->lib(),this->GammaDofs_[blockId].size(),0,this->SerialComm_);
-        this->MVPhiGamma_[blockId] = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(serialGammaMap,this->BlockCoarseMaps_[blockId]->getNodeNumElements());
-        
+        if (this->NotOnCoarseSolveComm_) {
+            this->MVPhiGamma_[blockId] = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(serialGammaMap,this->BlockCoarseMaps_[blockId]->getNodeNumElements());
+        }
 
         LO itmp=0;
         SC x,y,z,rx,ry,rz;
