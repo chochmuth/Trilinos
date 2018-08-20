@@ -193,6 +193,7 @@ namespace FROSch {
         // Initialize CoarseOperator //
         ///////////////////////////////
 #ifdef FROSCH_TIMER
+        this->MpiComm_->barrier();
         TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);
 #endif
         if (this->ParameterList_->get("TwoLevel",true)) {
@@ -224,6 +225,9 @@ namespace FROSch {
                 FROSCH_ASSERT(0!=0,"CoarseOperator Type unkown.");
             }
         }
+#ifdef FROSCH_TIMER
+        this->MpiComm_->barrier();
+#endif
         return ret;
     }
     
@@ -232,6 +236,7 @@ namespace FROSch {
     {
         int ret = 0;
 #ifdef FROSCH_TIMER
+        this->MpiComm_->barrier();
         TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);
         TimeMonitor_Type ComputeTwoLevelTM(*ComputeTwoLevel_);
 #endif
@@ -240,7 +245,9 @@ namespace FROSch {
         }
         
         if (0>this->OverlappingOperator_->compute()) ret -= 1;
-
+#ifdef FROSCH_TIMER
+        this->MpiComm_->barrier();
+#endif
         return ret;
     }
     
