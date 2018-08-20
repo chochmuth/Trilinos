@@ -91,6 +91,7 @@ namespace FROSch {
                 this->computeHarmonicExtensions();
             }
             this->setUpCoarseOperator();
+            this->computeCoarseOperator();
             this->IsComputed_ = true;
         }
         return 0;

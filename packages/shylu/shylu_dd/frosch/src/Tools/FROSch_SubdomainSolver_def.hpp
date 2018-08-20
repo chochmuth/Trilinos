@@ -89,7 +89,9 @@ namespace FROSch {
                 EpetraMultiVectorPtr bTmp;
                 
                 Amesos2SolverEpetra_ = Amesos2::create<EpetraCrsMatrix,EpetraMultiVector>(ParameterList_->get("Solver","Mumps"),epetraMat,xTmp,bTmp);
-                Amesos2SolverEpetra_->setParameters(sublist(ParameterList_,"Amesos2"));
+                ParameterListPtr parameterList = sublist(ParameterList_,"Amesos2");
+                parameterList->setName("Amesos2");
+                Amesos2SolverEpetra_->setParameters(parameterList);
             } else if (K_->getRowMap()->lib()==Xpetra::UseTpetra) {
                 Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*K_);
                 Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
@@ -97,9 +99,11 @@ namespace FROSch {
                 
                 TpetraMultiVectorPtr xTmp;
                 TpetraMultiVectorPtr bTmp;
-                
+
                 Amesos2SolverTpetra_ = Amesos2::create<Tpetra::CrsMatrix<SC,LO,GO,NO>,Tpetra::MultiVector<SC,LO,GO,NO> >(ParameterList_->get("Solver","Mumps"),tpetraMat,xTmp,bTmp);
-                Amesos2SolverTpetra_->setParameters(sublist(ParameterList_,"Amesos2"));
+                ParameterListPtr parameterList = sublist(ParameterList_,"Amesos2");
+                parameterList->setName("Amesos2");
+                Amesos2SolverTpetra_->setParameters(parameterList);
             } else {
                 FROSCH_ASSERT(0!=0,"This can't happen...");
             }

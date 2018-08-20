@@ -81,6 +81,10 @@ namespace FROSch {
         typedef typename SchwarzPreconditioner<SC,LO,GO,NO>::GOVecPtr2D GOVecPtr2D;
         typedef typename Teuchos::ArrayRCP<DofOrdering> DofOrderingVecPtr;
         
+        typedef typename SchwarzPreconditioner<SC,LO,GO,NO>::Time_Type Time_Type;
+        typedef typename SchwarzPreconditioner<SC,LO,GO,NO>::TimePtr_Type TimePtr_Type;
+        typedef typename SchwarzPreconditioner<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
+        
         TwoLevelBlockPreconditioner(CrsMatrixPtr k,
                                     ParameterListPtr parameterList);
         
@@ -109,7 +113,10 @@ namespace FROSch {
     protected:
         
         CoarseOperatorPtr CoarseOperator_;
-        
+#ifdef FROSCH_TIMER
+        TimePtr_Type SetupTwoLevel_;
+        TimePtr_Type ComputeTwoLevel_;
+#endif
     };
     
 }

@@ -127,6 +127,8 @@ namespace FROSch {
         
         virtual int setUpCoarseOperator();
         
+        virtual int computeCoarseOperator();
+        
         CrsMatrixPtr buildCoarseMatrix();
         
         virtual int buildCoarseSolveMap(CrsMatrixPtr &k0);

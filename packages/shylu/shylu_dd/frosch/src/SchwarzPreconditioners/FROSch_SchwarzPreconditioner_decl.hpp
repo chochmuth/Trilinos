@@ -87,6 +87,9 @@ namespace FROSch {
         typedef Teuchos::RCP<RGDSWCoarseOperator<SC,LO,GO,NO> > RGDSWCoarseOperatorPtr;
         typedef Teuchos::RCP<IPOUHarmonicCoarseOperator<SC,LO,GO,NO> > IPOUHarmonicCoarseOperatorPtr;
         
+        typedef Teuchos::Time Time_Type;
+        typedef Teuchos::RCP<Time_Type> TimePtr_Type;
+        typedef Teuchos::TimeMonitor TimeMonitor_Type;
         
         typedef unsigned UN;
         

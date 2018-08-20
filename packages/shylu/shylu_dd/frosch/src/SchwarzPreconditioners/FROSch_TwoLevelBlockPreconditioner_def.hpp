@@ -52,6 +52,10 @@ namespace FROSch {
                                                                 ParameterListPtr parameterList) :
     OneLevelPreconditioner<SC,LO,GO,NO> (k,parameterList),
     CoarseOperator_ ()
+#ifdef FROSCH_TIMER
+    ,SetupTwoLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Setup 1st & 2nd Level")),
+    ComputeTwoLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Compute 1st & 2nd Level"))
+#endif
     {
         if (this->ParameterList_->get("TwoLevel",true)) {            
             if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
@@ -183,9 +187,14 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(0!=0,"OverlappingOperator Type unkown.");
         }
+        
+
         ///////////////////////////////
         // Initialize CoarseOperator //
         ///////////////////////////////
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);
+#endif
         if (this->ParameterList_->get("TwoLevel",true)) {
             if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("CoarseSolver").sublist("MueLu").set("Dimension",(int)dimension);
@@ -222,7 +231,10 @@ namespace FROSch {
     int TwoLevelBlockPreconditioner<SC,LO,GO,NO>::compute()
     {
         int ret = 0;
-
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);
+        TimeMonitor_Type ComputeTwoLevelTM(*ComputeTwoLevel_);
+#endif
         if (this->ParameterList_->get("TwoLevel",true)) {
             if (0>CoarseOperator_->compute()) ret -= 10;
         }
