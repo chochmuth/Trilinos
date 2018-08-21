@@ -54,7 +54,11 @@ namespace FROSch {
     CoarseOperator_ ()
 #ifdef FROSCH_TIMER
     ,SetupTwoLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Setup 1st & 2nd Level")),
-    ComputeTwoLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Compute 1st & 2nd Level"))
+    ComputeTwoLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Compute 1st & 2nd Level")),
+    InitializeFirstLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Init 1st")),
+    InitializeSecondLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Init 2nd Level")),
+    ComputeFirstLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Compute 1st Level")),
+    ComputeSecondLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Compute 2ns Level"))
 #endif
     {
         if (this->ParameterList_->get("TwoLevel",true)) {            
@@ -176,8 +180,11 @@ namespace FROSch {
             }
             
         }
-
-
+#ifdef FROSCH_TIMER
+        this->MpiComm_->barrier();
+        TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);
+        TimeMonitor_Type InitializeFirstLevelTM(*InitializeFirstLevel_);
+#endif
         ////////////////////////////////////
         // Initialize OverlappingOperator //
         ////////////////////////////////////
@@ -194,7 +201,8 @@ namespace FROSch {
         ///////////////////////////////
 #ifdef FROSCH_TIMER
         this->MpiComm_->barrier();
-        TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);
+        InitializeFirstLevelTM.~TimeMonitor();
+        TimeMonitor_Type InitializeSecondLevelTM(*InitializeSecondLevel_);
 #endif
         if (this->ParameterList_->get("TwoLevel",true)) {
             if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
@@ -239,12 +247,18 @@ namespace FROSch {
         this->MpiComm_->barrier();
         TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);
         TimeMonitor_Type ComputeTwoLevelTM(*ComputeTwoLevel_);
+        TimeMonitor_Type ComputeSecondLevelTM(*ComputeSecondLevel_);
 #endif
         if (this->ParameterList_->get("TwoLevel",true)) {
             if (0>CoarseOperator_->compute()) ret -= 10;
         }
+#ifdef FROSCH_TIMER
+        ComputeSecondLevelTM.~TimeMonitor();
+        TimeMonitor_Type ComputeFirstLevelTM(*ComputeFirstLevel_);
+#endif
         
         if (0>this->OverlappingOperator_->compute()) ret -= 1;
+            
 #ifdef FROSCH_TIMER
         this->MpiComm_->barrier();
 #endif

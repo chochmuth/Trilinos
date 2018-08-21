@@ -116,6 +116,10 @@ namespace FROSch {
 #ifdef FROSCH_TIMER
         TimePtr_Type SetupTwoLevel_;
         TimePtr_Type ComputeTwoLevel_;
+        TimePtr_Type InitializeFirstLevel_;
+        TimePtr_Type InitializeSecondLevel_;
+        TimePtr_Type ComputeFirstLevel_;
+        TimePtr_Type ComputeSecondLevel_;
 #endif
     };
     
