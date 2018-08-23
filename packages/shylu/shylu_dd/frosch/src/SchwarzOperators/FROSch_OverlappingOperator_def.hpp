@@ -68,7 +68,7 @@ namespace FROSch {
     ApplyRestTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Apply: Gather restriction"))
 #endif
     {
-        cout << "this->ParameterList_->get(Level ID,1)" << this->ParameterList_->get("Level ID",1) << " lvlID:"<<levelID_<< endl;
+
         if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Averaging")) {
             Combine_ = Averaging;
         } else if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Full")) {
