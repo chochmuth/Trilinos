@@ -56,7 +56,7 @@ namespace FROSch {
     SubdomainSolver_ (),
     Multiplicity_(),
     Combine_(),
-    levelID_(this->ParameterList_->get("Level ID",1)),
+    levelID_(this->ParameterList_->get("Level ID",44)),
     OnFirstLevelComm_(false),
     FirstLevelSolveComm_()
 #ifdef FROSCH_TIMER
@@ -64,9 +64,11 @@ namespace FROSch {
     ExtractTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Extract Local Matrices")),
     ComputeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Compute")),
     FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Full Setup")),
-    ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Apply"))
+    ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Apply")),
+    ApplyRestTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Apply: Gather restriction"))
 #endif
     {
+        cout << "this->ParameterList_->get(Level ID,1)" << this->ParameterList_->get("Level ID",1) << " lvlID:"<<levelID_<< endl;
         if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Averaging")) {
             Combine_ = Averaging;
         } else if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Full")) {
@@ -120,13 +122,18 @@ namespace FROSch {
         yOverlap->replaceMap(OverlappingMap_);
 
         if (Combine_ == Restricted){
+#ifdef FROSCH_TIMER
+            TimeMonitor_Type ApplyRestTM(*ApplyRestTimer_);
+#endif
             GO globID = 0;
             LO localID = 0;
-            for (unsigned i=0; i<y.getNumVectors(); i++) {
-                for (unsigned j=0; j<y.getMap()->getNodeNumElements(); j++) {
-                    globID = y.getMap()->getGlobalElement(j);
+            for (unsigned j=0; j<y.getNumVectors(); j++) {
+                SCVecPtr valuesX = xTmp->getDataNonConst(j);
+                SCVecPtr valuesY = yOverlap->getDataNonConst(j);
+                for (unsigned i=0; i<y.getMap()->getNodeNumElements(); i++) {
+                    globID = y.getMap()->getGlobalElement(i);
                     localID = yOverlap->getMap()->getLocalElement(globID);
-                    xTmp->getDataNonConst(i)[j] = yOverlap->getData(i)[localID];
+                    valuesX[i] = valuesY[localID];
                 }
             }
         }

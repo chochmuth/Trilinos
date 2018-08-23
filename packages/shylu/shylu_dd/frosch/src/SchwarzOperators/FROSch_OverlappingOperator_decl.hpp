@@ -138,6 +138,7 @@ namespace FROSch {
         TimePtr_Type ComputeTimer_;
         TimePtr_Type FullSetupTimer_;
         TimePtr_Type ApplyTimer_;
+        TimePtr_Type ApplyRestTimer_;
 #endif
     };
     
