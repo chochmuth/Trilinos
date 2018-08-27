@@ -17,7 +17,6 @@ TRIBITS_CONFIGURE_FILE(${PACKAGE_NAME}_config.h)
 SET(HEADERS "")
 SET(SOURCES "")
 
-
 # Set the base Trilinos directory in order to find Trilinos_version.h
 
 ASSERT_DEFINED(PROJECT_SOURCE_DIR)
