@@ -58,7 +58,7 @@ namespace FROSch {
     GatheringMaps_ (0),
     CoarseSolveMap_ (),
     CoarseSolveRepeatedMap_ (),
-    BlockCoarseSize_(),
+    BlockCoarseDimension_(),
     CoarseSolver_ (),
     DistributionList_ (sublist(parameterList,"Distribution")),
     CoarseSolveExporters_ (0),
@@ -281,10 +281,7 @@ namespace FROSch {
                     CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
                     CoarseSolver_->initialize();
 
-                    
                 }
-
-                
             }    //------------------------------------------------------------------------------------------------------------------------
             else{//coarse matrix already communicated with Zoltan2. Communicate to CoarseSolveComm.
                  //------------------------------------------------------------------------------------------------------------------------
@@ -317,7 +314,7 @@ namespace FROSch {
                     TimeMonitor_Type ComputeTM(*ComputeTimer_);
 #endif
                     if (!this->ParameterList_->sublist("CoarseSolver").get("SolverType","Amesos").compare("MueLu")) {
-                        CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseSize_));
+                        CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseDimension_));
                     }
                     else{
                         CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
@@ -510,6 +507,9 @@ namespace FROSch {
                 
             }
             else if(!DistributionList_->get("Type","linear").compare("Zoltan2")){
+#ifndef HAVE_SHYLU_DDFROSCH_ZOLTAN2
+                FROSCH_ASSERT(false,"CoarseOperator uses Zoltan2 for repartitioning coarse problem, but Trilinos not compiled with Zoltan2. Change setting or compile with Zoltan2.")
+#endif
                 Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
 
                 GatheringMaps_.resize(1);
@@ -525,15 +525,8 @@ namespace FROSch {
                 k0Unique->fillComplete(GatheringMaps_[0],GatheringMaps_[0]);
                 if (NumProcsCoarseSolve_<this->MpiComm_->getSize()) {
                     ParameterListPtr tmpList = sublist(DistributionList_,"Zoltan2 Parameter");
-                    ParameterListPtr zoltanParameterList = Teuchos::rcp(new ParameterList("Zoltan2 Parameter"));
-                    
-                    zoltanParameterList->set("algorithm", tmpList->get("algorithm","parmetis"));
-                    zoltanParameterList->set("debug_level", tmpList->get("debug_level","basic_status"));
-                    zoltanParameterList->set("debug_procs", tmpList->get("debug_procs","0"));
-                    zoltanParameterList->set("error_check_level", tmpList->get("error_check_level","basic_assertions"));
-                    zoltanParameterList->set("imbalance_tolerance",tmpList->get("imbalance_tolerance",1.1));
-                    zoltanParameterList->set("num_global_parts", NumProcsCoarseSolve_);
-                    FROSch::RepartionMatrixZoltan2(k0Unique,zoltanParameterList);
+                    tmpList->set("num_global_parts", NumProcsCoarseSolve_);
+                    FROSch::RepartionMatrixZoltan2(k0Unique,tmpList);
                 }
 
                 k0 = k0Unique;

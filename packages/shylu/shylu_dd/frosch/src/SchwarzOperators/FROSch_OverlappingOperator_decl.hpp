@@ -127,7 +127,7 @@ namespace FROSch {
         
         CombinationType Combine_;
         
-        int levelID_;
+        int LevelID_;
         
         bool OnFirstLevelComm_;
         CommPtr FirstLevelSolveComm_;

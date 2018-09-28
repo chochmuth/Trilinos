@@ -147,7 +147,7 @@ namespace FROSch {
         MapPtrVecPtr GatheringMaps_;
         MapPtr CoarseSolveMap_;
         MapPtr CoarseSolveRepeatedMap_;
-        GOVecPtr BlockCoarseSize_;
+        GOVecPtr BlockCoarseDimension_;
         
         SubdomainSolverPtr CoarseSolver_;
         

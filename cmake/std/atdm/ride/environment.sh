@@ -65,7 +65,7 @@ fi
 echo "Using white/ride compiler stack $ATDM_CONFIG_COMPILER to build $ATDM_CONFIG_BUILD_TYPE code with Kokkos node type $ATDM_CONFIG_NODE_TYPE and KOKKOS_ARCH=$ATDM_CONFIG_KOKKOS_ARCH"
 
 export ATDM_CONFIG_USE_NINJA=ON
-export ATDM_CONFIG_BUILD_COUNT=128
+export ATDM_CONFIG_BUILD_COUNT=64
 # NOTE: Above settings are used for running on a single rhel7F (Firestone,
 # Dual-Socket POWER8, 8 cores per socket, K80 GPUs) node.
 
@@ -81,8 +81,10 @@ fi
 if [ "$ATDM_CONFIG_COMPILER" == "GNU" ] ; then
 
   # Load the modules and set up env
-  module load devpack/20180308/openmpi/2.1.2/gcc/7.2.0/cuda/9.0.176
+  module load devpack/20180521/openmpi/3.1.0/gcc/7.2.0/cuda/9.2.88
+  module swap openmpi openmpi/2.1.2/gcc/7.2.0/cuda/9.2.88
   module swap openblas/0.2.20/gcc/7.2.0 netlib/3.8.0/gcc/7.2.0
+  module swap netcdf-exo/4.6.1/openmpi/3.1.0/gcc/7.2.0/cuda/9.2.88 netcdf/4.6.1/openmpi/3.1.0/gcc/7.2.0/cuda/9.2.88
   export OMPI_CXX=`which g++`
   export OMPI_CC=`which gcc`
   export OMPI_FC=`which gfortran`
@@ -95,7 +97,9 @@ elif [[ "$ATDM_CONFIG_COMPILER" == "CUDA"* ]] ; then
   fi
   if [[ "$ATDM_CONFIG_COMPILER" == "CUDA-9.2" ]] ; then
     module load devpack/20180521/openmpi/3.1.0/gcc/7.2.0/cuda/9.2.88   
+    module swap openmpi openmpi/2.1.2/gcc/7.2.0/cuda/9.2.88
     module swap openblas/0.2.20/gcc/7.2.0 netlib/3.8.0/gcc/7.2.0
+    module swap netcdf-exo/4.6.1/openmpi/3.1.0/gcc/7.2.0/cuda/9.2.88 netcdf/4.6.1/openmpi/3.1.0/gcc/7.2.0/cuda/9.2.88
   else
     echo
     echo "***"
@@ -135,7 +139,6 @@ export MPICC=`which mpicc`
 export MPICXX=`which mpicxx`
 export MPIF90=`which mpif90`
 
-export ATDM_CONFIG_MPI_PRE_FLAGS="--mca;orte_abort_on_non_zero_status;0"
 export ATDM_CONFIG_MPI_POST_FLAG="-map-by;socket:PE=4"
 
 export ATDM_CONFIG_COMPLETED_ENV_SETUP=TRUE

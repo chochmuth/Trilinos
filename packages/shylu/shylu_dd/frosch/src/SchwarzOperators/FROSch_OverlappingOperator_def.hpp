@@ -56,7 +56,7 @@ namespace FROSch {
     SubdomainSolver_ (),
     Multiplicity_(),
     Combine_(),
-    levelID_(this->ParameterList_->get("Level ID",44)),
+    LevelID_(this->ParameterList_->get("Level ID",1)),
     OnFirstLevelComm_(false),
     FirstLevelSolveComm_()
 #ifdef FROSCH_TIMER
