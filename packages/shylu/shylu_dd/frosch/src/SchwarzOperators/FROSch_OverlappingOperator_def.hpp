@@ -60,12 +60,12 @@ namespace FROSch {
     OnFirstLevelComm_(false),
     FirstLevelSolveComm_()
 #ifdef FROSCH_TIMER
-    ,OverlapTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Build Overlap")),
-    ExtractTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Extract Local Matrices")),
-    ComputeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Compute")),
-    FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Full Setup")),
-    ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Apply")),
-    ApplyRestTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(levelID_)+"): Apply: Gather restriction"))
+    ,OverlapTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Build Overlap")),
+    ExtractTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Extract Local Matrices")),
+    ComputeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Compute")),
+    FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Full Setup")),
+    ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply")),
+    ApplyRestTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather restriction"))
 #endif
     {
 
