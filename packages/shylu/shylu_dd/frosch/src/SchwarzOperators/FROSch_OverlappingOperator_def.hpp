@@ -184,18 +184,19 @@ namespace FROSch {
         if (this->IsComputed_) {// already computed once and we want to recycle the information. That is why we reset OverlappingMatrix_ to K_, because K_ has been reset at this point
             OverlappingMatrix_ = this->K_;
         }
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type FullTM(*FullSetupTimer_);
+#endif
 //        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
         {
 #ifdef FROSCH_TIMER
             TimeMonitor_Type OverlapTM(*ExtractTimer_);
-            TimeMonitor_Type FullTM(*FullSetupTimer_);
 #endif
             OverlappingMatrix_ = ExtractLocalSubdomainMatrix(OverlappingMatrix_,OverlappingMap_,OnFirstLevelComm_);
         }
         
 #ifdef FROSCH_TIMER
         TimeMonitor_Type OverlapTM(*ComputeTimer_);
-        TimeMonitor_Type FullTM(*FullSetupTimer_);
 #endif
          if (OnFirstLevelComm_) {
             SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));

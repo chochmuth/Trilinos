@@ -428,7 +428,10 @@ namespace FROSch {
                 CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
                 CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),numGlobalElements,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
             }
-
+            else {
+                FROSCH_ASSERT(false,"Only linear distribution for coarse matrix is supported if parallel levels are used!");
+            }
+            
         } else {
             NumProcsCoarseSolve_ = DistributionList_->get("NumProcs",0);
             double fac = DistributionList_->get("Factor",1.0);
@@ -459,7 +462,7 @@ namespace FROSch {
                 GatheringMaps_[0] = BuildUniqueMap<LO,GO,NO>(Phi_->getColMap()); // DO WE NEED THIS IN ANY CASE???
                 return 0;
             }
-            //cout << DistributionList_->get("Type","linear") << std::endl;
+
             if (!DistributionList_->get("Type","linear").compare("linear")) {
                 //gathering on consecutive procs
                 int gatheringSteps = DistributionList_->get("GatheringSteps",1);
@@ -523,7 +526,7 @@ namespace FROSch {
                 
                 k0Unique->doExport(*k0,*CoarseSolveExporters_[0],Xpetra::INSERT);
                 k0Unique->fillComplete(GatheringMaps_[0],GatheringMaps_[0]);
-                if (NumProcsCoarseSolve_<this->MpiComm_->getSize()) {
+                if (NumProcsCoarseSolve_ < this->MpiComm_->getSize()) {
                     ParameterListPtr tmpList = sublist(DistributionList_,"Zoltan2 Parameter");
                     tmpList->set("num_global_parts", NumProcsCoarseSolve_);
                     FROSch::RepartionMatrixZoltan2(k0Unique,tmpList);
@@ -550,10 +553,13 @@ namespace FROSch {
         }
 
         if (this->Verbose_) {
-            std::cout << "### ------------------------------ ###" << std::endl;
-            std::cout << "### - NumProcs CoarseMatrix : " << NumProcsCoarseSolve_ << std::endl;
-            std::cout << "### ------------------------------ ### " << std::endl;
+            std::cout << "### ------------------------------------- ###" << std::endl;
+            std::cout << "### - Number ranks coarse matrix  : " << NumProcsCoarseSolve_ << std::endl;
+            std::cout << "### - Partion type                : " << DistributionList_->get("Type","linear") << std::endl;
+            std::cout << "### - Gathering steps             : " << DistributionList_->get("GatheringSteps",1) << std::endl;
+            std::cout << "### ------------------------------------- ### " << std::endl;
         }
+        
         return 0;
     }
     
