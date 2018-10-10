@@ -118,9 +118,10 @@ namespace FROSch {
             xOverlap->replaceMap(OverlappingMatrix_->getDomainMap());
             SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
         }
-        xTmp->putScalar(0.0);
+
         yOverlap->replaceMap(OverlappingMap_);
 
+        xTmp->putScalar(0.0);
         if (Combine_ == Restricted){
 #ifdef FROSCH_TIMER
             TimeMonitor_Type ApplyRestTM(*ApplyRestTimer_);

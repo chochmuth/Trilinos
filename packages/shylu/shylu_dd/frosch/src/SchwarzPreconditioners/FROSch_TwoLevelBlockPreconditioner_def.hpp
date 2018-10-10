@@ -122,7 +122,6 @@ namespace FROSch {
         RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(cout));
         // Build dofsMaps and repeatedNodesMap
         MapPtrVecPtr repeatedNodesMapVec;
-
         if (dofsMapsVec.is_null()) {
             if (0>BuildDofMapsVec(repeatedMapVec,dofsPerNodeVec,dofOrderingVec,repeatedNodesMapVec,dofsMapsVec)) ret -= 100; // Todo: Rückgabewerte
             } else {
@@ -134,7 +133,6 @@ namespace FROSch {
                 }
             }
         }
-
         
         //////////////////////////
         // Communicate nodeList //
@@ -180,11 +178,13 @@ namespace FROSch {
             }
             
         }
+
 #ifdef FROSCH_TIMER
         this->MpiComm_->barrier();
         TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);
         TimeMonitor_Type InitializeFirstLevelTM(*InitializeFirstLevel_);
 #endif
+
         ////////////////////////////////////
         // Initialize OverlappingOperator //
         ////////////////////////////////////
