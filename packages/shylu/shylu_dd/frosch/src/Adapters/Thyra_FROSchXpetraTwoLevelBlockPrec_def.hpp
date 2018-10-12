@@ -129,7 +129,16 @@ namespace Thyra {
             Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
             blockMaxGID[i] = repeatedMapVec[i]->getMaxAllGlobalIndex();
             dofsPerNodeVec[i] = paramList->get("DofsPerNode" + std::to_string(i+1),1);
-            dofOrderingVec[i] = paramList->get("Ordering" + std::to_string(i+1), FROSch::NodeWise);
+         
+            std::string ordering = paramList->get("DofOrdering" + std::to_string(i+1), "NodeWise");
+            if (!ordering.compare("NodeWise"))
+                dofOrderingVec[i] = FROSch::NodeWise;
+            else if (!ordering.compare("DimensionWise"))
+                dofOrderingVec[i] = FROSch::DimensionWise;
+            else if (!ordering.compare("Custom"))
+                dofOrderingVec[i] = FROSch::Custom;
+            else
+                FROSCH_ASSERT(false,"ERROR: Specify a valid DofOrdering.");
             
         }
 
