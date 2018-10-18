@@ -127,7 +127,10 @@ namespace FROSch {
                                                     SC beta) const
     {
         if (UseMultiplicative_) {
-            return MultiplicativeOperator_->apply(x,y,true,mode,alpha,beta);
+            if ( this->ParameterList_->get("Only apply coarse",false) )
+                return MultiplicativeOperator_->preApplyCoarse(x,y);
+            else
+                return MultiplicativeOperator_->apply(x,y,true,mode,alpha,beta);
         }
         else{
             return SumOperator_->apply(x,y,true,mode,alpha,beta);

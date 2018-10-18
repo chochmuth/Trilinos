@@ -229,6 +229,18 @@ namespace FROSch {
         }
         return 0;
     }
+    template <class SC,class LO,class GO,class NO>
+    int TwoLevelPreconditioner<SC,LO,GO,NO>::preApplyCoarse(MultiVectorPtr &x,MultiVectorPtr &y)
+    {
+        if (this->UseMultiplicative_) {
+            this->MultiplicativeOperator_->preApplyCoarse(*x,*y);
+        }
+        else{
+            FROSCH_ASSERT(false,"preApplyCoarse(MultiVectorPtr &x) only implemented for MultiplicativeOperator.")
+        }
+        return 0;
+    }
+
 }
 
 #endif

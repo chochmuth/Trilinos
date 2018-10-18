@@ -84,7 +84,7 @@ namespace FROSch {
         
         virtual int compute();
         
-        void preApplyCoarse(MultiVector &x, MultiVector &y);
+        void preApplyCoarse(const MultiVector &x, MultiVector &y);
         
         virtual void apply(const MultiVector &x,
                            MultiVector &y,

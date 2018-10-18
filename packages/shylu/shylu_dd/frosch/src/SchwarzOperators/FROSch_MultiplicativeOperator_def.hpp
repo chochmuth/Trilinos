@@ -78,7 +78,7 @@ namespace FROSch {
     }
     
     template <class SC,class LO,class GO,class NO>
-    void MultiplicativeOperator<SC,LO,GO,NO>::preApplyCoarse(MultiVector &x, MultiVector &y)
+    void MultiplicativeOperator<SC,LO,GO,NO>::preApplyCoarse(const MultiVector &x, MultiVector &y)
     {
         FROSCH_ASSERT(this->OperatorVector_.size()==2,"Should be a Two-Level Operator.");
         this->OperatorVector_[1]->apply(x,y,true);
