@@ -83,112 +83,105 @@ namespace Thyra {
         RCP<ThyLinOpBase> thyra_precOp = Teuchos::null;
         thyra_precOp = rcp_dynamic_cast<Thyra::LinearOpBase<SC> >(defaultPrec->getNonconstUnspecifiedPrecOp(), true);
         
-        //-------Build New Two Level Prec--------------
-        RCP<FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO> > TwoLevelPrec (new FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO>(A,paramList));
-
-        RCP< const Teuchos::Comm< int > > comm = A->getRowMap()->getComm();
-        
-//        Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > coord = Teuchos::null;
-//        
-//        if(paramList->isParameter("Coordinates")){
-//            coord = FROSch::ExtractCoordinatesFromParameterList<SC,LO,GO,NO>(*paramList);
-//        }
-        
-        
-        UN nmbBlocks = paramList->get("Number of blocks",1);
-        MapPtrVecPtr repeatedMapVec(nmbBlocks);
-        UNVecPtr dofsPerNodeVec(nmbBlocks);
-        GOVecPtr blockMaxGID(nmbBlocks);
-        DofOrderingVecPtr dofOrderingVec(nmbBlocks);
-
-        GO offsetAllPrior = 0;
-        for (UN i=0; i<nmbBlocks; i++) {
+        //-------Build New Two Level Prec or Recycling of old information --------------
+        if ( paramList->get("Recycle now", false) ) {
+            RCP<FROSchLinearOp<SC, LO, GO, NO> > fROSch_LinearOp = Teuchos::null;
+            fROSch_LinearOp = rcp_dynamic_cast<FROSchLinearOp<SC, LO, GO, NO> >(thyra_precOp, true);
             
-            std::string repeatedMapName = "RepeatedMap" + std::to_string(i+1);
-            if(paramList->isParameter(repeatedMapName)){
-                Teuchos::RCP<Xpetra::Map<LO,GO,NO> > repeatedMap = FROSch::ExtractRepeatedMapFromParameterList<LO,GO,NO>(*paramList, repeatedMapName );
-                
-                Teuchos::ArrayView< const GO > 	nodeList = repeatedMap->getNodeElementList();
-                Teuchos::Array<GO> nodeListOffset(nodeList.size());
-                
-                for (unsigned j=0; j<nodeList.size(); j++) {
-                    nodeListOffset[j] = nodeList[j] + offsetAllPrior;
-                }
-                repeatedMapVec[i] = Xpetra::MapFactory<LO,GO,NO>::Build(repeatedMap->lib(),-1,nodeListOffset,0,comm);
-                offsetAllPrior = repeatedMapVec[i]->getMaxAllGlobalIndex()+1;
-            }
-            else{
-#ifdef FROSCH_ASSERT
-                FROSCH_ASSERT(false, repeatedMapName + " not found!");
-#endif
-            }
-
-#ifdef FROSCH_ASSERT
-            FROSCH_ASSERT(repeatedMapVec[i]!=Teuchos::null,repeatedMapName + " not loaded correctly!");
-#endif
-            Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
-            blockMaxGID[i] = repeatedMapVec[i]->getMaxAllGlobalIndex();
-            dofsPerNodeVec[i] = paramList->get("DofsPerNode" + std::to_string(i+1),1);
-         
-            std::string ordering = paramList->get("DofOrdering" + std::to_string(i+1), "NodeWise");
-            if (!ordering.compare("NodeWise"))
-                dofOrderingVec[i] = FROSch::NodeWise;
-            else if (!ordering.compare("DimensionWise"))
-                dofOrderingVec[i] = FROSch::DimensionWise;
-            else if (!ordering.compare("Custom"))
-                dofOrderingVec[i] = FROSch::Custom;
-            else
-                FROSCH_ASSERT(false,"ERROR: Specify a valid DofOrdering.");
+//            fROSch_LinearOp = Teuchos::ptr(dynamic_cast<FROSchLinearOp<SC, LO, GO, NO> *>(defaultPrec));
             
+            RCP<  Xpetra::Operator< > > xpetraOp = fROSch_LinearOp->getXpetraOperator();//getConstXpetraOperator();
+            
+            RCP< FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO> > twoLevelBlock = Teuchos::null;
+            
+            twoLevelBlock = rcp_dynamic_cast< FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO> >(xpetraOp, true);
+            
+            twoLevelBlock->resetMatrix(A);
+
+            twoLevelBlock->compute();
+
         }
-
-        if (comm->getRank()==0) std::cout << "INITIALIZE FROSch...";
-        TwoLevelPrec->initialize(paramList->get("Dimension",2), dofsPerNodeVec, dofOrderingVec,blockMaxGID, paramList->get("Overlap",1), repeatedMapVec);
-        
-        TwoLevelPrec->compute();
-        //-----------------------------------------------
-        
-        RCP<ThyLinOpBase > thyraPrecOp = Teuchos::null;
-        //FROSCh_XpetraOP
-//        RCP<FROSch_XpetraOperator<SC,LO,GO,NO> > froschXOP (new FROSch_XpetraOperator<SC,LO,GO,NO>(TwoLevelPrec));
-        
-        RCP<const VectorSpaceBase<SC> > thyraRangeSpace  = Xpetra::ThyraUtils<SC,LO,GO,NO>::toThyra(TwoLevelPrec->getRangeMap());
-        RCP<const VectorSpaceBase<SC> > thyraDomainSpace = Xpetra::ThyraUtils<SC,LO,GO,NO>::toThyra(TwoLevelPrec->getDomainMap());
-    
-        thyraPrecOp = Thyra::fROSchLinearOp<SC, LO, GO, NO>(thyraRangeSpace, thyraDomainSpace,TwoLevelPrec,bIsEpetra,bIsTpetra);
-        
-        TEUCHOS_TEST_FOR_EXCEPT(Teuchos::is_null(thyraPrecOp));
-        
-        /*##############################Epetra-Version###############################
-         //Prepare for FROSch Epetra Op-------------------
-         RCP<FROSch::TwoLevelPreconditioner<double,int,int,Xpetra::EpetraNO> > epetraTwoLevel = rcp_dynamic_cast<FROSch::TwoLevelPreconditioner<double,int,int,Xpetra::EpetraNO> >(TwoLevelPrec);
-         
-         TEUCHOS_TEST_FOR_EXCEPT(Teuchos::is_null(epetraTwoLevel));
-         
-         
-         RCP<FROSch::FROSch_EpetraOperator> frosch_epetraop = rcp(new FROSch::FROSch_EpetraOperator(epetraTwoLevel,paramList));
-         
-         TEUCHOS_TEST_FOR_EXCEPT(Teuchos::is_null(frosch_epetraop));
-         
-         //attach to fwdOp
-         set_extra_data(fwdOp,"IFPF::fwdOp", Teuchos::inOutArg(frosch_epetraop), Teuchos::POST_DESTROY,false);
-         
-         //Thyra Epetra Linear Operator
-         RCP<ThyEpLinOp> thyra_epetraOp = Thyra::nonconstEpetraLinearOp(frosch_epetraop, NOTRANS, EPETRA_OP_APPLY_APPLY_INVERSE, EPETRA_OP_ADJOINT_UNSUPPORTED);
-         TEUCHOS_TEST_FOR_EXCEPT(Teuchos::is_null(thyra_epetraOp));
-         
-         TEUCHOS_TEST_FOR_EXCEPT(Teuchos::nonnull(thyraPrecOp));
-         
-         thyraPrecOp = rcp_dynamic_cast<ThyLinOpBase>(thyra_epetraOp);
-         TEUCHOS_TEST_FOR_EXCEPT(Teuchos::is_null(thyraPrecOp));
-
-         ############################################################################*/
-        
-        
-        
-        defaultPrec->initializeUnspecified(thyraPrecOp);
+        else {
+            RCP<FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO> > TwoLevelPrec (new FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO>(A,paramList));
+            
+            RCP< const Teuchos::Comm< int > > comm = A->getRowMap()->getComm();
+            
+            //        Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > coord = Teuchos::null;
+            //
+            //        if(paramList->isParameter("Coordinates")){
+            //            coord = FROSch::ExtractCoordinatesFromParameterList<SC,LO,GO,NO>(*paramList);
+            //        }
+            
+            
+            UN nmbBlocks = paramList->get("Number of blocks",1);
+            MapPtrVecPtr repeatedMapVec(nmbBlocks);
+            UNVecPtr dofsPerNodeVec(nmbBlocks);
+            GOVecPtr blockMaxGID(nmbBlocks);
+            DofOrderingVecPtr dofOrderingVec(nmbBlocks);
+            
+            GO offsetAllPrior = 0;
+            for (UN i=0; i<nmbBlocks; i++) {
+                
+                std::string repeatedMapName = "RepeatedMap" + std::to_string(i+1);
+                if(paramList->isParameter(repeatedMapName)){
+                    Teuchos::RCP<Xpetra::Map<LO,GO,NO> > repeatedMap = FROSch::ExtractRepeatedMapFromParameterList<LO,GO,NO>(*paramList, repeatedMapName );
+                    
+                    Teuchos::ArrayView< const GO > 	nodeList = repeatedMap->getNodeElementList();
+                    Teuchos::Array<GO> nodeListOffset(nodeList.size());
+                    
+                    for (unsigned j=0; j<nodeList.size(); j++) {
+                        nodeListOffset[j] = nodeList[j] + offsetAllPrior;
+                    }
+                    repeatedMapVec[i] = Xpetra::MapFactory<LO,GO,NO>::Build(repeatedMap->lib(),-1,nodeListOffset,0,comm);
+                    offsetAllPrior = repeatedMapVec[i]->getMaxAllGlobalIndex()+1;
+                }
+                else{
+#ifdef FROSCH_ASSERT
+                    FROSCH_ASSERT(false, repeatedMapName + " not found!");
+#endif
+                }
+                
+#ifdef FROSCH_ASSERT
+                FROSCH_ASSERT(repeatedMapVec[i]!=Teuchos::null,repeatedMapName + " not loaded correctly!");
+#endif
+                Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
+                blockMaxGID[i] = repeatedMapVec[i]->getMaxAllGlobalIndex();
+                dofsPerNodeVec[i] = paramList->get("DofsPerNode" + std::to_string(i+1),1);
+                
+                std::string ordering = paramList->get("DofOrdering" + std::to_string(i+1), "NodeWise");
+                if (!ordering.compare("NodeWise"))
+                    dofOrderingVec[i] = FROSch::NodeWise;
+                else if (!ordering.compare("DimensionWise"))
+                    dofOrderingVec[i] = FROSch::DimensionWise;
+                else if (!ordering.compare("Custom"))
+                    dofOrderingVec[i] = FROSch::Custom;
+                else
+                    FROSCH_ASSERT(false,"ERROR: Specify a valid DofOrdering.");
+                
+            }
+            
+            if (comm->getRank()==0) std::cout << "INITIALIZE FROSch...";
+            TwoLevelPrec->initialize(paramList->get("Dimension",2), dofsPerNodeVec, dofOrderingVec,blockMaxGID, paramList->get("Overlap",1), repeatedMapVec);
+            
+            TwoLevelPrec->compute();
+            //-----------------------------------------------
+            
+            RCP<ThyLinOpBase > thyraPrecOp = Teuchos::null;
+            //FROSCh_XpetraOP
+            //        RCP<FROSch_XpetraOperator<SC,LO,GO,NO> > froschXOP (new FROSch_XpetraOperator<SC,LO,GO,NO>(TwoLevelPrec));
+            
+            RCP<const VectorSpaceBase<SC> > thyraRangeSpace  = Xpetra::ThyraUtils<SC,LO,GO,NO>::toThyra(TwoLevelPrec->getRangeMap());
+            RCP<const VectorSpaceBase<SC> > thyraDomainSpace = Xpetra::ThyraUtils<SC,LO,GO,NO>::toThyra(TwoLevelPrec->getDomainMap());
+            
+            thyraPrecOp = Thyra::fROSchLinearOp<SC, LO, GO, NO>(thyraRangeSpace, thyraDomainSpace,TwoLevelPrec,bIsEpetra,bIsTpetra);
+            
+            TEUCHOS_TEST_FOR_EXCEPT(Teuchos::is_null(thyraPrecOp));
+            
+            defaultPrec->initializeUnspecified(thyraPrecOp);
+        }
         
     }
+    
     //-------------------------------------------------------------
     template <class SC, class LO, class GO, class NO>
     void Thyra_FROSchXpetraTwoLevelBlockPrec<SC,LO,GO,NO>::
