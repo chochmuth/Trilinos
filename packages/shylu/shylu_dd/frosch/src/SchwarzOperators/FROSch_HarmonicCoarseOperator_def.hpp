@@ -74,6 +74,7 @@ namespace FROSch {
         }
         if (!this->ParameterList_->get("Recycling","none").compare("basis") && this->IsComputed_) {
             this->setUpCoarseOperator();
+            this->computeCoarseOperator();
             this->IsComputed_ = true;
         }
         else if(!this->ParameterList_->get("Recycling","none").compare("all") && this->IsComputed_) {
