@@ -203,6 +203,7 @@ namespace FROSch {
         this->MpiComm_->barrier();
         InitializeFirstLevelTM.~TimeMonitor();
         TimeMonitor_Type InitializeSecondLevelTM(*InitializeSecondLevel_);
+        InitializeSecondLevelTM.setStackedTimer(Teuchos::null);
 #endif
         if (this->ParameterList_->get("TwoLevel",true)) {
             if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
