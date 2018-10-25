@@ -153,6 +153,45 @@ namespace FROSch {
             BelosSolverManager_->setProblem(BelosLinearProblem_);
             
             
+        } else if (!ParameterList_->get("SolverType","Amesos").compare("ILU")) {
+            
+//            if (K_->getRowMap()->lib()==Xpetra::UseEpetra) {
+//                Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*K_);
+//                Xpetra::EpetraCrsMatrixT<GO,NO>& xEpetraMat = dynamic_cast<Xpetra::EpetraCrsMatrixT<GO,NO>&>(*crsOp.getCrsMatrix());
+//                EpetraCrsMatrixPtr epetraMat = xEpetraMat.getEpetra_CrsMatrixNonConst();
+//                
+//                Ifpack Factory;
+//                std::string IluType = ParameterList_->sublist("ILU").get("ILU Type", "ILUT");
+//                Ifpack_Preconditioner* IfpackILU = Factory.Create(IluType, epetraMat, );
+//                delete IfpackILU;
+//                IFPACK_CHK_ERR(Prec->SetParameters(List));
+//                
+//                ParameterListPtr parameterList = sublist(ParameterList_,"ILU");
+//                parameterList->setName("Ifpack");
+//                
+//                ifpack2ILU->setParameters( parameterList );
+//                
+//                
+//            } else if (K_->getRowMap()->lib()==Xpetra::UseTpetra) {
+//                Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*K_);
+//                Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
+//                TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+//                
+//                Ifpack2::Factory factory;
+//                RCP<Ifpack2::Ifpack2Preconditioner<> > Ifpack2ILU;
+//                std::string IluType = ParameterList_->sublist("ILU").get("ILU Type", "ILUT");
+//                ifpack2ILU = factory.create( IluType, tpetraMat );
+//                
+//                ParameterListPtr parameterList = sublist(ParameterList_,"ILU");
+//                parameterList->setName("Ifpack2");
+//                
+//                ifpack2ILU->setParameters( parameterList );
+//                
+//                
+//            } else {
+//                FROSCH_ASSERT(false,"This shouldn't happen...");
+//            }
+
         } else {
             FROSCH_ASSERT(0!=0,"SolverType unknown...");
         }
@@ -161,8 +200,12 @@ namespace FROSch {
     template<class SC,class LO,class GO,class NO>
     SubdomainSolver<SC,LO,GO,NO>::~SubdomainSolver()
     {
-        AmesosSolver_.reset();
+
+        K_.reset();
+        ParameterList_.reset();
+        
         EpetraLinearProblem_.reset();
+        AmesosSolver_.reset();
         
         Amesos2SolverEpetra_.reset();
         Amesos2SolverTpetra_.reset();
@@ -172,6 +215,7 @@ namespace FROSch {
         
         BelosLinearProblem_.reset();
         BelosSolverManager_.reset();
+        
     }
     
     template<class SC,class LO,class GO,class NO>
