@@ -204,6 +204,8 @@ namespace FROSch {
     int CoarseOperator<SC,LO,GO,NO>::setUpCoarseOperator()
     {
 
+        CoarseSolver_.reset(); // Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below.
+
         // Build CoarseMatrix_
         CrsMatrixPtr k0;
 #ifdef FROSCH_TIMER
