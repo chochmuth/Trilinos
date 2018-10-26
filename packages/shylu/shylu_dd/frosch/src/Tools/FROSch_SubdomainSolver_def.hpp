@@ -54,8 +54,8 @@ namespace FROSch {
     ParameterList_ (parameterList),
     EpetraLinearProblem_ (),
     AmesosSolver_ (),
-    MueLuFactory_ (),
-    MueLuHierarchy_ (),
+//    MueLuFactory_ (),
+//    MueLuHierarchy_ (),
     BelosLinearProblem_(),
     BelosSolverManager_(),
     IsInitialized_ (false),
@@ -109,32 +109,32 @@ namespace FROSch {
             }
         } else if (!ParameterList_->get("SolverType","Amesos").compare("MueLu")) {
             
-            MueLuFactory_ = Teuchos::rcp(new MueLu::ParameterListInterpreter<SC,LO,GO,NO>(parameterList->sublist("MueLu").sublist("MueLu Parameter")));
-            Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > nullspace;
-
-            if (!ParameterList_->sublist("MueLu").get("NullSpace","Laplace").compare("Laplace")) {
-                nullspace = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(K_->getRowMap(), 1);
-                nullspace->putScalar(1.);
-            }
-            else if (!ParameterList_->sublist("MueLu").get("NullSpace","Laplace").compare("SPP")) {
-                FROSCH_ASSERT(blockCoarseSize.size()==2,"Wrong size of blockCoarseSize for MueLu nullspace...");
-                unsigned dofs = (unsigned) ParameterList_->sublist("MueLu").get("Dimension",2);
-                nullspace = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(K_->getRowMap(), dofs+1);
-                //nullspace of upper part
-                for (unsigned j=0; j<nullspace->getLocalLength(); j++) {
-                    GO globIndex = nullspace->getMap()->getGlobalElement(j);
-                    if (globIndex<=(GO)(dofs*blockCoarseSize[0]-1)) {
-                        unsigned vecIndex = (globIndex)%dofs;
-                        nullspace->getDataNonConst(vecIndex)[j] = 1.;
-                    }
-                    else{
-                        nullspace->getDataNonConst(dofs)[j] = 1.;
-                    }
-                }
-            }
-            MueLuHierarchy_ = MueLuFactory_->CreateHierarchy();
-            MueLuHierarchy_->GetLevel(0)->Set("A",K_);
-            MueLuHierarchy_->GetLevel(0)->Set("Nullspace", nullspace);
+//            MueLuFactory_ = Teuchos::rcp(new MueLu::ParameterListInterpreter<SC,LO,GO,NO>(parameterList->sublist("MueLu").sublist("MueLu Parameter")));
+//            Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > nullspace;
+//
+//            if (!ParameterList_->sublist("MueLu").get("NullSpace","Laplace").compare("Laplace")) {
+//                nullspace = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(K_->getRowMap(), 1);
+//                nullspace->putScalar(1.);
+//            }
+//            else if (!ParameterList_->sublist("MueLu").get("NullSpace","Laplace").compare("SPP")) {
+//                FROSCH_ASSERT(blockCoarseSize.size()==2,"Wrong size of blockCoarseSize for MueLu nullspace...");
+//                unsigned dofs = (unsigned) ParameterList_->sublist("MueLu").get("Dimension",2);
+//                nullspace = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(K_->getRowMap(), dofs+1);
+//                //nullspace of upper part
+//                for (unsigned j=0; j<nullspace->getLocalLength(); j++) {
+//                    GO globIndex = nullspace->getMap()->getGlobalElement(j);
+//                    if (globIndex<=(GO)(dofs*blockCoarseSize[0]-1)) {
+//                        unsigned vecIndex = (globIndex)%dofs;
+//                        nullspace->getDataNonConst(vecIndex)[j] = 1.;
+//                    }
+//                    else{
+//                        nullspace->getDataNonConst(dofs)[j] = 1.;
+//                    }
+//                }
+//            }
+//            MueLuHierarchy_ = MueLuFactory_->CreateHierarchy();
+//            MueLuHierarchy_->GetLevel(0)->Set("A",K_);
+//            MueLuHierarchy_->GetLevel(0)->Set("Nullspace", nullspace);
             
         } else if (!ParameterList_->get("SolverType","Amesos").compare("Belos")) {
             Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > xSolution;// = FROSch::ConvertToXpetra<SC, LO, GO, NO>(Xpetra::UseTpetra,*this->solution_,TeuchosComm);
@@ -201,21 +201,21 @@ namespace FROSch {
     SubdomainSolver<SC,LO,GO,NO>::~SubdomainSolver()
     {
 
-        K_.reset();
-        ParameterList_.reset();
-        
-        EpetraLinearProblem_.reset();
         AmesosSolver_.reset();
-        
+//        std::cout << "resetted Solver" <<std::endl;
+        EpetraLinearProblem_.reset();
+//        std::cout << "resetted problem" <<std::endl;
         Amesos2SolverEpetra_.reset();
+//        std::cout << "resetted amesos2 solver" <<std::endl;
         Amesos2SolverTpetra_.reset();
-        
-        MueLuFactory_.reset();
-        MueLuHierarchy_.reset();
+//        std::cout << "resetted amesos2 solver tpetra" <<std::endl;
+//        MueLuFactory_.reset();
+//        MueLuHierarchy_.reset();
         
         BelosLinearProblem_.reset();
+//        std::cout << "resetted belos solver" <<std::endl;
         BelosSolverManager_.reset();
-        
+//        std::cout << "resetted belos solver manager" <<std::endl;
     }
     
     template<class SC,class LO,class GO,class NO>
@@ -264,9 +264,9 @@ namespace FROSch {
             }
             
         } else if (!ParameterList_->get("SolverType","Amesos").compare("MueLu")) {
-            MueLuFactory_->SetupHierarchy(*MueLuHierarchy_);
-            MueLuHierarchy_->IsPreconditioner(false);
-            IsComputed_ = true;
+//            MueLuFactory_->SetupHierarchy(*MueLuHierarchy_);
+//            MueLuHierarchy_->IsPreconditioner(false);
+//            IsComputed_ = true;
             
             
         } else if (!ParameterList_->get("SolverType","Amesos").compare("Belos")) {
@@ -356,17 +356,17 @@ namespace FROSch {
                 Amesos2SolverTpetra_->solve(); // Was ist, wenn man mit der transponierten Matrix lösen will
             }
         } else if (!ParameterList_->get("SolverType","Amesos").compare("MueLu")) {
-            yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(y.getMap(),x.getNumVectors());
-
-            int mgridSweeps = ParameterList_->sublist("MueLu").get("mgridSweeps",-1);
-            if (mgridSweeps>0) {
-                MueLuHierarchy_->Iterate(x,*yTmp,mgridSweeps);
-            }
-            else{
-                typename Teuchos::ScalarTraits<SC>::magnitudeType tol = ParameterList_->sublist("MueLu").get("tol",1.e-6);
-                MueLuHierarchy_->Iterate(x,*yTmp,tol);
-            }
-            y = *yTmp;
+//            yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(y.getMap(),x.getNumVectors());
+//
+//            int mgridSweeps = ParameterList_->sublist("MueLu").get("mgridSweeps",-1);
+//            if (mgridSweeps>0) {
+//                MueLuHierarchy_->Iterate(x,*yTmp,mgridSweeps);
+//            }
+//            else{
+//                typename Teuchos::ScalarTraits<SC>::magnitudeType tol = ParameterList_->sublist("MueLu").get("tol",1.e-6);
+//                MueLuHierarchy_->Iterate(x,*yTmp,tol);
+//            }
+//            y = *yTmp;
             
         } else if (!ParameterList_->get("SolverType","Amesos").compare("Belos")) {
             

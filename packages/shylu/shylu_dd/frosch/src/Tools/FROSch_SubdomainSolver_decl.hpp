@@ -59,9 +59,9 @@
 
 
 //#include <MueLu.hpp>
-#include <MueLu_TpetraOperator.hpp>
-#include <MueLu_CreateTpetraPreconditioner.hpp>
-#include <MueLu_Utilities.hpp>
+//#include <MueLu_TpetraOperator.hpp>
+//#include <MueLu_CreateTpetraPreconditioner.hpp>
+//#include <MueLu_Utilities.hpp>
 
 namespace FROSch {
     
@@ -111,8 +111,8 @@ namespace FROSch {
         typedef Teuchos::RCP<Amesos2::Solver<EpetraCrsMatrix,EpetraMultiVector> > Amesos2SolverEpetraPtr;
         typedef Teuchos::RCP<Amesos2::Solver<TpetraCrsMatrix,TpetraMultiVector> > Amesos2SolverTpetraPtr;
         
-        typedef Teuchos::RCP<MueLu::HierarchyManager<SC,LO,GO,NO> > MueLuFactoryPtr;
-        typedef Teuchos::RCP<MueLu::Hierarchy<SC,LO,GO,NO> > MueLuHierarchyPtr;
+//        typedef Teuchos::RCP<MueLu::HierarchyManager<SC,LO,GO,NO> > MueLuFactoryPtr;
+//        typedef Teuchos::RCP<MueLu::Hierarchy<SC,LO,GO,NO> > MueLuHierarchyPtr;
         
         SubdomainSolver(CrsMatrixPtr k,
                         ParameterListPtr parameterList,
@@ -157,8 +157,8 @@ namespace FROSch {
         Amesos2SolverEpetraPtr Amesos2SolverEpetra_;
         Amesos2SolverTpetraPtr Amesos2SolverTpetra_;
         
-        MueLuFactoryPtr MueLuFactory_;
-        MueLuHierarchyPtr MueLuHierarchy_;
+//        MueLuFactoryPtr MueLuFactory_;
+//        MueLuHierarchyPtr MueLuHierarchy_;
         
         Teuchos::RCP<Belos::LinearProblem<SC,Xpetra::MultiVector<SC,LO,GO,NO>,Belos::OperatorT<Xpetra::MultiVector<SC,LO,GO,NO> > > >  BelosLinearProblem_;
         Teuchos::RCP<Belos::SolverManager<SC,Xpetra::MultiVector<SC,LO,GO,NO>,Belos::OperatorT<Xpetra::MultiVector<SC,LO,GO,NO> > > > BelosSolverManager_;
