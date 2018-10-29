@@ -48,7 +48,7 @@ namespace Thyra {
         //TEUCHOS_ASSERT(this->isCompatible(*fwdOpSrc));
         TEUCHOS_ASSERT(prec);
 
-        RCP<ParameterList> paramList(new ParameterList(*paramList_)); // AH: Muessen wir diese Kopie machen? Irgendwie wäre es doch besser, wenn man die nicht kopieren müsste, oder?
+//        RCP<ParameterList> paramList(new ParameterList(*paramList_)); // AH: Muessen wir diese Kopie machen? Irgendwie wäre es doch besser, wenn man die nicht kopieren müsste, oder?
 
         // Retrieve wrapped concrete Xpetra matrix from FwdOp
         const RCP<const ThyLinOpBase> fwdOp = fwdOpSrc->getOp();
@@ -84,7 +84,7 @@ namespace Thyra {
         thyra_precOp = rcp_dynamic_cast<Thyra::LinearOpBase<SC> >(defaultPrec->getNonconstUnspecifiedPrecOp(), true);
         
         //-------Build New Two Level Prec or Recycling of old information --------------
-        if ( paramList->get("Recycle now", false) ) {
+        if ( paramList_->get("Recycle now", false) ) {
             RCP<FROSchLinearOp<SC, LO, GO, NO> > fROSch_LinearOp = Teuchos::null;
             fROSch_LinearOp = rcp_dynamic_cast<FROSchLinearOp<SC, LO, GO, NO> >(thyra_precOp, true);
             
@@ -102,7 +102,7 @@ namespace Thyra {
 
         }
         else {
-            RCP<FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO> > TwoLevelPrec (new FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO>(A,paramList));
+            RCP<FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO> > TwoLevelPrec (new FROSch::TwoLevelBlockPreconditioner<SC,LO,GO,NO>(A,paramList_));
             
             RCP< const Teuchos::Comm< int > > comm = A->getRowMap()->getComm();
             
@@ -113,7 +113,7 @@ namespace Thyra {
             //        }
             
             
-            UN nmbBlocks = paramList->get("Number of blocks",1);
+            UN nmbBlocks = paramList_->get("Number of blocks",1);
             MapPtrVecPtr repeatedMapVec(nmbBlocks);
             UNVecPtr dofsPerNodeVec(nmbBlocks);
             GOVecPtr blockMaxGID(nmbBlocks);
@@ -123,8 +123,8 @@ namespace Thyra {
             for (UN i=0; i<nmbBlocks; i++) {
                 
                 std::string repeatedMapName = "RepeatedMap" + std::to_string(i+1);
-                if(paramList->isParameter(repeatedMapName)){
-                    Teuchos::RCP<Xpetra::Map<LO,GO,NO> > repeatedMap = FROSch::ExtractRepeatedMapFromParameterList<LO,GO,NO>(*paramList, repeatedMapName );
+                if(paramList_->isParameter(repeatedMapName)){
+                    Teuchos::RCP<Xpetra::Map<LO,GO,NO> > repeatedMap = FROSch::ExtractRepeatedMapFromParameterList<LO,GO,NO>(*paramList_, repeatedMapName );
                     
                     Teuchos::ArrayView< const GO > 	nodeList = repeatedMap->getNodeElementList();
                     Teuchos::Array<GO> nodeListOffset(nodeList.size());
@@ -146,9 +146,9 @@ namespace Thyra {
 #endif
                 Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
                 blockMaxGID[i] = repeatedMapVec[i]->getMaxAllGlobalIndex();
-                dofsPerNodeVec[i] = paramList->get("DofsPerNode" + std::to_string(i+1),1);
+                dofsPerNodeVec[i] = paramList_->get("DofsPerNode" + std::to_string(i+1),1);
                 
-                std::string ordering = paramList->get("DofOrdering" + std::to_string(i+1), "NodeWise");
+                std::string ordering = paramList_->get("DofOrdering" + std::to_string(i+1), "NodeWise");
                 if (!ordering.compare("NodeWise"))
                     dofOrderingVec[i] = FROSch::NodeWise;
                 else if (!ordering.compare("DimensionWise"))
@@ -161,7 +161,7 @@ namespace Thyra {
             }
             
             if (comm->getRank()==0) std::cout << "INITIALIZE FROSch...";
-            TwoLevelPrec->initialize(paramList->get("Dimension",2), dofsPerNodeVec, dofOrderingVec,blockMaxGID, paramList->get("Overlap",1), repeatedMapVec);
+            TwoLevelPrec->initialize(paramList_->get("Dimension",2), dofsPerNodeVec, dofOrderingVec,blockMaxGID, paramList_->get("Overlap",1), repeatedMapVec);
             
             TwoLevelPrec->compute();
             //-----------------------------------------------
