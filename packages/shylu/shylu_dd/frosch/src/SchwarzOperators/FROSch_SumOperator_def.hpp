@@ -52,7 +52,7 @@ namespace FROSch {
 	OperatorVector_ (0),
 	EnableOperators_ (0)
 #ifdef FROSCH_TIMER
-    ,ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Sum Operator: Apply"))
+    ,ApplySumTimer_(TimeMonitor_Type::getNewCounter("FROSch: Sum Operator: Apply"))
 #endif
     {
         
@@ -64,7 +64,7 @@ namespace FROSch {
 	OperatorVector_ (0),
 	EnableOperators_ (0)
 #ifdef FROSCH_TIMER
-    ,ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Sum Operator: Apply"))
+    ,ApplySumTimer_(TimeMonitor_Type::getNewCounter("FROSch: Sum Operator: Apply"))
 #endif
     {
         OperatorVector_.push_back(operators.at(0));
@@ -121,13 +121,13 @@ namespace FROSch {
                                          SC beta) const
     {
         
-        
+#ifdef FROSCH_TIMER
+        TimeMonitor_Type ApplyTM(*ApplySumTimer_);
+#endif
         if (OperatorVector_.size()>0) {
             if (OperatorVector_.size()==2 && OperatorVector_[OperatorVector_.size()-1]->getParameterList()->get("Mpi Ranks Coarse",0)>0) {
                 
-#ifdef FROSCH_TIMER
-                TimeMonitor_Type ApplyTM(*ApplyTimer_);
-#endif
+
                 FROSCH_ASSERT(usePreconditionerOnly,"Parallel SumOperator is only implemented as a Preconditioner.");
                 
                 Teuchos::RCP<OverlappingOperator<SC,LO,GO,NO> > overlappingOp =

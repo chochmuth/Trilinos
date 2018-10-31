@@ -51,6 +51,9 @@ namespace FROSch {
     SchwarzOperator<SC,LO,GO,NO> (k, parameterList),
     OperatorVector_ (0),
     EnableOperators_ (0)
+#ifdef FROSCH_TIMER
+    ,ApplyMultTimer_(TimeMonitor_Type::getNewCounter("FROSch: Multiplicative Operator: Apply"))
+#endif
     {
         
     }
@@ -60,6 +63,9 @@ namespace FROSch {
     SchwarzOperator<SC,LO,GO,NO> (k, parameterList),
     OperatorVector_ (0),
     EnableOperators_ (0)
+#ifdef FROSCH_TIMER
+    ,ApplyMultTimer_(TimeMonitor_Type::getNewCounter("FROSch: Multiplicative Operator: Apply"))
+#endif
     {
         OperatorVector_.push_back(operators.at(0));
         for (unsigned i=1; i<operators.size(); i++) {
@@ -98,7 +104,10 @@ namespace FROSch {
         FROSCH_ASSERT(usePreconditionerOnly,"MultiplicativeOperator can only be used as a preconditioner.");
         FROSCH_ASSERT(this->OperatorVector_.size()==2,"Should be a Two-Level Operator.");
 
-
+#ifdef FROSCH_TIMER
+        
+        TimeMonitor_Type ApplyMultTimerTM(*ApplyMultTimer_);
+#endif
         MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
         *xTmp = x; // Need this for the case when x aliases y
 
@@ -111,7 +120,7 @@ namespace FROSch {
         
         this->OperatorVector_[1]->apply(*xTmp,*xTmp,true);
 
-        yTmp->update(1.0,*xTmp,-1.0);
+        yTmp->update(-1.0,*xTmp,1.0);
         y.update(alpha,*yTmp,beta);
         
         

@@ -65,7 +65,8 @@ namespace FROSch {
     ComputeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Compute")),
     FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Full Setup")),
     ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply")),
-    ApplyRestTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather restriction"))
+    ApplyRestTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather restriction")),
+    ApplyNormalTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather normal"))
 #endif
     {
 
@@ -139,7 +140,11 @@ namespace FROSch {
             }
         }
         else{
+#ifdef FROSCH_TIMER
+            TimeMonitor_Type ApplyNormalTM(*ApplyNormalTimer_);
+#endif
             xTmp->doExport(*yOverlap,*Scatter_,Xpetra::ADD);
+
         }
         if (Combine_ == Averaging) {
             ConstSCVecPtr scaling = Multiplicity_->getData(0);

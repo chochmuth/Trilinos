@@ -132,7 +132,7 @@ namespace FROSch {
         
         BoolVec EnableOperators_;
 
-        TimePtr_Type ApplyTimer_;
+        TimePtr_Type ApplySumTimer_;
     };
     
 }

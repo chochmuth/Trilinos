@@ -72,6 +72,10 @@ namespace FROSch {
 
         typedef typename SchwarzOperator<SC,LO,GO,NO>::ParameterListPtr ParameterListPtr;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::Time_Type Time_Type;
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimePtr_Type TimePtr_Type;
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
+        
         MultiplicativeOperator(CrsMatrixPtr k, ParameterListPtr parameterList);
         
         MultiplicativeOperator(CrsMatrixPtr k, SchwarzOperatorPtrVecPtr operators, ParameterListPtr parameterList);
@@ -120,6 +124,8 @@ namespace FROSch {
         SchwarzOperatorPtrVec OperatorVector_;
         
         BoolVec EnableOperators_;
+        
+        TimePtr_Type ApplyMultTimer_;
     };
     
 }

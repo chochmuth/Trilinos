@@ -139,6 +139,7 @@ namespace FROSch {
         TimePtr_Type FullSetupTimer_;
         TimePtr_Type ApplyTimer_;
         TimePtr_Type ApplyRestTimer_;
+        TimePtr_Type ApplyNormalTimer_;
 #endif
     };
     
