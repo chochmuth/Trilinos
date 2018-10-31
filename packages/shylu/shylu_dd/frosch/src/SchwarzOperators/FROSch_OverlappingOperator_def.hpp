@@ -66,7 +66,9 @@ namespace FROSch {
     FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Full Setup")),
     ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply")),
     ApplyRestTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather restriction")),
-    ApplyNormalTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather normal"))
+    ApplyNormalTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather normal")),
+    ApplyScatterTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Scatter")),
+    ApplySolveTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Solve"))
 #endif
     {
 
@@ -101,7 +103,8 @@ namespace FROSch {
         FROSCH_ASSERT(this->IsComputed_,"ERROR: OverlappingOperator has to be computed before calling apply()");
 
 #ifdef FROSCH_TIMER
-            TimeMonitor_Type ApplyTM(*ApplyTimer_);
+        this->MpiComm_->barrier();
+        TimeMonitor_Type ApplyTM(*ApplyTimer_);
 #endif
         MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
         *xTmp = x;
@@ -112,19 +115,35 @@ namespace FROSch {
         
         MultiVectorPtr xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
         MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
-
-        xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
-        if (OnFirstLevelComm_) {
-            yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
-            xOverlap->replaceMap(OverlappingMatrix_->getDomainMap());
-            SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
+        {
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+            TimeMonitor_Type ApplyScatterTM(*ApplyScatterTimer_);
+#endif
+            xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+#endif
         }
-
-        yOverlap->replaceMap(OverlappingMap_);
-
+        {
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+            TimeMonitor_Type ApplySolveTM(*ApplySolveTimer_);
+#endif
+            if (OnFirstLevelComm_) {
+                yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
+                xOverlap->replaceMap(OverlappingMatrix_->getDomainMap());
+                SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
+            }
+            yOverlap->replaceMap(OverlappingMap_);
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+#endif
+        }
         xTmp->putScalar(0.0);
         if (Combine_ == Restricted){
 #ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
             TimeMonitor_Type ApplyRestTM(*ApplyRestTimer_);
 #endif
             GO globID = 0;
@@ -138,13 +157,19 @@ namespace FROSch {
                     valuesX[i] = valuesY[localID];
                 }
             }
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+#endif
         }
         else{
 #ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
             TimeMonitor_Type ApplyNormalTM(*ApplyNormalTimer_);
 #endif
             xTmp->doExport(*yOverlap,*Scatter_,Xpetra::ADD);
-
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+#endif
         }
         if (Combine_ == Averaging) {
             ConstSCVecPtr scaling = Multiplicity_->getData(0);
@@ -160,6 +185,9 @@ namespace FROSch {
             this->K_->apply(*xTmp,*xTmp,mode,1.0,0.0);
         }
         y.update(alpha,*xTmp,beta);
+#ifdef FROSCH_TIMER
+        this->MpiComm_->barrier();
+#endif
     }
     
     template <class SC,class LO,class GO,class NO>

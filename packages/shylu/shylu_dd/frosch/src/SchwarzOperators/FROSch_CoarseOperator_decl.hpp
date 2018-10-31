@@ -169,6 +169,10 @@ namespace FROSch {
         TimePtr_Type FullSetupTimer_;
         TimePtr_Type ApplyTimer_;
         TimePtr_Type GatheringTimer_;
+        TimePtr_Type ApplyPhiTransposeTimer_;
+        TimePtr_Type ApplyCoarseMatrixTimer_;
+        TimePtr_Type ApplyPhiTimer_;
+        
 #endif
         
     };

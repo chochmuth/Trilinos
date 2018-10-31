@@ -140,6 +140,9 @@ namespace FROSch {
         TimePtr_Type ApplyTimer_;
         TimePtr_Type ApplyRestTimer_;
         TimePtr_Type ApplyNormalTimer_;
+        TimePtr_Type ApplyScatterTimer_;
+        TimePtr_Type ApplySolveTimer_;
+        
 #endif
     };
     

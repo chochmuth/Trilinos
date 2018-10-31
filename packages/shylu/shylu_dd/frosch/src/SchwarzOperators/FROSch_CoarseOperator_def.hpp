@@ -72,8 +72,12 @@ namespace FROSch {
     ComputeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Coarse Problem")),
     FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Full Setup")),
     ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply")),
-    GatheringTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Gathering"))
+    GatheringTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Gathering")),
+    ApplyPhiTransposeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply Phi transpose")),
+    ApplyCoarseMatrixTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply Coarse Matrix")),
+    ApplyPhiTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply Phi"))
 #endif
+
     {
         if (this->MpiComm_->getRank() < this->MpiComm_->getSize() - this->ParameterList_->get("Mpi Ranks Coarse",0)) {
             NotOnCoarseSolveComm_ = true;
@@ -95,6 +99,7 @@ namespace FROSch {
                                             SC beta) const
     {
 #ifdef FROSCH_TIMER
+        this->MpiComm_->barrier();
         TimeMonitor_Type ApplyTM(*ApplyTimer_);
 #endif
         static int i = 0;
@@ -108,9 +113,36 @@ namespace FROSch {
             
             MultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],x.getNumVectors());
             MultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],y.getNumVectors());
-            applyPhiT(*xTmp,*xCoarseSolve);
-            applyCoarseSolve(*xCoarseSolve,*yCoarseSolve,mode);
-            applyPhi(*yCoarseSolve,*xTmp);
+            {
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+                TimeMonitor_Type ApplyPhiTransposeTM(*ApplyPhiTransposeTimer_);
+#endif
+                applyPhiT(*xTmp,*xCoarseSolve);
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+#endif
+            }
+            {
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+                TimeMonitor_Type ApplyCoarseMatrixTM(*ApplyCoarseMatrixTimer_);
+#endif
+                applyCoarseSolve(*xCoarseSolve,*yCoarseSolve,mode);
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+#endif
+            }
+            {
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+                TimeMonitor_Type ApplyPhiTM(*ApplyPhiTimer_);
+#endif
+                applyPhi(*yCoarseSolve,*xTmp);
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+#endif
+            }
             if (!usePreconditionerOnly && mode != Teuchos::NO_TRANS) {
                 this->K_->apply(*xTmp,*xTmp,mode,1.0,0.0);
             }
@@ -122,6 +154,9 @@ namespace FROSch {
             }
             y.update(1.0,x,0.0);
         }
+#ifdef FROSCH_TIMER
+        this->MpiComm_->barrier();
+#endif
     }
     
     template<class SC,class LO,class GO,class NO>
