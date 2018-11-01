@@ -124,6 +124,16 @@ namespace FROSch {
 
         UN NumberOfBlocks_;
         
+        
+        TimePtr_Type RepMatKTimer_;
+        TimePtr_Type SubMatKTimer_;
+        TimePtr_Type FillPhiGammaTimer_;
+        TimePtr_Type ApplyPhiGammaTimer_;
+        TimePtr_Type ExtensionSolverTimer_;
+        TimePtr_Type ApplyExtensionSolverTimer_;
+        TimePtr_Type FillPhiTimer_;
+
+        
     };
     
 }

@@ -59,6 +59,15 @@ namespace FROSch {
     IDofs_ (0),
     DofsMaps_ (0),
     NumberOfBlocks_ (0)
+#ifdef FROSCH_TIMER
+    ,RepMatKTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Repeated Matrix")),
+    SubMatKTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Sub Matrices")),
+    FillPhiGammaTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Fill Phi Gamma")),
+    ApplyPhiGammaTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Apply Phi Gamma")),
+    ExtensionSolverTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Setup Extension Solver")),
+    ApplyExtensionSolverTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Apply Extension Solver")),
+    FillPhiTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Fill Phi Inner"))
+#endif
     {
         
     }
@@ -103,10 +112,18 @@ namespace FROSch {
     {
         // Build repeatedMap for the local saddle point problem
         MapPtr repeatedMap = assembleRepeatedMap(); // Todo:: Eigentlich gehört das in Initialize !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+        CrsMatrixPtr repeatedMatrix;
+        {
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+            TimeMonitor_Type RepMatKTM(*RepMatKTimer_);
+#endif
         // Build local saddle point problem
-        CrsMatrixPtr repeatedMatrix = FROSch::ExtractLocalSubdomainMatrix(this->K_,repeatedMap);
-
+         repeatedMatrix = FROSch::ExtractLocalSubdomainMatrix(this->K_,repeatedMap);
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+#endif
+        }
         // Extract submatrices
         GOVec indicesGammaDofsAll(0);
         GOVec indicesIDofsAll(0);
@@ -126,14 +143,22 @@ namespace FROSch {
         CrsMatrixPtr kIGamma;
         CrsMatrixPtr kGammaI;
         CrsMatrixPtr kGammaGamma;
-
-        FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma);
-
+        {
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+            TimeMonitor_Type SubMatKTM(*SubMatKTimer_);
+#endif
+            FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma);
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+#endif
+        }
         // Assemble coarse map
         MapPtr coarseMap = assembleCoarseMap(); // Todo:: Eigentlich gehört das in Initialize !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         // Build the saddle point harmonic extensions
         computeAndFillPhi(repeatedMatrix,repeatedMap,coarseMap,indicesGammaDofsAll(),indicesIDofsAll(),kII,kIGamma);
+        
         return 0;
     }
     
@@ -239,6 +264,8 @@ namespace FROSch {
                                                            CrsMatrixPtr kII,
                                                            CrsMatrixPtr kIGamma)
     {
+
+        
         this->Phi_ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(this->K_->getRangeMap(),coarseMap,coarseMap->getNodeNumElements()); // Nonzeroes abhängig von dim/dofs!!!
         if (this->NotOnCoarseSolveComm_) {
             
@@ -248,149 +275,195 @@ namespace FROSch {
             SC thresholdPhi = this->ParameterList_->get("Threshold Phi",1.e-8);
             //Build mVPhiGamma
             MultiVectorPtr mVPhiGamma = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(kIGamma->getDomainMap(),coarseMap->getNodeNumElements());
-            
-            LO jj=0;
-            LO kk=0;
             LOVec numberBlockInterfaceEntity(NumberOfBlocks_);
-            for (UN i=0; i<NumberOfBlocks_; i++) {
-                UN j = 0;
-                UN k = 0;
-                //if (this->Verbose_) std::cout << MVPhiGamma_[i]->MyLength() << std::endl;
-                if (!MVPhiGamma_[i].is_null()) {
-                    numberBlockInterfaceEntity[i] = MVPhiGamma_[i]->getNumVectors();
-                    for (j=0; j<MVPhiGamma_[i]->getNumVectors(); j++) {
-                        for (k=0; k<MVPhiGamma_[i]->getLocalLength(); k++) {
-                            //if (this->Verbose_) std::cout << j << " " << k << " " <<  (*(*MVPhiGamma_[i])(j))[k] << std::endl;
-                            mVPhiGamma->replaceLocalValue(k+kk,j+jj,MVPhiGamma_[i]->getData(j)[k]);
+            {
+#ifdef FROSCH_TIMER
+            this->MpiComm_->barrier();
+            TimeMonitor_Type FillPhiGammaTM(*FillPhiGammaTimer_);
+#endif
+                LO jj=0;
+                LO kk=0;
+                
+                for (UN i=0; i<NumberOfBlocks_; i++) {
+                    UN j = 0;
+                    UN k = 0;
+                    //if (this->Verbose_) std::cout << MVPhiGamma_[i]->MyLength() << std::endl;
+                    if (!MVPhiGamma_[i].is_null()) {
+                        numberBlockInterfaceEntity[i] = MVPhiGamma_[i]->getNumVectors();
+                        for (j=0; j<MVPhiGamma_[i]->getNumVectors(); j++) {
+                            for (k=0; k<MVPhiGamma_[i]->getLocalLength(); k++) {
+                                //if (this->Verbose_) std::cout << j << " " << k << " " <<  (*(*MVPhiGamma_[i])(j))[k] << std::endl;
+                                mVPhiGamma->replaceLocalValue(k+kk,j+jj,MVPhiGamma_[i]->getData(j)[k]);
+                            }
                         }
+                    } else { // Das ist für den Fall, dass keine Basisfunktionen für einen Block gebaut werden sollen
+                        //mVPhiGamma->replaceLocalValue(k+kk,j+jj,1.0);
+                        k=GammaDofs_[i].size();
                     }
-                } else { // Das ist für den Fall, dass keine Basisfunktionen für einen Block gebaut werden sollen
-                    //mVPhiGamma->replaceLocalValue(k+kk,j+jj,1.0);
-                    k=GammaDofs_[i].size();
-                }
-                jj += j;
-                kk += k;
-            }
-            
-            LO iD;
-            SC valueTmp;
-            LOVec indices;
-            SCVec values;
-            // IST DAS LANGSAM??????? TESTEN!!!!!
-            for (UN i=0; i<mVPhiGamma->getLocalLength(); i++) {
-                indices.resize(0);
-                values.resize(0);
-                for (UN j=0; j<mVPhiGamma->getNumVectors(); j++) {
-                    valueTmp=mVPhiGamma->getData(j)[i];
-                    if (fabs(valueTmp) > thresholdPhi) {
-                        indices.push_back(j);
-                        values.push_back(valueTmp);
-                    }
+                    jj += j;
+                    kk += k;
                 }
                 
-                // CHECK, IF OK?!?!?
-                iD = this->K_->getRowMap()->getLocalElement(repeatedMap->getGlobalElement(indicesGammaDofsAll[i]));
-                //cout << ProcessorMapRepeatedDofs->GID(IndicesGamma[0][i]) << " " << ID << std::endl;
-                
-                //ID = IndicesGamma[0][i];
-                if (iD!=-1) {
-                    this->Phi_->insertLocalValues(iD,indices(),values());
-                }
-                
-            }
-    //        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); this->Phi_->describe(*fancy,Teuchos::VERB_EXTREME);
-            // Hier Multiplikation kIGamma*PhiGamma
-
-            kIGamma->apply(*mVPhiGamma,*mVtmp);
-
-            mVtmp->scale(-1.0);
-            
-            // Jetzt der solver für kII
-            ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));
-            // DAS MÜSSEN WIR NOCH ÄNDERN -> initialize, compute, apply...
-            ExtensionSolver_->initialize();
-            ExtensionSolver_->compute();
-            ExtensionSolver_->apply(*mVtmp,*mVPhiI);
-
-            GOVec priorIndex(NumberOfBlocks_,0);
-            GOVec postIndex(NumberOfBlocks_,0);
-            
-            GOVec2D excludeCols(NumberOfBlocks_);
-            
-            for (UN i=0; i<NumberOfBlocks_; i++) {
-                std::stringstream blockIdStringstream;
-                blockIdStringstream << i+1;
-                std::string blockIdString = blockIdStringstream.str();
-                Teuchos::RCP<Teuchos::ParameterList> coarseSpaceList = sublist(sublist(this->ParameterList_,"Blocks"),blockIdString.c_str());
-                std::string excludeBlocks = coarseSpaceList->get("Exclude","0");
-                LOVec indices = FROSch::GetIndicesFromString(excludeBlocks,(LO)0);
-                for (int j=0; j<indices.size(); j++) {
-                    indices[j] -= 1;
-                }
-                if (indices[0]>-1) {
-                    for (UN j=0; j<(UN)indices.size(); j++) {
-                        LO priorCoarseSize = 0;
-                        for (UN r=0; r<(UN)indices[j]; r++) {
-                            priorCoarseSize += numberBlockInterfaceEntity[indices[r]-1];// GammaDofs_[indices[r]-1].size();
-                        }
-                        excludeCols[i].push_back(priorCoarseSize);
-                        excludeCols[i].push_back(priorCoarseSize + numberBlockInterfaceEntity[indices[j]] - 1);
-
-                    }
-                }
-                GO maxGID = 0;
-                for (UN dofs=0; dofs<DofsPerNode_[i]; dofs++) {
-                    if (maxGID < DofsMaps_[i][dofs]->getMaxAllGlobalIndex()) {
-                        maxGID = DofsMaps_[i][dofs]->getMaxAllGlobalIndex();
-                    }
-                }
-                if (i<NumberOfBlocks_-1) {
-                    priorIndex[i+1] = maxGID;
-                }
-                postIndex[i] = maxGID+1;
-            }
-            priorIndex[0] = -1;
-     
-
-            // Now we have to insert the values to the global matrix Phi
-            // IST DAS LANGSAM??????? TESTEN!!!!!
-            for (UN i=0; i<mVPhiI->getLocalLength(); i++) {
-                indices.resize(0);
-                values.resize(0);
-                GO gid = repeatedMap->getGlobalElement(indicesIDofsAll[i]);
-                LO block = -1;
-                bool use;
-                
-                for (UN j=0; j<priorIndex.size(); j++) {
-                    if (gid>priorIndex[j] && gid<postIndex[j]) {
-                        block = j;
-                    }
-                }
-                for (UN j=0; j<mVPhiI->getNumVectors(); j++) {
-                    use = true;
-                    for (UN r=0; r<(UN)excludeCols[block].size(); r=r+2) {
-                        if (j>=(UN)excludeCols[block][r] && j<=(UN)excludeCols[block][r+1]){
-                            use = false;
-                        }
-                    }
-                    if (use) {
-                        valueTmp=mVPhiI->getData(j)[i];
+                LO iD;
+                SC valueTmp;
+                LOVec indices;
+                SCVec values;
+                // IST DAS LANGSAM??????? TESTEN!!!!!
+                for (UN i=0; i<mVPhiGamma->getLocalLength(); i++) {
+                    indices.resize(0);
+                    values.resize(0);
+                    for (UN j=0; j<mVPhiGamma->getNumVectors(); j++) {
+                        valueTmp=mVPhiGamma->getData(j)[i];
                         if (fabs(valueTmp) > thresholdPhi) {
                             indices.push_back(j);
                             values.push_back(valueTmp);
                         }
                     }
+                    
+                    // CHECK, IF OK?!?!?
+                    iD = this->K_->getRowMap()->getLocalElement(repeatedMap->getGlobalElement(indicesGammaDofsAll[i]));
+                    //cout << ProcessorMapRepeatedDofs->GID(IndicesGamma[0][i]) << " " << ID << std::endl;
+                    
+                    //ID = IndicesGamma[0][i];
+                    if (iD!=-1) {
+                        this->Phi_->insertLocalValues(iD,indices(),values());
+                    }
+                    
                 }
-                
-                // CHECK, IF OK?!?!?
-                iD = this->K_->getRowMap()->getLocalElement(gid);
-                //ID = IndicesI[0][i];
-                if (iD!=-1) {
-                    this->Phi_->insertLocalValues(iD,indices(),values());
-                }
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+#endif
             }
+    //        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); this->Phi_->describe(*fancy,Teuchos::VERB_EXTREME);
+            // Hier Multiplikation kIGamma*PhiGamma
+            {
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+                TimeMonitor_Type ApplyPhiGammaTM(*ApplyPhiGammaTimer_);
+#endif
+                kIGamma->apply(*mVPhiGamma,*mVtmp);
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+#endif
+            }
+            mVtmp->scale(-1.0);
+
+            {
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+                TimeMonitor_Type ExtensionSolverTM(*ExtensionSolverTimer_);
+#endif
+                // Jetzt der solver für kII
+                ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));
+                // DAS MÜSSEN WIR NOCH ÄNDERN -> initialize, compute, apply...
+                ExtensionSolver_->initialize();
+                ExtensionSolver_->compute();
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+#endif
+            }
+            {
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+                TimeMonitor_Type ApplyExtensionSolverTM(*ApplyExtensionSolverTimer_);
+#endif
+                ExtensionSolver_->apply(*mVtmp,*mVPhiI);
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+#endif
+            }
+            {
+#ifdef FROSCH_TIMER
+                this->MpiComm_->barrier();
+                TimeMonitor_Type FillPhiTM(*FillPhiTimer_);
+#endif
+                
+
+                GOVec priorIndex(NumberOfBlocks_,0);
+                GOVec postIndex(NumberOfBlocks_,0);
+                
+                GOVec2D excludeCols(NumberOfBlocks_);
+                LO iD;
+                SC valueTmp;                
+                LOVec indices;
+                SCVec values;
+                
+                for (UN i=0; i<NumberOfBlocks_; i++) {
+                    std::stringstream blockIdStringstream;
+                    blockIdStringstream << i+1;
+                    std::string blockIdString = blockIdStringstream.str();
+                    Teuchos::RCP<Teuchos::ParameterList> coarseSpaceList = sublist(sublist(this->ParameterList_,"Blocks"),blockIdString.c_str());
+                    std::string excludeBlocks = coarseSpaceList->get("Exclude","0");
+                    LOVec indices = FROSch::GetIndicesFromString(excludeBlocks,(LO)0);
+                    for (int j=0; j<indices.size(); j++) {
+                        indices[j] -= 1;
+                    }
+                    if (indices[0]>-1) {
+                        for (UN j=0; j<(UN)indices.size(); j++) {
+                            LO priorCoarseSize = 0;
+                            for (UN r=0; r<(UN)indices[j]; r++) {
+                                priorCoarseSize += numberBlockInterfaceEntity[indices[r]-1];// GammaDofs_[indices[r]-1].size();
+                            }
+                            excludeCols[i].push_back(priorCoarseSize);
+                            excludeCols[i].push_back(priorCoarseSize + numberBlockInterfaceEntity[indices[j]] - 1);
+
+                        }
+                    }
+                    GO maxGID = 0;
+                    for (UN dofs=0; dofs<DofsPerNode_[i]; dofs++) {
+                        if (maxGID < DofsMaps_[i][dofs]->getMaxAllGlobalIndex()) {
+                            maxGID = DofsMaps_[i][dofs]->getMaxAllGlobalIndex();
+                        }
+                    }
+                    if (i<NumberOfBlocks_-1) {
+                        priorIndex[i+1] = maxGID;
+                    }
+                    postIndex[i] = maxGID+1;
+                }
+                priorIndex[0] = -1;
+         
+
+                // Now we have to insert the values to the global matrix Phi
+                // IST DAS LANGSAM??????? TESTEN!!!!!
+                for (UN i=0; i<mVPhiI->getLocalLength(); i++) {
+                    indices.resize(0);
+                    values.resize(0);
+                    GO gid = repeatedMap->getGlobalElement(indicesIDofsAll[i]);
+                    LO block = -1;
+                    bool use;
+                    
+                    for (UN j=0; j<priorIndex.size(); j++) {
+                        if (gid>priorIndex[j] && gid<postIndex[j]) {
+                            block = j;
+                        }
+                    }
+                    for (UN j=0; j<mVPhiI->getNumVectors(); j++) {
+                        use = true;
+                        for (UN r=0; r<(UN)excludeCols[block].size(); r=r+2) {
+                            if (j>=(UN)excludeCols[block][r] && j<=(UN)excludeCols[block][r+1]){
+                                use = false;
+                            }
+                        }
+                        if (use) {
+                            valueTmp=mVPhiI->getData(j)[i];
+                            if (fabs(valueTmp) > thresholdPhi) {
+                                indices.push_back(j);
+                                values.push_back(valueTmp);
+                            }
+                        }
+                    }
+                    
+                    // CHECK, IF OK?!?!?
+                    iD = this->K_->getRowMap()->getLocalElement(gid);
+                    //ID = IndicesI[0][i];
+                    if (iD!=-1) {
+                        this->Phi_->insertLocalValues(iD,indices(),values());
+                    }
+                }
+
+            this->Phi_->fillComplete(coarseMap,this->Phi_->getRowMap());
         }
-        this->Phi_->fillComplete(coarseMap,this->Phi_->getRowMap());
+        }
 //        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); this->Phi_->describe(*fancy,Teuchos::VERB_EXTREME);
         return 0;
     }
