@@ -147,22 +147,8 @@ namespace FROSch {
             this->MpiComm_->barrier();
             TimeMonitor_Type ApplyRestTM(*ApplyRestTimer_);
 #endif
-            if (this->ParameterList_->get("Use Importer Restricted",false)) {
-                xTmp->doImport(*yOverlap,*GatherRestricted_,Xpetra::INSERT);
-            }
-            else{
-                GO globID = 0;
-                LO localID = 0;
-                for (unsigned j=0; j<y.getNumVectors(); j++) {
-                    SCVecPtr valuesX = xTmp->getDataNonConst(j);
-                    SCVecPtr valuesY = yOverlap->getDataNonConst(j);
-                    for (unsigned i=0; i<y.getMap()->getNodeNumElements(); i++) {
-                        globID = y.getMap()->getGlobalElement(i);
-                        localID = yOverlap->getMap()->getLocalElement(globID);
-                        valuesX[i] = valuesY[localID];
-                    }
-                }
-            }
+            xTmp->doImport(*yOverlap,*GatherRestricted_,Xpetra::INSERT);
+
 #ifdef FROSCH_TIMER
             this->MpiComm_->barrier();
 #endif
