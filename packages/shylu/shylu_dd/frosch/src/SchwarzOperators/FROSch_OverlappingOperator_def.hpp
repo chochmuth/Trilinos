@@ -147,7 +147,7 @@ namespace FROSch {
             TimeMonitor_Type ApplyRestTM(*ApplyRestTimer_);
 #endif
             if (this->ParameterList_->get("Use Importer Restricted",false)) {
-                xTmp->doExport(*yOverlap,*Scatter_,Xpetra::INSERT);
+                xTmp->doImport(*yOverlap,*GatherRestricted_,Xpetra::INSERT);
             }
             else{
                 GO globID = 0;
@@ -212,6 +212,9 @@ namespace FROSch {
             ExporterPtr multiplicityExporter = Xpetra::ExportFactory<LO,GO,NO>::Build(multiplicityRepeated->getMap(),this->getRangeMap());
             Multiplicity_->doExport(*multiplicityRepeated,*multiplicityExporter,Xpetra::ADD);
         }
+        else if(Combine_ == Restricted)
+            GatherRestricted_ = ExportFactory<LO,GO,NO>::Build(this->getDomainMap(),OverlappingMap_);
+        
 //                }
         return 0; // RETURN VALUE
     }

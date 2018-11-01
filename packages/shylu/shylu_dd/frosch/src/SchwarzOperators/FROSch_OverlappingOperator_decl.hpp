@@ -120,6 +120,7 @@ namespace FROSch {
         MapPtr OverlappingMap_;            
         
         ImporterPtr Scatter_;
+        ExporterPtr GatherRestricted_;
         
         SubdomainSolverPtr SubdomainSolver_;
         
