@@ -43,7 +43,7 @@
 #define _FROSCH_OVERLAPPINGOPERATOR_DECL_HPP
 
 #include <FROSch_SchwarzOperator_def.hpp>
-#include <Xpetra_ExportFactory_fwd.hpp>
+
 namespace FROSch {
     
     template <class SC = Xpetra::Operator<>::scalar_type,

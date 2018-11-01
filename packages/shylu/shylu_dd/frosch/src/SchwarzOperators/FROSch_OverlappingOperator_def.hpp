@@ -53,6 +53,7 @@ namespace FROSch {
     OverlappingMatrix_ (),
     OverlappingMap_ (),
     Scatter_(),
+    GatherRestricted_(),
     SubdomainSolver_ (),
     Multiplicity_(),
     Combine_(),
@@ -213,7 +214,7 @@ namespace FROSch {
             Multiplicity_->doExport(*multiplicityRepeated,*multiplicityExporter,Xpetra::ADD);
         }
         else if(Combine_ == Restricted)
-            GatherRestricted_ = ExportFactory<LO,GO,NO>::Build(this->getDomainMap(),OverlappingMap_);
+            GatherRestricted_ = Xpetra::ExportFactory<LO,GO,NO>::Build(this->getDomainMap(),OverlappingMap_);
         
 //                }
         return 0; // RETURN VALUE
