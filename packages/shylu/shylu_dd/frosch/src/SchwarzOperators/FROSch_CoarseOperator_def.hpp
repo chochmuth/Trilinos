@@ -471,9 +471,6 @@ namespace FROSch {
                 if (tmpCoarseMap->getNodeNumElements()>0) {
                     OnCoarseSolveComm_=true;
                 }
-                Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
-
-                tmpCoarseMap->describe(*fancy,Teuchos::VERB_EXTREME);
 
                 CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
                 //Tpetra error when using  numGlobalElements instead of -1 below
