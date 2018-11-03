@@ -139,11 +139,12 @@ namespace FROSch {
         TimePtr_Type ComputeTimer_;
         TimePtr_Type FullSetupTimer_;
         TimePtr_Type ApplyTimer_;
+#endif
+#ifdef FROSCH_DETAIL_TIMER
         TimePtr_Type ApplyRestTimer_;
         TimePtr_Type ApplyNormalTimer_;
         TimePtr_Type ApplyScatterTimer_;
         TimePtr_Type ApplySolveTimer_;
-        
 #endif
     };
     

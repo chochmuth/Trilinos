@@ -72,8 +72,10 @@ namespace FROSch {
     ComputeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Coarse Problem")),
     FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Full Setup")),
     ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply")),
-    GatheringTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Gathering")),
-    ApplyPhiTransposeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply Phi transpose")),
+    GatheringTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Gathering"))
+#endif
+#ifdef FROSCH_DETAIL_TIMER
+    ,ApplyPhiTransposeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply Phi transpose")),
     ApplyCoarseMatrixTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply Coarse Matrix")),
     ApplyPhiTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Apply Phi"))
 #endif
@@ -99,7 +101,9 @@ namespace FROSch {
                                             SC beta) const
     {
 #ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
         this->MpiComm_->barrier();
+#endif
         TimeMonitor_Type ApplyTM(*ApplyTimer_);
 #endif
         static int i = 0;
@@ -114,32 +118,32 @@ namespace FROSch {
             MultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],x.getNumVectors());
             MultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],y.getNumVectors());
             {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
                 TimeMonitor_Type ApplyPhiTransposeTM(*ApplyPhiTransposeTimer_);
 #endif
                 applyPhiT(*xTmp,*xCoarseSolve);
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
 #endif
             }
             {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
                 TimeMonitor_Type ApplyCoarseMatrixTM(*ApplyCoarseMatrixTimer_);
 #endif
                 applyCoarseSolve(*xCoarseSolve,*yCoarseSolve,mode);
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
 #endif
             }
             {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
                 TimeMonitor_Type ApplyPhiTM(*ApplyPhiTimer_);
 #endif
                 applyPhi(*yCoarseSolve,*xTmp);
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
 #endif
             }
@@ -154,7 +158,7 @@ namespace FROSch {
             }
             y.update(1.0,x,0.0);
         }
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
         this->MpiComm_->barrier();
 #endif
     }
@@ -239,8 +243,6 @@ namespace FROSch {
     int CoarseOperator<SC,LO,GO,NO>::setUpCoarseOperator()
     {
 
-        CoarseSolver_.reset(); // Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below.
-
         // Build CoarseMatrix_
         CrsMatrixPtr k0;
 #ifdef FROSCH_TIMER
@@ -249,7 +251,7 @@ namespace FROSch {
         
         {
 #ifdef FROSCH_TIMER
-            TimeMonitor_Type ApplyTM(*BuildCoarseTimer_);
+            TimeMonitor_Type BuildCoarseTM(*BuildCoarseTimer_);
 #endif
             k0 = buildCoarseMatrix();
             
@@ -261,10 +263,13 @@ namespace FROSch {
             // Build CoarseMap_
             buildCoarseSolveMap(k0);
 
+            if (OnCoarseSolveComm_) {
+                CoarseSolver_.reset(); // Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below.
+            }
             //------------------------------------------------------------------------------------------------------------------------
             // Communicate coarse matrix
             
-            if (DistributionList_->get("Type","linear").compare("Zoltan2")) {
+            if (!DistributionList_->get("Type","linear").compare("linear")) {
  
                 CrsMatrixPtr tmpCoarseMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[0],k0->getGlobalMaxNumRowEntries());
                 CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseMap_,GatheringMaps_[0]);
@@ -386,7 +391,7 @@ namespace FROSch {
     typename CoarseOperator<SC,LO,GO,NO>::CrsMatrixPtr CoarseOperator<SC,LO,GO,NO>::buildCoarseMatrix()
     {
         
-//        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
 //        Phi_->describe(*fancy,Teuchos::VERB_EXTREME);
         
         CoarseMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(Phi_->getDomainMap(),1);
@@ -448,9 +453,10 @@ namespace FROSch {
                 GO numGlobalElements = CoarseMap_->getMaxAllGlobalIndex()+1;
                 numMyRows = (LO) (((numGlobalElements) / NumProcsCoarseSolve_) + 100.*std::numeric_limits<double>::epsilon());
                 LO remainingEl = CoarseMap_->getMaxAllGlobalIndex()+1 - NumProcsCoarseSolve_*numMyRows;
-                if (remainingEl > this->MpiComm_->getRank() - (this->MpiComm_->getSize() - NumProcsCoarseSolve_) && this->MpiComm_->getRank() >= this-> MpiComm_->getSize() - NumProcsCoarseSolve_) {
+                if (remainingEl > this->MpiComm_->getRank() - (this->MpiComm_->getSize() - NumProcsCoarseSolve_) && this->MpiComm_->getRank() >= this->MpiComm_->getSize() - NumProcsCoarseSolve_) {
                     numMyRows++;
                 }
+                //Not a parallel coarse solve proc. Therfore these procs don't any rows
                 if (!(this->MpiComm_->getRank() >= this->MpiComm_->getSize() - NumProcsCoarseSolve_)) {
                     numMyRows = 0;
                 }
@@ -459,13 +465,19 @@ namespace FROSch {
                 
                 //------------------------------------------------------------------------------------------------------------------------
                 // Use a separate Communicator for the coarse problem
+                
                 MapPtr tmpCoarseMap = SwapMap_;//GatheringMaps_[GatheringMaps_.size()-1];
                 
                 if (tmpCoarseMap->getNodeNumElements()>0) {
                     OnCoarseSolveComm_=true;
                 }
+                Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+
+                tmpCoarseMap->describe(*fancy,Teuchos::VERB_EXTREME);
+
                 CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
-                CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),numGlobalElements,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
+                //Tpetra error when using  numGlobalElements instead of -1 below
+                CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
             }
             else {
                 FROSCH_ASSERT(false,"Only linear distribution for coarse matrix is supported if parallel levels are used!");

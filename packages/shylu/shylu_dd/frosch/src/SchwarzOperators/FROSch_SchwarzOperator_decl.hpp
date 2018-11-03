@@ -45,7 +45,7 @@
 #define FROSCH_ASSERT(A,S) if(!(A)) { std::cerr<<"Assertion failed. "<<S<<std::endl; std::cout.flush(); throw std::out_of_range("Assertion.");};
 
 #define FROSCH_TIMER
-
+//#define FROSCH_DETAIL_TIMER /* with barriers! Can not be used when using parallel coarse solves */
 #include <Xpetra_MatrixMatrix.hpp>
 #include <Xpetra_TripleMatrixMultiply.hpp>
 #include <Xpetra_Export.hpp>

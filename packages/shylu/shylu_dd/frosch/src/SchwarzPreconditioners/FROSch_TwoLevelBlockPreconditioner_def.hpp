@@ -234,7 +234,7 @@ namespace FROSch {
                 FROSCH_ASSERT(0!=0,"CoarseOperator Type unkown.");
             }
         }
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
         this->MpiComm_->barrier();
 #endif
         return ret;
@@ -245,7 +245,9 @@ namespace FROSch {
     {
         int ret = 0;
 #ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
         this->MpiComm_->barrier();
+#endif
         TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);
         TimeMonitor_Type ComputeTwoLevelTM(*ComputeTwoLevel_);
         TimeMonitor_Type ComputeSecondLevelTM(*ComputeSecondLevel_);
@@ -260,7 +262,7 @@ namespace FROSch {
         
         if (0>this->OverlappingOperator_->compute()) ret -= 1;
             
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
         this->MpiComm_->barrier();
 #endif
         return ret;

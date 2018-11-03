@@ -59,7 +59,7 @@ namespace FROSch {
     IDofs_ (0),
     DofsMaps_ (0),
     NumberOfBlocks_ (0)
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
     ,RepMatKTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Repeated Matrix")),
     SubMatKTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Sub Matrices")),
     FillPhiGammaTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis: Fill Phi Gamma")),
@@ -114,13 +114,13 @@ namespace FROSch {
         MapPtr repeatedMap = assembleRepeatedMap(); // Todo:: Eigentlich gehört das in Initialize !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         CrsMatrixPtr repeatedMatrix;
         {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
             TimeMonitor_Type RepMatKTM(*RepMatKTimer_);
 #endif
         // Build local saddle point problem
          repeatedMatrix = FROSch::ExtractLocalSubdomainMatrix(this->K_,repeatedMap);
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
 #endif
         }
@@ -144,12 +144,12 @@ namespace FROSch {
         CrsMatrixPtr kGammaI;
         CrsMatrixPtr kGammaGamma;
         {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
             TimeMonitor_Type SubMatKTM(*SubMatKTimer_);
 #endif
             FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma);
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
 #endif
         }
@@ -277,7 +277,7 @@ namespace FROSch {
             MultiVectorPtr mVPhiGamma = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(kIGamma->getDomainMap(),coarseMap->getNodeNumElements());
             LOVec numberBlockInterfaceEntity(NumberOfBlocks_);
             {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
             TimeMonitor_Type FillPhiGammaTM(*FillPhiGammaTimer_);
 #endif
@@ -330,26 +330,26 @@ namespace FROSch {
                     }
                     
                 }
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
 #endif
             }
     //        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); this->Phi_->describe(*fancy,Teuchos::VERB_EXTREME);
             // Hier Multiplikation kIGamma*PhiGamma
             {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
                 TimeMonitor_Type ApplyPhiGammaTM(*ApplyPhiGammaTimer_);
 #endif
                 kIGamma->apply(*mVPhiGamma,*mVtmp);
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
 #endif
             }
             mVtmp->scale(-1.0);
 
             {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
                 TimeMonitor_Type ExtensionSolverTM(*ExtensionSolverTimer_);
 #endif
@@ -358,22 +358,22 @@ namespace FROSch {
                 // DAS MÜSSEN WIR NOCH ÄNDERN -> initialize, compute, apply...
                 ExtensionSolver_->initialize();
                 ExtensionSolver_->compute();
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
 #endif
             }
             {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
                 TimeMonitor_Type ApplyExtensionSolverTM(*ApplyExtensionSolverTimer_);
 #endif
                 ExtensionSolver_->apply(*mVtmp,*mVPhiI);
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
 #endif
             }
             {
-#ifdef FROSCH_TIMER
+#ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
                 TimeMonitor_Type FillPhiTM(*FillPhiTimer_);
 #endif
@@ -384,7 +384,7 @@ namespace FROSch {
                 
                 GOVec2D excludeCols(NumberOfBlocks_);
                 LO iD;
-                SC valueTmp;                
+                SC valueTmp;
                 LOVec indices;
                 SCVec values;
                 
@@ -461,9 +461,10 @@ namespace FROSch {
                     }
                 }
 
-            this->Phi_->fillComplete(coarseMap,this->Phi_->getRowMap());
+
         }
         }
+        this->Phi_->fillComplete(coarseMap,this->Phi_->getRowMap());        
 //        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); this->Phi_->describe(*fancy,Teuchos::VERB_EXTREME);
         return 0;
     }
