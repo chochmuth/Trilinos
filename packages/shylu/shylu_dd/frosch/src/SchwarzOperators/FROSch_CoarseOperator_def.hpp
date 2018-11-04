@@ -242,7 +242,7 @@ namespace FROSch {
     template<class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::setUpCoarseOperator()
     {
-
+        CoarseSolver_.reset(); // Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below.
         // Build CoarseMatrix_
         CrsMatrixPtr k0;
 #ifdef FROSCH_TIMER
@@ -263,9 +263,6 @@ namespace FROSch {
             // Build CoarseMap_
             buildCoarseSolveMap(k0);
 
-            if (OnCoarseSolveComm_) {
-                CoarseSolver_.reset(); // Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below.
-            }
             //------------------------------------------------------------------------------------------------------------------------
             // Communicate coarse matrix
             
