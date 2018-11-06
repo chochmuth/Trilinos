@@ -111,6 +111,8 @@ namespace FROSch {
         
         int preApplyCoarse(MultiVectorPtr &x,MultiVectorPtr &y);
         
+        CrsMatrixPtr getPhi( );
+
     protected:
         
         CoarseOperatorPtr CoarseOperator_;

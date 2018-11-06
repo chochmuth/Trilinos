@@ -123,6 +123,10 @@ namespace FROSch {
         MapPtrVecPtr getGatheringMaps();
         
         MapPtr getSwapMap();
+        
+        CrsMatrixPtr getPhi();
+
+        
     protected:
         
         virtual int setUpCoarseOperator();

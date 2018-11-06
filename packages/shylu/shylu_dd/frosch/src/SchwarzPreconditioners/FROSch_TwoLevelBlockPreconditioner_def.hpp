@@ -304,6 +304,15 @@ namespace FROSch {
         }
         return 0;
     }
+
+    template <class SC,class LO,class GO,class NO>
+    typename TwoLevelBlockPreconditioner<SC,LO,GO,NO>::CrsMatrixPtr TwoLevelBlockPreconditioner<SC,LO,GO,NO>::getPhi( )
+    {
+        
+        FROSCH_ASSERT(this->ParameterList_->get("TwoLevel",true),"Can not getPhi() because a one-level method was used.")
+        
+        return CoarseOperator_->getPhi();
+    }
     
 }
 

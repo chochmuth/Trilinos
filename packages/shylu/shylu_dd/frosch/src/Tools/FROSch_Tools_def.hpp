@@ -853,6 +853,28 @@ Teuchos::RCP<Xpetra::Map<LO,GO,NO> >ExtractRepeatedMapFromParameterList(Teuchos:
         return multiVector;
     }
 
+    template <class SC, class LO,class GO, class NO>
+    Teuchos::RCP<Epetra_CrsMatrix > ConvertToEpetra(Xpetra::Matrix<SC,LO,GO,NO> &matrix,
+                                                Teuchos::RCP<Epetra_Comm> epetraComm){
+        
+        Teuchos::RCP<Epetra_Map> map = ConvertToEpetra<LO,GO,NO>(*matrix.getMap(),epetraComm);
+        Teuchos::RCP<Epetra_CrsMatrix> matrixEpetra(new Epetra_CrsMatrix(Copy,*map,matrix.getGlobalMaxNumRowEntries()));
+        Teuchos::ArrayView<const SC> valuesArrayView;
+        Teuchos::ArrayView<const LO> indicesArrayView;
+
+        for (LO i=0; i<matrix.getRowMap()->getNodeNumElements(); i++) {
+            matrix.getLocalRowView(i, indicesArrayView, valuesArrayView);
+            Teuchos::Array<GO> indicesGlobal(indicesArrayView.size());
+            for (LO j=0; j<indicesArrayView.size(); j++) {
+                indicesGlobal[j] = matrix.getColMap()->getGlobalElement(indicesArrayView[j]);
+            }
+            if (indicesArrayView.size()>0) {
+                matrixEpetra->InsertGlobalValues(matrix.getRowMap()->getGlobalElement(i), indicesArrayView.size(), &(valuesArrayView[0]), &(indicesGlobal[0]));
+            }
+        }
+        matrixEpetra->FillComplete();
+        return matrixEpetra;
+    }
 
     template <class LO>
     Teuchos::Array<LO> GetIndicesFromString(std::string string, LO dummy){

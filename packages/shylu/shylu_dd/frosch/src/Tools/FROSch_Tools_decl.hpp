@@ -171,7 +171,11 @@ namespace FROSch {
     template <class SC, class LO,class GO, class NO>
     Teuchos::RCP<Epetra_MultiVector > ConvertToEpetra(Xpetra::MultiVector<SC,LO,GO,NO> &vector,
                                                                     Teuchos::RCP<Epetra_Comm> epetraComm);
-    
+
+    template <class SC, class LO,class GO, class NO>
+    Teuchos::RCP<Epetra_CrsMatrix > ConvertToEpetra(Xpetra::Matrix<SC,LO,GO,NO> &matrix,
+                                                      Teuchos::RCP<Epetra_Comm> epetraComm);
+
     
     template <class LO>
     Teuchos::Array<LO> GetIndicesFromString(std::string string);

@@ -819,22 +819,22 @@ namespace FROSch {
                             
                             break;
                             
-                        case 1:
-                            
-                            nodeIDGamma = componentsGamma[i][0];
-                            nodeIDLocal = components[i][0];
-                            nodeIDGlobal = NodesMap_->getGlobalElement(nodeIDLocal); //cout << "vertex " << nodeIDGlobal << std::endl;
-                            for (UN k=0; k<DofsPerNode_; k++) {
-                                dofsGamma[k] = DofsPerNode_*nodeIDGamma+k;
-                                dofsLocal[k] = DofsPerNode_*nodeIDLocal+k;
-                                dofsGlobal[k] = DofsPerNode_*nodeIDGlobal+k;
-                            }
-                            
-                            tmpEntity->addNode(nodeIDGamma,nodeIDLocal,nodeIDGlobal,DofsPerNode_,dofsGamma,dofsLocal,dofsGlobal);
-                            tmpEntity->resetEntityType(VertexType);
-                            Vertices_->addEntity(tmpEntity);
-                            
-                            break;
+//                        case 1:
+//                            
+//                            nodeIDGamma = componentsGamma[i][0];
+//                            nodeIDLocal = components[i][0];
+//                            nodeIDGlobal = NodesMap_->getGlobalElement(nodeIDLocal); //cout << "vertex " << nodeIDGlobal << std::endl;
+//                            for (UN k=0; k<DofsPerNode_; k++) {
+//                                dofsGamma[k] = DofsPerNode_*nodeIDGamma+k;
+//                                dofsLocal[k] = DofsPerNode_*nodeIDLocal+k;
+//                                dofsGlobal[k] = DofsPerNode_*nodeIDGlobal+k;
+//                            }
+//                            
+//                            tmpEntity->addNode(nodeIDGamma,nodeIDLocal,nodeIDGlobal,DofsPerNode_,dofsGamma,dofsLocal,dofsGlobal);
+//                            tmpEntity->resetEntityType(VertexType);
+//                            Vertices_->addEntity(tmpEntity);
+//                            
+//                            break;
                             
                         default:
                             

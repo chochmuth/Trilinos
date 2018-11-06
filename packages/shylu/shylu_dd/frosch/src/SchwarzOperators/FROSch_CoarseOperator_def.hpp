@@ -41,7 +41,7 @@
 
 #ifndef _FROSCH_COARSEOPERATOR_DEF_HPP
 #define _FROSCH_COARSEOPERATOR_DEF_HPP
-
+#include <EpetraExt_RowMatrixOut.h>
 #include <FROSch_CoarseOperator_decl.hpp>
 namespace FROSch {
     
@@ -280,7 +280,18 @@ namespace FROSch {
                     
                     tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[j],Xpetra::INSERT);
                 }
-                
+                if (this->ParameterList_->get("Write Coarse matrix",false)) {
+                    tmpCoarseMatrix->fillComplete();
+                    
+                    Teuchos::RCP<Epetra_MpiComm> epetraMpiComm(new Epetra_MpiComm(MPI_COMM_WORLD));
+//                    const Epetra_Comm& tmpComm = dynamic_cast<const Epetra_Comm&> (*epetraMpiComm);
+//                    Teuchos::RCP<Epetra_Comm> tmpCommPtr(new Epetra_Comm(tmpComm));
+
+                    Teuchos::RCP<Epetra_CrsMatrix> epertaMat = ConvertToEpetra(*tmpCoarseMatrix, epetraMpiComm);
+                    EpetraExt::RowMatrixToMatlabFile("CoarseMat.dat",*epertaMat);
+                    FROSCH_ASSERT(false,"Coarse matrix was saved and fillComplete was called. We cant contiune with the fillCompete matrix.");
+                    
+                }
                 if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
                     tmpCoarseMatrix->fillComplete();
                     k0 = tmpCoarseMatrix;
@@ -324,6 +335,19 @@ namespace FROSch {
             }    //------------------------------------------------------------------------------------------------------------------------
             else{//coarse matrix already communicated with Zoltan2. Communicate to CoarseSolveComm.
                  //------------------------------------------------------------------------------------------------------------------------
+                
+                if (this->ParameterList_->get("Write Coarse matrix",false)) {
+                    Teuchos::RCP<Epetra_MpiComm> epetraMpiComm(new Epetra_MpiComm(MPI_COMM_WORLD));
+                    //                    const Epetra_Comm& tmpComm = dynamic_cast<const Epetra_Comm&> (*epetraMpiComm);
+                    //                    Teuchos::RCP<Epetra_Comm> tmpCommPtr(new Epetra_Comm(tmpComm));
+                    
+                    Teuchos::RCP<Epetra_CrsMatrix> epertaMat = ConvertToEpetra(*k0, epetraMpiComm);
+                    EpetraExt::RowMatrixToMatlabFile("CoarseMatZoltan.dat",*epertaMat);
+                    FROSCH_ASSERT(false,"Coarse matrix was saved and fillComplete was called. We cant contiune with the fillCompete matrix.");
+                    
+                }
+                
+                
                 // Matrix to the new communicator
                 if (OnCoarseSolveComm_) {
                     CoarseMatrix_ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,k0->getGlobalMaxNumRowEntries());
@@ -391,6 +415,16 @@ namespace FROSch {
         Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
 //        Phi_->describe(*fancy,Teuchos::VERB_EXTREME);
         
+        if (this->ParameterList_->get("Write Matrix",false)) {
+            Teuchos::RCP<Epetra_MpiComm> epetraMpiComm(new Epetra_MpiComm(MPI_COMM_WORLD));
+
+            Teuchos::RCP<Epetra_CrsMatrix> epertaMat = ConvertToEpetra(*(this->K_), epetraMpiComm);
+            EpetraExt::RowMatrixToMatlabFile("Mat.dat",*epertaMat);
+            
+            Teuchos::RCP<Epetra_CrsMatrix> epertaPhiMat = ConvertToEpetra(*Phi_, epetraMpiComm);
+            EpetraExt::RowMatrixToMatlabFile("Phi.dat",*epertaPhiMat);
+        }
+        
         CoarseMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(Phi_->getDomainMap(),1);
         CrsMatrixPtr k0 = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseMap_,CoarseMap_->getNodeNumElements());
         
@@ -402,6 +436,7 @@ namespace FROSch {
             Xpetra::MatrixMatrix<SC,LO,GO,NO>::Multiply(*this->K_,false,*Phi_,false,*tmp);
             Xpetra::MatrixMatrix<SC,LO,GO,NO>::Multiply(*Phi_,true,*tmp,false,*k0);
         }
+//        k0->describe(*fancy,Teuchos::VERB_EXTREME);
         return k0;
     }
     
@@ -604,6 +639,8 @@ namespace FROSch {
             std::cout << "### - Gathering steps             : " << DistributionList_->get("GatheringSteps",1) << std::endl;
             std::cout << "### ------------------------------------- ### " << std::endl;
         }
+//        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+//        CoarseSolveMap_->describe(*fancy,Teuchos::VERB_EXTREME);
         
         return 0;
     }
@@ -619,7 +656,12 @@ namespace FROSch {
     {
         return SwapMap_;
     }
-    
+
+    template<class SC,class LO,class GO,class NO>
+    typename CoarseOperator<SC,LO,GO,NO>::CrsMatrixPtr CoarseOperator<SC,LO,GO,NO>::getPhi()
+    {
+        return Phi_;
+    }
 }
 
 #endif
