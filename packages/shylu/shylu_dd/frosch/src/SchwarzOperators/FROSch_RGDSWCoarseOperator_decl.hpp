@@ -109,7 +109,7 @@ namespace FROSch {
                                 EntitySetPtr edges,
                                 EntitySetPtr faces); // Sollte man hier nicht auch die typen noch auswählen können
 
-        int addOnesPhiGamma( UN blockId, UN dofsPerNode, EntitySetPtr vertices );
+        int addOnesPhiGamma( UN blockId, UN dofsPerNode, EntitySetPtr vertices, LOVecPtr2D partMappings );
         
     };
     

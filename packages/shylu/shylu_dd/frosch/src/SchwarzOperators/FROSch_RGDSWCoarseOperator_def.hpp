@@ -227,20 +227,22 @@ namespace FROSch {
             FullTM.setStackedTimer(Teuchos::null);
 #endif
             phiGammaReducedGDSW(blockId,option,useRotations,dimension,dofsPerNode,nodeList,partMappings,vertices,edges,faces);
-            addOnesPhiGamma(blockId,dofsPerNode,vertices);
+            addOnesPhiGamma(blockId,dofsPerNode,vertices,partMappings);
         }
         
         return 0;
     }
     // soll geloescht werden, wenn wir vertices mit ancestors zu egdes machen.
     template <class SC,class LO,class GO,class NO>
-    int RGDSWCoarseOperator<SC,LO,GO,NO>::addOnesPhiGamma( UN blockId, UN dofsPerNode, EntitySetPtr vertices )
+    int RGDSWCoarseOperator<SC,LO,GO,NO>::addOnesPhiGamma( UN blockId, UN dofsPerNode, EntitySetPtr vertices, LOVecPtr2D partMappings )
     {
+        LO itmp=0;
         for (UN k=0; k<dofsPerNode; k++) {
             for (UN j=0; j<vertices->getNumEntities(); j++) {
                 InterfaceEntityPtr vertex = vertices->getEntity(j);
-                this->MVPhiGamma_[blockId]->replaceLocalValue(vertex->getGammaDofID(0,k),j,1.0);
+                this->MVPhiGamma_[blockId]->replaceLocalValue(vertex->getGammaDofID(0,k),partMappings[itmp][j],1.0);
             }
+            itmp++;
         }
         return 0;
     }
