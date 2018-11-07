@@ -310,11 +310,11 @@ namespace FROSch {
                     ConstSCVecView values;
                     for (UN i=0; i<tmpCoarseMatrix->getNodeNumRows(); i++) {
                         tmpCoarseMatrix->getGlobalRowView(CoarseSolveMap_->getGlobalElement(i),indices,values);
-
+                        
                         if (indices.size()>0) {
                             CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indices,values);
                         } else { // Add diagonal unit for zero rows // Todo: Do you we need to sort the coarse matrix "NodeWise"?
-
+                            std::cout << "adding 1 to diagonal for i="<<i<<std::endl;
                             GOVec indices(1,CoarseSolveMap_->getGlobalElement(i));
                             SCVec values(1,1.0);
                             CoarseMatrix_->insertGlobalValues(CoarseSolveMap_->getGlobalElement(i),indices(),values());

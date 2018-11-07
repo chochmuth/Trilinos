@@ -702,6 +702,7 @@ namespace FROSch {
         for (int i=0; i<NumMyNodes_; i++) {
             commMat->insertGlobalValues(NodesMap_->getGlobalElement(i),myPID(),one());
         }
+        // is this the range map or domain map?!
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > rangeMap = Xpetra::MapFactory<LO,GO,NO>::Build(NodesMap_->lib(),-1,myPID(),0,NodesMap_->getComm());
 
         commMat->fillComplete(NodesMap_,rangeMap);
@@ -712,6 +713,7 @@ namespace FROSch {
 
         commMat = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(NodesMap_,10);
 #ifdef Tpetra_issue_1752
+        //this should be an doExport?
         commMat->doImport(*commMatTmp,*commImporter,Xpetra::INSERT);
 #else
         commMat->doImport(*commMatTmp,*commExporter,Xpetra::INSERT);
@@ -730,6 +732,7 @@ namespace FROSch {
                 componentsSubdomains[i][j] = indices2[j];
                 componentsSubdomainsUnique[i][j] = indices2[j];
             }
+            //does this do anything? indices2 should be unique and sorted
             sortunique(componentsSubdomains[i]);
             sortunique(componentsSubdomainsUnique[i]);
         }
@@ -799,7 +802,7 @@ namespace FROSch {
         }
         Interior_->addEntity(volume);
         Interface_->addEntity(surface);
-        
+//        std::cout << this->MpiComm_->getRank() << " componentsSubdomainsUnique.size():"<< componentsSubdomainsUnique.size() << std::endl;
         for (UN i=0; i<componentsSubdomainsUnique.size(); i++) {
             Teuchos::RCP<InterfaceEntity<SC,LO,GO,NO> > tmpEntity(new InterfaceEntity<SC,LO,GO,NO>(VertexType,DofsPerNode_,componentsMultiplicity[i],&(componentsSubdomainsUnique[i][0])));
             LO nodeIDGamma;
@@ -888,6 +891,9 @@ namespace FROSch {
                         default:
                             
                             sortunique(components[i]);
+                            for (int ii=0; ii<components[i].size(); ii++) {
+                                
+                            }
                             
                             for (UN j=0; j<components[i].size(); j++) {
                                 nodeIDGamma = componentsGamma[i][j];

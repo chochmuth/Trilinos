@@ -100,6 +100,8 @@ namespace FROSch {
             this->DDInterface_->divideUnconnectedEntities(this->K_);
         }
         
+        this->DDInterface_->sortEntities(nodeList);
+        
         EntitySetPtr vertices,edges,faces,interface,interior,AncestorVertices,AncestorEdges,AncestorFaces;
         MapPtr AncestorVerticesMap,AncestorEdgesMap,AncestorFacesMap;
         
@@ -225,8 +227,21 @@ namespace FROSch {
             FullTM.setStackedTimer(Teuchos::null);
 #endif
             phiGammaReducedGDSW(blockId,option,useRotations,dimension,dofsPerNode,nodeList,partMappings,vertices,edges,faces);
+            addOnesPhiGamma(blockId,dofsPerNode,vertices);
         }
         
+        return 0;
+    }
+    // soll geloescht werden, wenn wir vertices mit ancestors zu egdes machen.
+    template <class SC,class LO,class GO,class NO>
+    int RGDSWCoarseOperator<SC,LO,GO,NO>::addOnesPhiGamma( UN blockId, UN dofsPerNode, EntitySetPtr vertices )
+    {
+        for (UN k=0; k<dofsPerNode; k++) {
+            for (UN j=0; j<vertices->getNumEntities(); j++) {
+                InterfaceEntityPtr vertex = vertices->getEntity(j);
+                this->MVPhiGamma_[blockId]->replaceLocalValue(vertex->getGammaDofID(0,k),j,1.0);
+            }
+        }
         return 0;
     }
     
