@@ -233,7 +233,7 @@ namespace FROSch {
 #endif
             phiGammaReducedGDSW(blockId,option,useRotations,dimension,dofsPerNode,nodeList,partMappings,vertices,edges,faces);
             if (this->ParameterList_->get("Set One Phi",false)) {
-                addOnesPhiGamma(blockId,dofsPerNode,AncestorVertices,partMappings);
+                addOnesPhiGamma(blockId,dofsPerNode,AncestorVertices,AncestorEdges,AncestorFaces,partMappings);
             }
         }
         
@@ -241,9 +241,11 @@ namespace FROSch {
     }
     // soll geloescht werden, wenn wir vertices mit ancestors zu egdes machen.
     template <class SC,class LO,class GO,class NO>
-    int RGDSWCoarseOperator<SC,LO,GO,NO>::addOnesPhiGamma( UN blockId, UN dofsPerNode, EntitySetPtr vertices, LOVecPtr2D partMappings )
+    int RGDSWCoarseOperator<SC,LO,GO,NO>::addOnesPhiGamma( UN blockId, UN dofsPerNode, EntitySetPtr vertices, EntitySetPtr edges, EntitySetPtr faces, LOVecPtr2D partMappings )
     {
+        
         LO itmp=0;
+        // vertices
         for (UN k=0; k<dofsPerNode; k++) {
             for (UN j=0; j<vertices->getNumEntities(); j++) {
                 InterfaceEntityPtr vertex = vertices->getEntity(j);
@@ -269,6 +271,29 @@ namespace FROSch {
 //        
 //
 //        }
+        // edges
+        for (UN k=0; k<dofsPerNode; k++) {
+            for (UN j=0; j<edges->getNumEntities(); j++) {
+                InterfaceEntityPtr edge = edges->getEntity(j);
+                for (UN jj=0; jj<edge->getNumNodes(); jj++) {
+                    this->MVPhiGamma_[blockId]->replaceLocalValue(edge->getGammaDofID(jj,k),partMappings[itmp][edge->getAncestorID()],1.);
+                }
+            }
+            itmp++;
+        }
+        
+        // faces
+        for (UN k=0; k<dofsPerNode; k++) {
+            for (UN j=0; j<faces->getNumEntities(); j++) {
+                InterfaceEntityPtr face = faces->getEntity(j);
+                for (UN jj=0; jj<face->getNumNodes(); jj++) {
+                    this->MVPhiGamma_[blockId]->replaceLocalValue(face->getGammaDofID(jj,k),partMappings[itmp][face->getAncestorID()],1.);
+                }
+            }
+            itmp++;
+        }
+
+        
         return 0;
     }
     
