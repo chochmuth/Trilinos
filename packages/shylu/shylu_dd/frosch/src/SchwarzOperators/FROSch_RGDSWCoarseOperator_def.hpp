@@ -100,7 +100,10 @@ namespace FROSch {
             this->DDInterface_->divideUnconnectedEntities(this->K_);
         }
         
-        this->DDInterface_->sortEntities(nodeList);
+        //delete after interface is identified correct
+//        this->DDInterface_->initializeChangedType();
+        //delete after interface is identified correct
+//        this->DDInterface_->sortEntitiesMod();
         
         EntitySetPtr vertices,edges,faces,interface,interior,AncestorVertices,AncestorEdges,AncestorFaces;
         MapPtr AncestorVerticesMap,AncestorEdgesMap,AncestorFacesMap;
@@ -126,6 +129,8 @@ namespace FROSch {
             // Build Processor Map Coarse //
             ////////////////////////////////
             MapPtrVecPtr mapVector(dofsPerNode*3+useRotations*3*(dofsPerNode-1+((dimension==3)&&(dofsPerNode==3))));
+            
+//            std::cout << "mapVector.size():" << mapVector.size() << std::endl;
             
             vertices = this->DDInterface_->getVertices();
             vertices->buildEntityMap(nodesMap);
@@ -227,7 +232,9 @@ namespace FROSch {
             FullTM.setStackedTimer(Teuchos::null);
 #endif
             phiGammaReducedGDSW(blockId,option,useRotations,dimension,dofsPerNode,nodeList,partMappings,vertices,edges,faces);
-            addOnesPhiGamma(blockId,dofsPerNode,vertices,partMappings);
+            if (this->ParameterList_->get("Set One Phi",false)) {
+                addOnesPhiGamma(blockId,dofsPerNode,AncestorVertices,partMappings);
+            }
         }
         
         return 0;
@@ -240,10 +247,28 @@ namespace FROSch {
         for (UN k=0; k<dofsPerNode; k++) {
             for (UN j=0; j<vertices->getNumEntities(); j++) {
                 InterfaceEntityPtr vertex = vertices->getEntity(j);
-                this->MVPhiGamma_[blockId]->replaceLocalValue(vertex->getGammaDofID(0,k),partMappings[itmp][j],1.0);
+                this->MVPhiGamma_[blockId]->replaceLocalValue(vertex->getGammaDofID(0,k),partMappings[itmp][vertex->getAncestorID()],1.);
+//                std::cout << "MyPID:"<< this->MpiComm_->getRank() << " adding 1 to vertex->getAncestorID():" << vertex->getAncestorID() << " itmp:"<<itmp<<  " partMappings["<<itmp<<"]["<<vertex->getAncestorID()<<"]:" << partMappings[itmp][vertex->getAncestorID()] << " vertex->getGammaDofID(0,k):"<<vertex->getGammaDofID(0,k)<<std::endl;
             }
             itmp++;
         }
+        
+//        for (int i=0; i<this->MVPhiGamma_[blockId]->getLocalLength(); i++) {
+//            SC sum=0;
+//            for (UN j=0; j<this->MVPhiGamma_[blockId]->getNumVectors(); j++) {
+//                sum+=this->MVPhiGamma_[blockId]->getData(j)[i];
+//            }
+//            if (sum>1.) {
+//                for (int jj=0; jj<this->MVPhiGamma_[blockId]->getNumVectors(); jj++) {
+//                    if (this->MVPhiGamma_[blockId]->getData(jj)[i]>0.) {
+//                        std::cout <<"MyPID:"<< this->MpiComm_->getRank() <<" critical row:" <<i<< " and col:"<<jj<< std::endl;
+//                    }
+//                }
+//            }
+////            std::cout << i << " the sum is:" << sum << std::endl;
+//        
+//
+//        }
         return 0;
     }
     
@@ -310,16 +335,27 @@ namespace FROSch {
                                     vertexAncestorsFace.push_back(AncestorVertex->getAncestorID());
                                     this->MVPhiGamma_[blockId]->replaceLocalValue(AncestorVertex->getGammaDofID(0,k),partMappings[itmp][AncestorVertex->getAncestorID()],1.0);
                                     for (UN j=0; j<AncestorEdge->getNumNodes(); j++) {
+                                        
+//                                        std::cout << this->MpiComm_->getRank() << " AncestorEdge:" << j << " globalID:" << AncestorEdge->getGlobalDofID(j,k) << " edgeValue:"<< edgeValue <<std::endl;
+                                        
                                         this->MVPhiGamma_[blockId]->replaceLocalValue(AncestorEdge->getGammaDofID(j,k),partMappings[itmp][AncestorVertex->getAncestorID()],edgeValue);
                                     }
                                 }
                             }
+                            
+                            
+//                            std::cout << "vertexAncestorsFace.size():" << vertexAncestorsFace.size() << std::endl;
+                            
+                            
                             sortunique(vertexAncestorsFace);
+                            
                             faceValue = 1.0/SC(vertexAncestorsFace.size());
                             for (UN ii=0; ii<vertexAncestorsFace.size(); ii++) {
                                 for (UN j=0; j<face->getNumNodes(); j++) {
+//                                    std::cout << this->MpiComm_->getRank() << " face:" << j << " globalID:" << face->getGlobalDofID(j,k) << " faceValue:"<< faceValue << " vertexAncestorsFace:"<< vertexAncestorsFace[ii] << " parMap:"<< partMappings[itmp][vertexAncestorsFace[ii]] <<std::endl;
                                     this->MVPhiGamma_[blockId]->replaceLocalValue(face->getGammaDofID(j,k),partMappings[itmp][vertexAncestorsFace[ii]],faceValue);
                                 }
+                                
                             }
                         }
                         itmp++;
@@ -491,9 +527,11 @@ namespace FROSch {
                                 EntitySetPtr AncestorVertices = AncestorEdge->getAncestors();
                                 if (AncestorVertices->getNumEntities()==0) {
                                     for (UN j=0; j<AncestorEdge->getNumNodes(); j++) {
+//                                    std::cout << this->MpiComm_->getRank() << " AncestorEdgeEdge:" << j << " globalID:" << AncestorEdge->getGlobalDofID(j,k) << " edge always:"<< 1. <<std::endl;
                                         this->MVPhiGamma_[blockId]->replaceLocalValue(AncestorEdge->getGammaDofID(j,k),partMappings[itmp][AncestorEdge->getAncestorID()],1.0);
                                     }
                                     for (UN j=0; j<face->getNumNodes(); j++) {
+//                                    std::cout << this->MpiComm_->getRank() << " faceEgde:" << j << " globalID:" << face->getGlobalDofID(j,k) << " faceValue:"<< faceValue  << " parMap:"<<partMappings[itmp][AncestorEdge->getAncestorID()]<<std::endl;
                                         this->MVPhiGamma_[blockId]->replaceLocalValue(face->getGammaDofID(j,k),partMappings[itmp][AncestorEdge->getAncestorID()],faceValue);
                                     }
                                 }

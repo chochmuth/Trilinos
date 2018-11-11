@@ -51,7 +51,8 @@ namespace FROSch {
     Type_ (type),
     EntityVector_ (0),
     EntityMapIsUpToDate_ (false),
-    EntityMap_ ()
+    EntityMap_ (),
+    ChangedTypeVector_()
     {
         
     }
@@ -61,7 +62,8 @@ namespace FROSch {
     Type_ (entitySet.getEntityType()),
     EntityVector_ (entitySet.getEntityVector()),
     EntityMapIsUpToDate_ (false),
-    EntityMap_ ()
+    EntityMap_ (),
+    ChangedTypeVector_()
     {
         
     }
@@ -85,6 +87,23 @@ namespace FROSch {
         return 0;
     }
     
+    template<class SC,class LO,class GO,class NO>
+    int EntitySet<SC,LO,GO,NO>::initializeChangedType()
+    {
+        ChangedTypeVector_.resize(EntityVector_.size(),false);
+
+        return 0;
+    }
+    
+    template<class SC,class LO,class GO,class NO>
+    int EntitySet<SC,LO,GO,NO>::addChangedType()
+    {
+        
+        ChangedTypeVector_.push_back(true);
+        
+        return 0;
+    }
+
     template<class SC,class LO,class GO,class NO>
     int EntitySet<SC,LO,GO,NO>::buildEntityMap(ConstMapPtr localToGlobalNodesMap)
     {

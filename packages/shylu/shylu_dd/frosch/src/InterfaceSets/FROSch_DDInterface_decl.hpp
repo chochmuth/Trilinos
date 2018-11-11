@@ -113,7 +113,8 @@ namespace FROSch {
         int divideUnconnectedEntities(CrsMatrixPtr matrix);
         
         int sortEntities();
-        
+        int sortEntitiesMod();
+        int initializeChangedType();
         int sortEntities(MultiVectorPtr nodeList);
         
         int findAncestors();

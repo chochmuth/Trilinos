@@ -78,6 +78,7 @@ namespace FROSch {
         typedef Teuchos::Array<SC> SCVec;
         typedef Teuchos::ArrayRCP<SC> SCVecPtr;
         
+        typedef Teuchos::Array<bool> BoolVec;
         
         EntitySet(EntityType type);
         
@@ -141,6 +142,10 @@ namespace FROSch {
                                     MultiVectorPtr &nodeList,
                                     UN iD) const;
         
+        int initializeChangedType();
+        
+        int addChangedType();
+        
     protected:
         
         ///////////////
@@ -154,6 +159,8 @@ namespace FROSch {
         bool EntityMapIsUpToDate_;
         
         MapPtr EntityMap_;
+        //delete when ancstors are found correct
+        BoolVec ChangedTypeVector_;
     };
     
 }

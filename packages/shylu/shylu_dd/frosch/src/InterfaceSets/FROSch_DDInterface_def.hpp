@@ -351,6 +351,38 @@ namespace FROSch {
         return 0;
     }
     
+    
+    //delete after interface for reduced is identified correct
+    template <class SC,class LO,class GO,class NO>
+    int DDInterface<SC,LO,GO,NO>::sortEntitiesMod()
+    {
+        // Edges_
+        InterfaceEntityPtrVecPtr extractedVertices = Edges_->sortOutVertices();
+        for (UN i=0; i<extractedVertices.size(); i++) {
+            Vertices_->addEntity(extractedVertices[i]);
+//            Vertices_->addChangedType();
+        }
+        
+        // Faces_
+        extractedVertices = Faces_->sortOutVertices();
+        for (UN i=0; i<extractedVertices.size(); i++) {
+            Vertices_->addEntity(extractedVertices[i]);
+//            Vertices_->addChangedType();            
+        }
+        
+        
+        return 0;
+    }
+    
+    template<class SC,class LO,class GO,class NO>
+    int DDInterface<SC,LO,GO,NO>::initializeChangedType()
+    {
+        Vertices_->initializeChangedType();
+        
+        return 0;
+    }
+
+    
     template <class SC,class LO,class GO,class NO>
     int DDInterface<SC,LO,GO,NO>::sortEntities(MultiVectorPtr nodeList)
     {
@@ -822,22 +854,22 @@ namespace FROSch {
                             
                             break;
                             
-//                        case 1:
-//                            
-//                            nodeIDGamma = componentsGamma[i][0];
-//                            nodeIDLocal = components[i][0];
-//                            nodeIDGlobal = NodesMap_->getGlobalElement(nodeIDLocal); //cout << "vertex " << nodeIDGlobal << std::endl;
-//                            for (UN k=0; k<DofsPerNode_; k++) {
-//                                dofsGamma[k] = DofsPerNode_*nodeIDGamma+k;
-//                                dofsLocal[k] = DofsPerNode_*nodeIDLocal+k;
-//                                dofsGlobal[k] = DofsPerNode_*nodeIDGlobal+k;
-//                            }
-//                            
-//                            tmpEntity->addNode(nodeIDGamma,nodeIDLocal,nodeIDGlobal,DofsPerNode_,dofsGamma,dofsLocal,dofsGlobal);
-//                            tmpEntity->resetEntityType(VertexType);
-//                            Vertices_->addEntity(tmpEntity);
-//                            
-//                            break;
+                        case 1:
+                            
+                            nodeIDGamma = componentsGamma[i][0];
+                            nodeIDLocal = components[i][0];
+                            nodeIDGlobal = NodesMap_->getGlobalElement(nodeIDLocal); //cout << "vertex " << nodeIDGlobal << std::endl;
+                            for (UN k=0; k<DofsPerNode_; k++) {
+                                dofsGamma[k] = DofsPerNode_*nodeIDGamma+k;
+                                dofsLocal[k] = DofsPerNode_*nodeIDLocal+k;
+                                dofsGlobal[k] = DofsPerNode_*nodeIDGlobal+k;
+                            }
+                            
+                            tmpEntity->addNode(nodeIDGamma,nodeIDLocal,nodeIDGlobal,DofsPerNode_,dofsGamma,dofsLocal,dofsGlobal);
+                            tmpEntity->resetEntityType(VertexType);
+                            Vertices_->addEntity(tmpEntity);
+//                            std::cout << "Vertex:"<< nodeIDGlobal<< std::endl;
+                            break;
                             
                         default:
                             
@@ -853,12 +885,12 @@ namespace FROSch {
                                     dofsLocal[k] = DofsPerNode_*nodeIDLocal+k;
                                     dofsGlobal[k] = DofsPerNode_*nodeIDGlobal+k;
                                 }
-                                
+//                            std::cout << "Face:"<< nodeIDGlobal<< std::endl;
                                 tmpEntity->addNode(nodeIDGamma,nodeIDLocal,nodeIDGlobal,DofsPerNode_,dofsGamma,dofsLocal,dofsGlobal);
                             }
                             tmpEntity->resetEntityType(FaceType);
                             Faces_->addEntity(tmpEntity);
-                            
+
                             break;
                     }
                     break;
@@ -885,15 +917,13 @@ namespace FROSch {
                             tmpEntity->addNode(nodeIDGamma,nodeIDLocal,nodeIDGlobal,DofsPerNode_,dofsGamma,dofsLocal,dofsGlobal);
                             tmpEntity->resetEntityType(VertexType);
                             Vertices_->addEntity(tmpEntity);
-                            
+//                            std::cout << "Vertex Mult>3:"<< nodeIDGlobal<< std::endl;
+
                             break;
                             
                         default:
                             
                             sortunique(components[i]);
-                            for (int ii=0; ii<components[i].size(); ii++) {
-                                
-                            }
                             
                             for (UN j=0; j<components[i].size(); j++) {
                                 nodeIDGamma = componentsGamma[i][j];
@@ -904,12 +934,12 @@ namespace FROSch {
                                     dofsLocal[k] = DofsPerNode_*nodeIDLocal+k;
                                     dofsGlobal[k] = DofsPerNode_*nodeIDGlobal+k;
                                 }
-                                
+//                                std::cout << "egde Mult>3:"<< nodeIDGlobal<< std::endl;
                                 tmpEntity->addNode(nodeIDGamma,nodeIDLocal,nodeIDGlobal,DofsPerNode_,dofsGamma,dofsLocal,dofsGlobal);
                             }
                             tmpEntity->resetEntityType(EdgeType);
                             Edges_->addEntity(tmpEntity);
-                            
+
                             break;
                     }
                     break;
