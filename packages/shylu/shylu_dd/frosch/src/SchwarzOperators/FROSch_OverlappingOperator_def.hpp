@@ -71,7 +71,9 @@ namespace FROSch {
     ,ApplyRestTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather restriction")),
     ApplyNormalTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather normal")),
     ApplyScatterTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Scatter")),
-    ApplySolveTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Solve"))
+    ApplySolveTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Solve")),
+    SymbolicFacTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Compute: Symbolic Factorization")),
+    NumericFacTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Compute: Numeric Factorization"))
 #endif
     {
 
@@ -238,22 +240,30 @@ namespace FROSch {
 
                 if (OnFirstLevelComm_) {
                     SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
-                    SubdomainSolver_->initialize();
-                    ret = SubdomainSolver_->compute();
+                    {
+#ifdef FROSCH_DETAIL_TIMER
+                        TimeMonitor_Type SymbolicFacTM(*SymbolicFacTimer_);
+#endif
+                        SubdomainSolver_->initialize();
+                    }
+                    {
+#ifdef FROSCH_DETAIL_TIMER
+                        TimeMonitor_Type NumericFacTM(*NumericFacTimer_);
+#endif
+                        ret = SubdomainSolver_->compute();
+                    }
                 }
             }
             else{
                 if (this->Verbose_)
                     std::cout << "First level reuse Symbolic Factorization" << std::endl;
-                
-                if (this->ParameterList_->get("No Reset Matrix",false)) {
-                    if (OnFirstLevelComm_) {
-                        ret = SubdomainSolver_->compute();
-                    }
-                }
-                else{
-                    if (OnFirstLevelComm_) {
-                        SubdomainSolver_->resetMatrix(OverlappingMatrix_);
+                            
+                if (OnFirstLevelComm_) {
+                    SubdomainSolver_->resetMatrix(OverlappingMatrix_);
+                    {
+#ifdef FROSCH_DETAIL_TIMER
+                    TimeMonitor_Type NumericFacTM(*NumericFacTimer_);
+#endif
                         ret = SubdomainSolver_->compute();
                     }
                 }

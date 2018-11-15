@@ -145,6 +145,8 @@ namespace FROSch {
         TimePtr_Type ApplyNormalTimer_;
         TimePtr_Type ApplyScatterTimer_;
         TimePtr_Type ApplySolveTimer_;
+        TimePtr_Type SymbolicFacTimer_;
+        TimePtr_Type NumericFacTimer_;
 #endif
     };
     
