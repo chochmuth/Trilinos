@@ -65,15 +65,15 @@ namespace FROSch {
     ExtractTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Extract Local Matrices")),
     ComputeTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Compute")),
     FullSetupTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Full Setup")),
-    ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply"))
+    ApplyTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply")),
+    SymbolicFacTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Compute: Symbolic Factorization")),
+    NumericFacTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Compute: Numeric Factorization"))
 #endif
-#ifdef FROSCH_DETAIL_TIMER    
+#ifdef FROSCH_DETAIL_TIMER
     ,ApplyRestTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather restriction")),
     ApplyNormalTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Gather normal")),
     ApplyScatterTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Scatter")),
-    ApplySolveTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Solve")),
-    SymbolicFacTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Compute: Symbolic Factorization")),
-    NumericFacTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Compute: Numeric Factorization"))
+    ApplySolveTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Apply: Solve"))
 #endif
     {
 
@@ -241,13 +241,13 @@ namespace FROSch {
                 if (OnFirstLevelComm_) {
                     SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
                     {
-#ifdef FROSCH_DETAIL_TIMER
+#ifdef FROSCH_TIMER
                         TimeMonitor_Type SymbolicFacTM(*SymbolicFacTimer_);
 #endif
                         SubdomainSolver_->initialize();
                     }
                     {
-#ifdef FROSCH_DETAIL_TIMER
+#ifdef FROSCH_TIMER
                         TimeMonitor_Type NumericFacTM(*NumericFacTimer_);
 #endif
                         ret = SubdomainSolver_->compute();
@@ -257,11 +257,11 @@ namespace FROSch {
             else{
                 if (this->Verbose_)
                     std::cout << "First level reuse Symbolic Factorization" << std::endl;
-                            
+                
                 if (OnFirstLevelComm_) {
                     SubdomainSolver_->resetMatrix(OverlappingMatrix_);
                     {
-#ifdef FROSCH_DETAIL_TIMER
+#ifdef FROSCH_TIMER
                     TimeMonitor_Type NumericFacTM(*NumericFacTimer_);
 #endif
                         ret = SubdomainSolver_->compute();
