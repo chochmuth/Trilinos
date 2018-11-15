@@ -386,7 +386,9 @@ namespace Amesos2
       is_contiguous_ = parameterList->get<bool>("IsContiguous");
 
     }
-
+    if( parameterList->isParameter("Reuse SymbolicFactorization") ){
+      reuse_SymbolicFactorization = parameterList->get<bool>("Reuse SymbolicFactorization");
+    }
   }//end set parameters()
   
   
@@ -410,7 +412,7 @@ namespace Amesos2
       pl->set("ICNTL(11)", 0, "See Manual" );
       pl->set("ICNTL(14)", 20, "See Manual" );
       pl->set("IsContiguous", true, "Whether GIDs contiguous");
-      
+      pl->set("Reuse SymbolicFactorization", false, "Indicate that a symbolic factorization should already exist and that matrix must be reset in NumericFactorization Phase." );
       valid_params = pl;
     }
     
@@ -428,7 +430,7 @@ namespace Amesos2
     Teuchos::TimeMonitor convTimer(this->timers_.mtxConvTime_);
     #endif
     
-    if(MUMPS_MATRIX_LOAD == false)
+    if(MUMPS_MATRIX_LOAD == false || (current_phase==NUMFACT && reuse_SymbolicFactorization))
       {
         // Only the root image needs storage allocated
         if( this->root_ ){

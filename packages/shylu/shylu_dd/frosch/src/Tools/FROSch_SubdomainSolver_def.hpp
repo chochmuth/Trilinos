@@ -332,7 +332,10 @@ namespace FROSch {
                     tpetraMat_->replaceLocalValues (i, indices, values);
                 }
                 tpetraMat_->fillComplete();
-//                Amesos2SolverTpetra_->setA(tpetraMat_,Amesos2::NUMFACT);
+                if (ParameterList_->get("Set A",false)) {
+                    Amesos2SolverTpetra_->setA(tpetraMat_,Amesos2::SYMBFACT);
+                }
+
             } else {
                 FROSCH_ASSERT(0!=0,"This can't happen...");
             }

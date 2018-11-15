@@ -233,6 +233,9 @@ namespace FROSch {
 #endif
         if (this->IsComputed_) {
             if (this->ParameterList_->get("Reuse Symbolic Factorization",false)==false) {
+                if (this->Verbose_)
+                    std::cout << "First level does not reuse Symbolic Factorization" << std::endl;
+
                 if (OnFirstLevelComm_) {
                     SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
                     SubdomainSolver_->initialize();
@@ -240,13 +243,26 @@ namespace FROSch {
                 }
             }
             else{
-                if (OnFirstLevelComm_) {
-                     SubdomainSolver_->resetMatrix(OverlappingMatrix_);
-                     ret = SubdomainSolver_->compute();
+                if (this->Verbose_)
+                    std::cout << "First level reuse Symbolic Factorization" << std::endl;
+                
+                if (this->ParameterList_->get("No Reset Matrix",false)) {
+                    if (OnFirstLevelComm_) {
+                        ret = SubdomainSolver_->compute();
+                    }
+                }
+                else{
+                    if (OnFirstLevelComm_) {
+                        SubdomainSolver_->resetMatrix(OverlappingMatrix_);
+                        ret = SubdomainSolver_->compute();
+                    }
                 }
             }
         }
         else {
+            if (this->Verbose_)
+                std::cout << "First level no Recycling" << std::endl;
+
              if (OnFirstLevelComm_) {
                 SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
                 SubdomainSolver_->initialize();
