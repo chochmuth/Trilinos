@@ -144,6 +144,7 @@ namespace FROSch {
         
         bool isComputed() const;
         
+        int resetMatrix(CrsMatrixPtr k);
     protected:
         
         CrsMatrixPtr K_;
@@ -164,7 +165,10 @@ namespace FROSch {
         Teuchos::RCP<Belos::SolverManager<SC,Xpetra::MultiVector<SC,LO,GO,NO>,Belos::OperatorT<Xpetra::MultiVector<SC,LO,GO,NO> > > > BelosSolverManager_;
         
         bool IsInitialized_;
-        bool IsComputed_;        
+        bool IsComputed_;
+        
+        EpetraCrsMatrixPtr epetraMat_;
+        TpetraCrsMatrixPtr tpetraMat_;
     };
     
 }

@@ -231,10 +231,27 @@ namespace FROSch {
 #ifdef FROSCH_TIMER
         TimeMonitor_Type OverlapTM(*ComputeTimer_);
 #endif
-         if (OnFirstLevelComm_) {
-            SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
-            SubdomainSolver_->initialize();
-            ret = SubdomainSolver_->compute();
+        if (this->IsComputed_) {
+            if (this->ParameterList_->get("Reuse Symbolic Factorization",false)==false) {
+                if (OnFirstLevelComm_) {
+                    SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
+                    SubdomainSolver_->initialize();
+                    ret = SubdomainSolver_->compute();
+                }
+            }
+            else{
+                if (OnFirstLevelComm_) {
+                     SubdomainSolver_->resetMatrix(OverlappingMatrix_);
+                     ret = SubdomainSolver_->compute();
+                }
+            }
+        }
+        else {
+             if (OnFirstLevelComm_) {
+                SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
+                SubdomainSolver_->initialize();
+                ret = SubdomainSolver_->compute();
+             }
         }
     
         return ret; // RETURN VALUE

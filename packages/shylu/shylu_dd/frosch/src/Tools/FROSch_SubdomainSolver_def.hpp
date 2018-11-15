@@ -59,19 +59,21 @@ namespace FROSch {
     BelosLinearProblem_(),
     BelosSolverManager_(),
     IsInitialized_ (false),
-    IsComputed_ (false)
+    IsComputed_ (false),
+    epetraMat_(),
+    tpetraMat_()
     {
         if (!ParameterList_->get("SolverType","Amesos").compare("Amesos")) {
             FROSCH_ASSERT(K_->getRowMap()->lib()==Xpetra::UseEpetra,"UnderlyingLib!=Xpetra::UseEpetra");
             // AH 10/18/2017: Dies könnten wir nach initialize() verschieben, oder?
             Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*K_);
             Xpetra::EpetraCrsMatrixT<GO,NO>& xEpetraMat = dynamic_cast<Xpetra::EpetraCrsMatrixT<GO,NO>&>(*crsOp.getCrsMatrix());
-            EpetraCrsMatrixPtr epetraMat = xEpetraMat.getEpetra_CrsMatrixNonConst();
+            epetraMat_ = xEpetraMat.getEpetra_CrsMatrixNonConst();
             
             EpetraMultiVectorPtr xTmp;
             EpetraMultiVectorPtr bTmp;
             
-            EpetraLinearProblem_.reset(new Epetra_LinearProblem(epetraMat.get(),xTmp.get(),bTmp.get()));
+            EpetraLinearProblem_.reset(new Epetra_LinearProblem(epetraMat_.get(),xTmp.get(),bTmp.get()));
             
             Amesos amesosFactory;
 
@@ -83,24 +85,24 @@ namespace FROSch {
             if (K_->getRowMap()->lib()==Xpetra::UseEpetra) {
                 Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*K_);
                 Xpetra::EpetraCrsMatrixT<GO,NO>& xEpetraMat = dynamic_cast<Xpetra::EpetraCrsMatrixT<GO,NO>&>(*crsOp.getCrsMatrix());
-                EpetraCrsMatrixPtr epetraMat = xEpetraMat.getEpetra_CrsMatrixNonConst();
+                epetraMat_ = xEpetraMat.getEpetra_CrsMatrixNonConst();
 
                 EpetraMultiVectorPtr xTmp;
                 EpetraMultiVectorPtr bTmp;
                 
-                Amesos2SolverEpetra_ = Amesos2::create<EpetraCrsMatrix,EpetraMultiVector>(ParameterList_->get("Solver","Mumps"),epetraMat,xTmp,bTmp);
+                Amesos2SolverEpetra_ = Amesos2::create<EpetraCrsMatrix,EpetraMultiVector>(ParameterList_->get("Solver","Mumps"),epetraMat_,xTmp,bTmp);
                 ParameterListPtr parameterList = sublist(ParameterList_,"Amesos2");
                 parameterList->setName("Amesos2");
                 Amesos2SolverEpetra_->setParameters(parameterList);
             } else if (K_->getRowMap()->lib()==Xpetra::UseTpetra) {
                 Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*K_);
                 Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
-                TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+                tpetraMat_ = xTpetraMat.getTpetra_CrsMatrixNonConst();
                 
                 TpetraMultiVectorPtr xTmp;
                 TpetraMultiVectorPtr bTmp;
 
-                Amesos2SolverTpetra_ = Amesos2::create<Tpetra::CrsMatrix<SC,LO,GO,NO>,Tpetra::MultiVector<SC,LO,GO,NO> >(ParameterList_->get("Solver","Mumps"),tpetraMat,xTmp,bTmp);
+                Amesos2SolverTpetra_ = Amesos2::create<Tpetra::CrsMatrix<SC,LO,GO,NO>,Tpetra::MultiVector<SC,LO,GO,NO> >(ParameterList_->get("Solver","Mumps"),tpetraMat_,xTmp,bTmp);
                 ParameterListPtr parameterList = sublist(ParameterList_,"Amesos2");
                 parameterList->setName("Amesos2");
                 Amesos2SolverTpetra_->setParameters(parameterList);
@@ -264,22 +266,20 @@ namespace FROSch {
             }
             
         } else if (!ParameterList_->get("SolverType","Amesos").compare("MueLu")) {
-//            MueLuFactory_->SetupHierarchy(*MueLuHierarchy_);
-//            MueLuHierarchy_->IsPreconditioner(false);
-//            IsComputed_ = true;
-            
-            
+            //            MueLuFactory_->SetupHierarchy(*MueLuHierarchy_);
+            //            MueLuHierarchy_->IsPreconditioner(false);
+            //            IsComputed_ = true;
         } else if (!ParameterList_->get("SolverType","Amesos").compare("Belos")) {
             ParameterListPtr solverParameterList = sublist(ParameterList_,"Belos");
             if (solverParameterList->get("OneLevelPreconditioner",false)) {
-
+                
                 Teuchos::RCP<FROSch::OneLevelPreconditioner<SC,LO,GO,NO> > prec = Teuchos::rcp(new OneLevelPreconditioner<SC,LO,GO,NO> (K_, solverParameterList));
-
+                
                 bool buildRepeatedMap = solverParameterList->get("Build Repeated Map",false);
                 prec->initialize(solverParameterList->get("Overlap",1),buildRepeatedMap);
                 prec->compute();
                 Teuchos::RCP<Belos::OperatorT<Xpetra::MultiVector<SC,LO,GO,NO> > > OpP = Teuchos::rcp(new Belos::XpetraOp<SC, LO, GO, NO>(prec));
-
+                
                 if (!solverParameterList->get("PreconditionerPosition","left").compare("left")) {
                     BelosLinearProblem_->setLeftPrec(OpP);
                     
@@ -296,8 +296,49 @@ namespace FROSch {
             FROSCH_ASSERT(0!=0,"SolverType unknown...");
         }
         return 0;
-        
+    }
+    
+    template<class SC,class LO,class GO,class NO>
+    int SubdomainSolver<SC,LO,GO,NO>::resetMatrix(CrsMatrixPtr k)
+    {
+        K_ = k;
+    
+        if (!ParameterList_->get("SolverType","Amesos").compare("Amesos")) {
+            FROSCH_ASSERT(K_->getRowMap()->lib()==Xpetra::UseEpetra,"UnderlyingLib!=Xpetra::UseEpetra");
+            Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*K_);
+            Xpetra::EpetraCrsMatrixT<GO,NO>& xEpetraMat = dynamic_cast<Xpetra::EpetraCrsMatrixT<GO,NO>&>(*crsOp.getCrsMatrix());
+            
+            EpetraCrsMatrixPtr epetraMat = xEpetraMat.getEpetra_CrsMatrixNonConst();
+            *epetraMat_ = *xEpetraMat.getEpetra_CrsMatrixNonConst();
 
+        } else if (!ParameterList_->get("SolverType","Amesos").compare("Amesos2")) {
+            if (K_->getRowMap()->lib()==Xpetra::UseEpetra) {
+                Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*K_);
+                Xpetra::EpetraCrsMatrixT<GO,NO>& xEpetraMat = dynamic_cast<Xpetra::EpetraCrsMatrixT<GO,NO>&>(*crsOp.getCrsMatrix());
+
+                EpetraCrsMatrixPtr epetraMat = xEpetraMat.getEpetra_CrsMatrixNonConst();
+                *epetraMat_ = *xEpetraMat.getEpetra_CrsMatrixNonConst();
+                
+            } else if (K_->getRowMap()->lib()==Xpetra::UseTpetra) {
+                Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*K_);
+                Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
+                TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+                
+                Teuchos::ArrayView< const LO > indices;
+                Teuchos::ArrayView< const SC > values;
+                tpetraMat_->resumeFill();
+                for (LO i=0; i<tpetraMat->getNodeNumRows(); i++) {
+                    tpetraMat->getLocalRowView( i, indices, values );
+                    tpetraMat_->replaceLocalValues (i, indices, values);
+                }
+                tpetraMat_->fillComplete();
+//                Amesos2SolverTpetra_->setA(tpetraMat_,Amesos2::NUMFACT);
+            } else {
+                FROSCH_ASSERT(0!=0,"This can't happen...");
+            }
+        }
+        
+        return 0;
     }
 
 
