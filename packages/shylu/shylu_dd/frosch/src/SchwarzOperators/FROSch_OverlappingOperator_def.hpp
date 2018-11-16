@@ -275,8 +275,19 @@ namespace FROSch {
 
              if (OnFirstLevelComm_) {
                 SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
-                SubdomainSolver_->initialize();
-                ret = SubdomainSolver_->compute();
+                 {
+#ifdef FROSCH_TIMER
+                     TimeMonitor_Type SymbolicFacTM(*SymbolicFacTimer_);
+#endif
+                     SubdomainSolver_->initialize();
+                 }
+                 {
+#ifdef FROSCH_TIMER
+                     TimeMonitor_Type NumericFacTM(*NumericFacTimer_);
+#endif
+                     ret = SubdomainSolver_->compute();
+                 }
+
              }
         }
     

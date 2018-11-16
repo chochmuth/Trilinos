@@ -228,7 +228,8 @@ int Amesos_Mumps::ConvertToTriplet(const bool OnlyValues)
     for (int j = 0 ; j < NumEntries ; ++j) {
         tmp1 = GlobalRow;
         tmp2 = ptr->RowMatrixColMap().GID(Indices[j]);
-        if (((MDS.sym == 0) || tmp1 >= tmp2) && fabs(Values[j]) > DroppingTolerance_) {
+        if (((MDS.sym == 0) || tmp1 >= tmp2) ) {
+            //CH 18/11/16: removed dropping tolerance for reuse of symbolic factorzation: && fabs(Values[j]) > DroppingTolerance_
             if (OnlyValues == false) {
                 Row[count] = tmp1 + 1;
                 Col[count] = tmp2 + 1;
@@ -346,9 +347,9 @@ int Amesos_Mumps::SetParameters( Teuchos::ParameterList & ParameterList)
 
   // retrive MUMPS' specific parameters
     
-  DroppingTolerance_ = ParameterList.get("DroppingTolerance",1.0e-14);
-  
-  if (ParameterList.isSublist("mumps")) 
+// CH 18/11/16: Not used anymore, since we want to reuse the symbolic factorization:  DroppingTolerance_ = ParameterList.get("DroppingTolerance",1.0e-14);
+    
+  if (ParameterList.isSublist("mumps"))
   {
     Teuchos::ParameterList MumpsParams = ParameterList.sublist("mumps") ;
 
