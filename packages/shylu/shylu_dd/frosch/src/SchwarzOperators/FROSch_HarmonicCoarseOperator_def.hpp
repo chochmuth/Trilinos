@@ -352,12 +352,25 @@ namespace FROSch {
 #ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
                 TimeMonitor_Type ExtensionSolverTM(*ExtensionSolverTimer_);
-#endif
-                // Jetzt der solver für kII
-                ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));
-                // DAS MÜSSEN WIR NOCH ÄNDERN -> initialize, compute, apply...
-                ExtensionSolver_->initialize();
-                ExtensionSolver_->compute();
+#endif                
+                
+                if (sublist(this->ParameterList_,"ExtensionSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
+                    if (this->Verbose_)
+                        std::cout << "Harmonic extension do not or can not reuse Symbolic Factorization" << std::endl;
+                    
+                    // Jetzt der solver für kII
+                    ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));
+                    // DAS MÜSSEN WIR NOCH ÄNDERN -> initialize, compute, apply...
+                    ExtensionSolver_->initialize();
+                    ExtensionSolver_->compute();
+                }
+                else{
+                    if (this->Verbose_)
+                        std::cout << "Harmonic extension reuse Symbolic Factorization" << std::endl;
+                    
+                    ExtensionSolver_->resetMatrix(kII);
+                    ExtensionSolver_->compute();
+                }
 #ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
 #endif

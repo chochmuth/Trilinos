@@ -242,7 +242,9 @@ namespace FROSch {
     template<class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::setUpCoarseOperator()
     {
-        CoarseSolver_.reset(); // Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below.
+        if (this->ParameterList_->get("Reuse Symbolic Factorization",false)==false && !this->IsComputed_) {
+            CoarseSolver_.reset(); // Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below.
+        }
         // Build CoarseMatrix_
         CrsMatrixPtr k0;
 #ifdef FROSCH_TIMER
@@ -328,9 +330,20 @@ namespace FROSch {
                     GatheringTM.~TimeMonitor();
                     TimeMonitor_Type ComputeTM(*ComputeTimer_);
 #endif
-                    CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
-                    CoarseSolver_->initialize();
 
+                    if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
+                        if (this->Verbose_)
+                            std::cout << "Coarse Problem do not or can not reuse Symbolic Factorization" << std::endl;
+                        
+                        CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
+                        CoarseSolver_->initialize();
+                    }
+                    else{
+                        if (this->Verbose_)
+                            std::cout << "Coarse Problem use Symbolic Factorization" << std::endl;
+                        
+                        CoarseSolver_->resetMatrix(CoarseMatrix_);
+                    }
                 }
             }    //------------------------------------------------------------------------------------------------------------------------
             else{//coarse matrix already communicated with Zoltan2. Communicate to CoarseSolveComm.
@@ -340,13 +353,10 @@ namespace FROSch {
                     Teuchos::RCP<Epetra_MpiComm> epetraMpiComm(new Epetra_MpiComm(MPI_COMM_WORLD));
                     //                    const Epetra_Comm& tmpComm = dynamic_cast<const Epetra_Comm&> (*epetraMpiComm);
                     //                    Teuchos::RCP<Epetra_Comm> tmpCommPtr(new Epetra_Comm(tmpComm));
-                    
                     Teuchos::RCP<Epetra_CrsMatrix> epertaMat = ConvertToEpetra(*k0, epetraMpiComm);
                     EpetraExt::RowMatrixToMatlabFile("CoarseMatZoltan.dat",*epertaMat);
                     FROSCH_ASSERT(false,"Coarse matrix was saved and fillComplete was called. We cant contiune with the fillCompete matrix.");
-                    
                 }
-                
                 
                 // Matrix to the new communicator
                 if (OnCoarseSolveComm_) {
@@ -376,14 +386,23 @@ namespace FROSch {
                     GatheringTM.~TimeMonitor();
                     TimeMonitor_Type ComputeTM(*ComputeTimer_);
 #endif
-                    if (!this->ParameterList_->sublist("CoarseSolver").get("SolverType","Amesos").compare("MueLu")) {
-                        CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseDimension_));
+                    if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false && !this->IsComputed_) {
+                        if (this->Verbose_)
+                            std::cout << "Coarse Problem do not or can not reuse Symbolic Factorization" << std::endl;
+                        if (!this->ParameterList_->sublist("CoarseSolver").get("SolverType","Amesos").compare("MueLu")) {
+                            CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseDimension_));
+                        }
+                        else{
+                            CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
+                        }
+                        
+                        CoarseSolver_->initialize();
                     }
                     else{
-                        CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
+                        if (this->Verbose_)
+                            std::cout << "Coarse Problem reuse Symbolic Factorization" << std::endl;
+                        CoarseSolver_->resetMatrix(CoarseMatrix_);
                     }
-
-                    CoarseSolver_->initialize();
 
                 }
                 //------------------------------------------------------------------------------------------------------------------------
