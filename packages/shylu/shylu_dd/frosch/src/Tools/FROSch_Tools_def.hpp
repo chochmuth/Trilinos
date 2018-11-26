@@ -387,9 +387,10 @@ namespace FROSch {
         unsigned numberBlocks = mapVec.size();
         nodesMapVec = Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > (numberBlocks);
         dofMapsVec = Teuchos::ArrayRCP<Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > > (numberBlocks);
-
+        GO offset = 0;
         for (unsigned i = 0 ; i < numberBlocks; i++) {
-            BuildDofMaps(mapVec[i],dofsPerNodeVec[i],dofOrderingVec[i],nodesMapVec[i],dofMapsVec[i]);
+            BuildDofMaps(mapVec[i],dofsPerNodeVec[i],dofOrderingVec[i],nodesMapVec[i],dofMapsVec[i],offset);
+            offset += mapVec[i]->getMaxAllGlobalIndex();
         }
         
         return 0;
@@ -401,7 +402,8 @@ namespace FROSch {
                      unsigned dofsPerNode,
                      unsigned dofOrdering,
                      Teuchos::RCP<Xpetra::Map<LO,GO,NO> > &nodesMap,
-                     Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > &dofMaps)
+                     Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > &dofMaps,
+                     GO offset)
     {
         //if (map->getComm()->getRank()==0) std::cout << "WARNING: BuildDofMaps is yet to be tested...\n";
         FROSCH_ASSERT(dofOrdering==0 || dofOrdering==1,"ERROR: Specify a valid DofOrdering.");
@@ -414,17 +416,17 @@ namespace FROSch {
         }
         if (dofOrdering==0) {
             for (unsigned i=0; i<nodes.size(); i++) {
-                nodes[i] = map->getGlobalElement(dofsPerNode*i)/dofsPerNode;
+                nodes[i] = (map->getGlobalElement(dofsPerNode*i)-offset)/dofsPerNode; // reduce first nodeID to 0
                 for (unsigned j=0; j<dofsPerNode; j++) {
-                    dofs[j][i] = dofsPerNode*nodes[i]+j;
+                    dofs[j][i] = dofsPerNode*nodes[i]+j + offset;
                 }
             }
         } else if (dofOrdering == 1) {
             GO numGlobalIDs = map->getMaxAllGlobalIndex()+1;
             for (unsigned i=0; i<nodes.size(); i++) {
-                nodes[i] = map->getGlobalElement(i);
+                nodes[i] = map->getGlobalElement(i)-offset;
                 for (unsigned j=0; j<dofsPerNode; j++) {
-                    dofs[j][i] = nodes[i]+j*numGlobalIDs/dofsPerNode;
+                    dofs[j][i] = nodes[i]+j*numGlobalIDs/dofsPerNode + offset;
                 }
             }
         } else {

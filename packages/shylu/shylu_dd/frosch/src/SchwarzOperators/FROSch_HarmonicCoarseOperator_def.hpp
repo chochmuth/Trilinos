@@ -356,7 +356,7 @@ namespace FROSch {
                 
                 if (sublist(this->ParameterList_,"ExtensionSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                     if (this->Verbose_)
-                        std::cout << "Harmonic extension do not or can not reuse Symbolic Factorization" << std::endl;
+                        std::cout << "Harmonic extension does not or can not reuse Symbolic Factorization" << std::endl;
                     
                     // Jetzt der solver für kII
                     ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));

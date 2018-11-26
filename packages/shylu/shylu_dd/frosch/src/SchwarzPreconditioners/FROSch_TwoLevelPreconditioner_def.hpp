@@ -121,6 +121,7 @@ namespace FROSch {
         //////////
         // Maps //
         //////////
+        // RepeatedMap cant be built with dofMap! Dofs belonging to the same node might be split on different processors
         if (repeatedMap.is_null()) {
             repeatedMap = BuildRepeatedMap(this->K_); // Todo: Achtung, die UniqueMap könnte unsinnig verteilt sein. Falls es eine repeatedMap gibt, sollte dann die uniqueMap neu gebaut werden können. In diesem Fall, sollte man das aber basierend auf der repeatedNodesMap tun
         }

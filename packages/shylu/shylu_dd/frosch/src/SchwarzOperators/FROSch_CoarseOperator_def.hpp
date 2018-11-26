@@ -333,7 +333,7 @@ namespace FROSch {
 
                     if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                         if (this->Verbose_)
-                            std::cout << "Coarse Problem do not or can not reuse Symbolic Factorization" << std::endl;
+                            std::cout << "Coarse Problem does not or can not reuse Symbolic Factorization" << std::endl;
                         
                         CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
                         CoarseSolver_->initialize();
@@ -386,9 +386,9 @@ namespace FROSch {
                     GatheringTM.~TimeMonitor();
                     TimeMonitor_Type ComputeTM(*ComputeTimer_);
 #endif
-                    if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false && !this->IsComputed_) {
+                    if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                         if (this->Verbose_)
-                            std::cout << "Coarse Problem do not or can not reuse Symbolic Factorization" << std::endl;
+                            std::cout << "Coarse Problem does not or can not reuse Symbolic Factorization" << std::endl;
                         if (!this->ParameterList_->sublist("CoarseSolver").get("SolverType","Amesos").compare("MueLu")) {
                             CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseDimension_));
                         }

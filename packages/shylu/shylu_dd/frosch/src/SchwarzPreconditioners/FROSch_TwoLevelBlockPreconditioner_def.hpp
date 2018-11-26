@@ -87,7 +87,7 @@ namespace FROSch {
         }
     }
     
-    
+    /*  Build initialize without blockMaxGIDVec. Further, build initialize with blockMaxGIDVec */
     template <class SC,class LO,class GO,class NO>
     int TwoLevelBlockPreconditioner<SC,LO,GO,NO>::initialize(UN dimension,
                                                              UNVecPtr dofsPerNodeVec,
@@ -113,6 +113,8 @@ namespace FROSch {
         //////////
         // Maps //
         //////////
+        // FIX THIS!
+        // RepeatedMap cant be built with dofMap! Dofs belonging to the same node might be split on different processors
         if (repeatedMapVec.is_null()) {
             ConstMapPtr tmpMap =  this->K_->getRowMap();
             MapPtrVecPtr subMapVec = BuildSubMaps(tmpMap,blockMaxGIDVec);// Todo: Achtung, die UniqueMap könnte unsinnig verteilt sein. Falls es eine repeatedMap gibt, sollte dann die uniqueMap neu gebaut werden können. In diesem Fall, sollte man das aber basierend auf der repeatedNodesMap tun
@@ -150,6 +152,7 @@ namespace FROSch {
         else{
             nodeListVec.resize(nmbBlocks);
         }
+        
         //////////////////////////////////////////
         // Determine dirichletBoundaryDofs //
         //////////////////////////////////////////
@@ -163,14 +166,18 @@ namespace FROSch {
             GOVecPtr dirichletBoundaryDofs = FindOneEntryOnlyRowsGlobal(this->K_,repeatedMap);
             for (UN i=0; i<dirichletBoundaryDofs.size(); i++) {
                 LO subNumber = -1;
-                for (UN j = (blockMaxGIDVec.size()); j > 0; j--) {
-                    if (dirichletBoundaryDofs[i] <= blockMaxGIDVec[j-1]) {
-                        subNumber = j-1;
+                for (UN j = dofsMapsVec.size(); j > 0 ; j--) {
+                    for (UN k=0; k<dofsMapsVec[j-1].size(); k++) {
+                        if ( dirichletBoundaryDofs[i] <= dofsMapsVec[j-1][k]->getMaxAllGlobalIndex() ) {
+                            subNumber = j-1;
+                        }
                     }
                 }
                 dirichletBoundaryDofsVec[subNumber][counterSub[subNumber]] = dirichletBoundaryDofs[i];
                 counterSub[subNumber]++;
             }
+
+
             
             //dirichletBoundaryDofsVec = GOVecPtr2D(repeatedMapVec.size());
             for (UN i=0; i<dirichletBoundaryDofsVec.size(); i++) {
