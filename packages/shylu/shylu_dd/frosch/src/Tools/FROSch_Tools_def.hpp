@@ -360,18 +360,18 @@ namespace FROSch {
         FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
         
         Teuchos::Array<GO> elementList(mapVector[0]->getNodeElementList());
-//        GO priorEntries = mapVector[0]->getMaxAllGlobalIndex() + 1;
+//        GO offset = mapVector[0]->getMaxAllGlobalIndex() + 1;
         GO globalNumEntries = mapVector[0]->getGlobalNumElements();
         for (unsigned i=1; i<mapVector.size(); i++) {
             LO nodeNumElements = mapVector[i]->getNodeNumElements();
 
             Teuchos::Array<GO> subElementList(nodeNumElements);
             for (LO j=0; j<nodeNumElements; j++) {
-                subElementList.at(j) = mapVector[i]->getGlobalElement(j);
+                subElementList.at(j) = mapVector[i]->getGlobalElement(j);// + offset;
             }
 
             elementList.insert(elementList.end(),subElementList.begin(),subElementList.end());
-            //priorEntries += mapVector[i]->getMaxAllGlobalIndex() + 1;
+//            offset += mapVector[i]->getMaxAllGlobalIndex() + 1;
             globalNumEntries += mapVector[i]->getGlobalNumElements();
         }
         return Xpetra::MapFactory<LO,GO,NO>::Build(mapVector[0]->lib(),globalNumEntries,elementList,0,mapVector[0]->getComm());
@@ -752,7 +752,8 @@ namespace FROSch {
     {
         
 
-        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > rowMap = ConvertToXpetra<LO,GO,NO>(lib,matrix.RowMap(),comm);
+        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > rowMap = ConvertToXpetra<LO,GO,NO>(lib, matrix.RowMap(), comm);
+        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > domainMap = ConvertToXpetra<LO,GO,NO>(lib, matrix.OperatorDomainMap(), comm);
         Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > xmatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(rowMap,matrix.MaxNumEntries());
         for (unsigned i=0; i<xmatrix->getNodeNumRows(); i++) {
             LO numEntries;
@@ -773,7 +774,7 @@ namespace FROSch {
             xmatrix->insertGlobalValues(matrix.RowMap().GID(i),indicesArray(),valuesArrayView);
 #endif
         }
-        xmatrix->fillComplete();
+        xmatrix->fillComplete(domainMap,rowMap);
         return xmatrix;
         
     }

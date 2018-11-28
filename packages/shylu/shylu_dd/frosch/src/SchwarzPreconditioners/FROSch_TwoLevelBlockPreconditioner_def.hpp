@@ -121,7 +121,7 @@ namespace FROSch {
             repeatedMapVec = BuildRepeatedSubMaps(this->K_,subMapVec);
         
         }
-        RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(cout));
+//        RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(cout));
         // Build dofsMaps and repeatedNodesMap
         MapPtrVecPtr repeatedNodesMapVec;
         if (dofsMapsVec.is_null()) {
@@ -185,7 +185,9 @@ namespace FROSch {
             }
             
         }
-
+        
+//        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+//        repeatedMap->describe(*fancy,Teuchos::VERB_EXTREME);
 #ifdef FROSCH_TIMER
         this->MpiComm_->barrier();
         TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);

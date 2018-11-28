@@ -242,7 +242,7 @@ namespace FROSch {
     template<class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::setUpCoarseOperator()
     {
-        if (this->ParameterList_->get("Reuse Symbolic Factorization",false)==false && !this->IsComputed_) {
+        if ( this->ParameterList_->get("Reuse Symbolic Factorization",false)==false ) {
             CoarseSolver_.reset(); // Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below.
         }
         // Build CoarseMatrix_
