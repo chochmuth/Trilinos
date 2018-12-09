@@ -82,12 +82,16 @@ namespace FROSch {
             std::cerr << "WARNING: Some of the operations could be moved from initialize() to Compute().\n";
         }
         if (!this->ParameterList_->get("Recycling","none").compare("basis") && this->IsComputed_) {
+            if (this->Verbose_)
+                std::cout << "Coarse Operator(" << 0 << ") is reusing the previous basis functions." << std::endl;
+            
             this->setUpCoarseOperator();
             this->computeCoarseOperator();
             this->IsComputed_ = true;
         }
         else if(!this->ParameterList_->get("Recycling","none").compare("all") && this->IsComputed_) {
-            // Maybe use some advanced settings in the future
+            if (this->Verbose_)
+                std::cout << "Coarse Operator(" << 0 << ") is reusing the previous coarse matrix." << std::endl;
         }
         else {
 
@@ -356,7 +360,7 @@ namespace FROSch {
                 
                 if (sublist(this->ParameterList_,"ExtensionSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                     if (this->Verbose_)
-                        std::cout << "Harmonic extension does not or can not reuse Symbolic Factorization" << std::endl;
+                        std::cout << "\t### Harmonic extensions are not reusing symbolic factorizations." << std::endl;
                     
                     // Jetzt der solver für kII
                     ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));
@@ -366,7 +370,7 @@ namespace FROSch {
                 }
                 else{
                     if (this->Verbose_)
-                        std::cout << "Harmonic extension reuse Symbolic Factorization" << std::endl;
+                        std::cout << "\t### Harmonic extensions are reusing symbolic factorizations." << std::endl;
                     
                     ExtensionSolver_->resetMatrix(kII);
                     ExtensionSolver_->compute();

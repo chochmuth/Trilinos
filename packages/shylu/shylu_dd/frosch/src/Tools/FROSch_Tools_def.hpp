@@ -390,7 +390,7 @@ namespace FROSch {
         GO offset = 0;
         for (unsigned i = 0 ; i < numberBlocks; i++) {
             BuildDofMaps(mapVec[i],dofsPerNodeVec[i],dofOrderingVec[i],nodesMapVec[i],dofMapsVec[i],offset);
-            offset += mapVec[i]->getMaxAllGlobalIndex();
+            offset += mapVec[i]->getMaxAllGlobalIndex()+1;
         }
         
         return 0;

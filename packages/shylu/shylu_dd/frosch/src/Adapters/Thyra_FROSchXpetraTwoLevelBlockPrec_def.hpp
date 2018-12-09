@@ -133,7 +133,7 @@ namespace Thyra {
                         nodeListOffset[j] = nodeList[j] + offsetAllPrior;
                     }
                     repeatedMapVec[i] = Xpetra::MapFactory<LO,GO,NO>::Build(repeatedMap->lib(),-1,nodeListOffset,0,comm);
-                    offsetAllPrior += repeatedMapVec[i]->getMaxAllGlobalIndex()+1;
+                    offsetAllPrior = repeatedMapVec[i]->getMaxAllGlobalIndex()+1;
                 }
                 else{
 #ifdef FROSCH_ASSERT

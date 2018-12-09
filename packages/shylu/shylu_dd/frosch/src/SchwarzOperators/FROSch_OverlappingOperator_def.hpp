@@ -120,33 +120,87 @@ namespace FROSch {
             this->K_->apply(x,*xTmp,mode,1.0,0.0);
         }
         
-        MultiVectorPtr xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+        
+        
+        //new implementation from AH PR
+        MultiVectorPtr xOverlap;
+        MultiVectorPtr xOverlapTmp; // AH 11/28/2018: For Epetra, xOverlap will only have a view to the values of xOverlapTmp. Therefore, xOverlapTmp should not be deleted before xOverlap is used.
+//        MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMatrix_->getDomainMap(),x.getNumVectors());
         MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
-        {
-#ifdef FROSCH_DETAIL_TIMER
-            this->MpiComm_->barrier();
-            TimeMonitor_Type ApplyScatterTM(*ApplyScatterTimer_);
-#endif
-            xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
-#ifdef FROSCH_DETAIL_TIMER
-            this->MpiComm_->barrier();
-#endif
-        }
-        {
-#ifdef FROSCH_DETAIL_TIMER
-            this->MpiComm_->barrier();
-            TimeMonitor_Type ApplySolveTM(*ApplySolveTimer_);
-#endif
+        // AH 11/28/2018: replaceMap does not update the GlobalNumRows. Therefore, we have to create a new MultiVector on the serial Communicator. In Epetra, we can prevent to copy the MultiVector.
+        if (xTmp->getMap()->lib() == Xpetra::UseEpetra) {
+            xOverlapTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+            
+            xOverlapTmp->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
+            
+            const Teuchos::RCP<const Xpetra::EpetraMultiVectorT<GO,NO> > xEpetraMultiVectorXOverlapTmp = Teuchos::rcp_dynamic_cast<const Xpetra::EpetraMultiVectorT<GO,NO> >(xOverlapTmp);
+            Teuchos::RCP<Epetra_MultiVector> epetraMultiVectorXOverlapTmp = xEpetraMultiVectorXOverlapTmp->getEpetra_MultiVector();
+            
             if (OnFirstLevelComm_) {
+                const Teuchos::RCP<const Xpetra::EpetraMapT<GO,NO> >& xEpetraMap = Teuchos::rcp_dynamic_cast<const Xpetra::EpetraMapT<GO,NO> >(OverlappingMatrix_->getRangeMap());
+                Epetra_BlockMap epetraMap = xEpetraMap->getEpetra_BlockMap();
+                
+                double *A;
+                int MyLDA;
+                epetraMultiVectorXOverlapTmp->ExtractView(&A,&MyLDA);
+                
+                Teuchos::RCP<Epetra_MultiVector> epetraMultiVectorXOverlap(new Epetra_MultiVector(View,epetraMap,A,MyLDA,x.getNumVectors()));
+                xOverlap = Teuchos::RCP<Xpetra::EpetraMultiVectorT<GO,NO> >(new Xpetra::EpetraMultiVectorT<GO,NO>(epetraMultiVectorXOverlap));
+
                 yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
-                xOverlap->replaceMap(OverlappingMatrix_->getDomainMap());
-                SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
             }
-            yOverlap->replaceMap(OverlappingMap_);
-#ifdef FROSCH_DETAIL_TIMER
-            this->MpiComm_->barrier();
-#endif
+        } else {
+            xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+            
+            xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
+            if (OnFirstLevelComm_) {
+                xOverlap->replaceMap(OverlappingMatrix_->getDomainMap());
+                yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
+            }
         }
+        //end new implementation
+        //
+        
+        if (OnFirstLevelComm_) {
+            SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
+        }
+        yOverlap->replaceMap(OverlappingMap_);
+        
+//        //old implementation - prototypes not in any PR
+//        MultiVectorPtr xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+//        MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+//        
+//        {
+//#ifdef FROSCH_DETAIL_TIMER
+//            this->MpiComm_->barrier();
+//            TimeMonitor_Type ApplyScatterTM(*ApplyScatterTimer_);
+//#endif
+//            xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
+//#ifdef FROSCH_DETAIL_TIMER
+//            this->MpiComm_->barrier();
+//#endif
+//        }
+//        {
+//#ifdef FROSCH_DETAIL_TIMER
+//            this->MpiComm_->barrier();
+//            TimeMonitor_Type ApplySolveTM(*ApplySolveTimer_);
+//#endif
+//            if (OnFirstLevelComm_) {
+//                yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
+//                xOverlap->replaceMap(OverlappingMatrix_->getDomainMap());
+//                SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
+//            }
+//            yOverlap->replaceMap(OverlappingMap_);
+//#ifdef FROSCH_DETAIL_TIMER
+//            this->MpiComm_->barrier();
+//#endif
+//        }
+//        //end old implementation
+        
+        
+        
+        
+        
         xTmp->putScalar(0.0);
         if (Combine_ == Restricted){
 #ifdef FROSCH_DETAIL_TIMER
@@ -234,10 +288,11 @@ namespace FROSch {
         TimeMonitor_Type OverlapTM(*ComputeTimer_);
 #endif
         if (this->IsComputed_) {
+            if (this->Verbose_)
+                std::cout << "\t### Overlapping Operator(" << LevelID_ << ") does use overlapping maps of previous compute." << std::endl;
             if (this->ParameterList_->get("Reuse Symbolic Factorization",false)==false) {
                 if (this->Verbose_)
-                    std::cout << "First level does not reuse Symbolic Factorization" << std::endl;
-
+                    std::cout << "\t### Overlapping Operator(" << LevelID_ << ") is not reusing symbolic factorization." << std::endl;
                 if (OnFirstLevelComm_) {
                     SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
                     {
@@ -256,8 +311,7 @@ namespace FROSch {
             }
             else{
                 if (this->Verbose_)
-                    std::cout << "First level reuse Symbolic Factorization" << std::endl;
-                
+                    std::cout << "\t### Overlapping Operator(" << LevelID_ << ") is reusing prior symbolic factorization." << std::endl;
                 if (OnFirstLevelComm_) {
                     SubdomainSolver_->resetMatrix(OverlappingMatrix_);
                     {
@@ -271,7 +325,7 @@ namespace FROSch {
         }
         else {
             if (this->Verbose_)
-                std::cout << "First level no Recycling" << std::endl;
+                std::cout << "\t### Overlapping Operator(" << LevelID_ << ") does not use overlapping maps of previous compute." << std::endl;
 
              if (OnFirstLevelComm_) {
                 SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));

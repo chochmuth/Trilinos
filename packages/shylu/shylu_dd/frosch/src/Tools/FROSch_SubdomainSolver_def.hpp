@@ -202,22 +202,15 @@ namespace FROSch {
     template<class SC,class LO,class GO,class NO>
     SubdomainSolver<SC,LO,GO,NO>::~SubdomainSolver()
     {
-
         AmesosSolver_.reset();
-//        std::cout << "resetted Solver" <<std::endl;
         EpetraLinearProblem_.reset();
-//        std::cout << "resetted problem" <<std::endl;
         Amesos2SolverEpetra_.reset();
-//        std::cout << "resetted amesos2 solver" <<std::endl;
         Amesos2SolverTpetra_.reset();
-//        std::cout << "resetted amesos2 solver tpetra" <<std::endl;
 //        MueLuFactory_.reset();
 //        MueLuHierarchy_.reset();
         
         BelosLinearProblem_.reset();
-//        std::cout << "resetted belos solver" <<std::endl;
         BelosSolverManager_.reset();
-//        std::cout << "resetted belos solver manager" <<std::endl;
     }
     
     template<class SC,class LO,class GO,class NO>
@@ -309,7 +302,32 @@ namespace FROSch {
             Xpetra::EpetraCrsMatrixT<GO,NO>& xEpetraMat = dynamic_cast<Xpetra::EpetraCrsMatrixT<GO,NO>&>(*crsOp.getCrsMatrix());
             
             EpetraCrsMatrixPtr epetraMat = xEpetraMat.getEpetra_CrsMatrixNonConst();
+            
+//            if (K_->getRowMap()->getComm()->getRank()==0)
+//                std::cout << " old Mat globlNumEntr:" << epetraMat_->NumGlobalNonzeros() << " new Mat globlNumEntr:" << epetraMat->NumGlobalNonzeros() << std::endl;
+//            
+//            
+//            double* valuesOld, * valuesNew;
+//            int* indicesOld, * indicesNew;
+//            int numEntriesOld, numEntriesNew;
+//            if (K_->getRowMap()->getComm()->getRank()==0)
+//                std::cout << "checking entries:" << std::endl;
+//
+//            for (int i=0; i<epetraMat_->NumMyRows(); i++) {
+//                epetraMat_->ExtractMyRowView(i,numEntriesOld,valuesOld,indicesOld);
+//                epetraMat->ExtractMyRowView(i,numEntriesNew,valuesNew,indicesNew);
+//                if (numEntriesOld!=numEntriesNew)
+//                    std::cout << "numEntries are different!!!" << std::endl;
+//                
+//                for (int j=0; j<numEntriesOld; j++) {
+//                    if (indicesOld[j]!=indicesNew[j]) {
+//                        std::cout << epetraMat_->RowMap().Comm().MyPID()<< " Indices are different! row:"  << i << " indOld:" << indicesOld[j] << " indNew:" << indicesNew[j] << std::endl;
+//                    }
+//                }
+//            }
+
             *epetraMat_ = *xEpetraMat.getEpetra_CrsMatrixNonConst();
+            
 
         } else if (!ParameterList_->get("SolverType","Amesos").compare("Amesos2")) {
             if (K_->getRowMap()->lib()==Xpetra::UseEpetra) {

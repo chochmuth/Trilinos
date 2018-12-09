@@ -191,14 +191,41 @@ namespace FROSch {
                                                        MultiVector& y,
                                                        Teuchos::ETransp mode) const
     {
+        MultiVectorPtr xPtr = Teuchos::rcpFromRef(x);
+        MultiVectorPtr xTmp;
         MultiVectorPtr yTmp;
-        if (OnCoarseSolveComm_) {
-            x.replaceMap(CoarseSolveMap_);
-            yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
-            CoarseSolver_->apply(x,*yTmp,mode);
-        } else {
-            yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
+        if (x.getMap()->lib() == Xpetra::UseEpetra) {
+            
+            const Teuchos::RCP<const Xpetra::EpetraMultiVectorT<GO,NO> > xEpetraMultiVectorX = Teuchos::rcp_dynamic_cast<const Xpetra::EpetraMultiVectorT<GO,NO> >(xPtr);
+            Teuchos::RCP<Epetra_MultiVector> epetraMultiVectorX = xEpetraMultiVectorX->getEpetra_MultiVector();
+            
+            if (OnCoarseSolveComm_) {
+                
+                const Teuchos::RCP<const Xpetra::EpetraMapT<GO,NO> >& xEpetraMap = Teuchos::rcp_dynamic_cast<const Xpetra::EpetraMapT<GO,NO> >(CoarseSolveMap_);
+                Epetra_BlockMap epetraMap = xEpetraMap->getEpetra_BlockMap();
+                
+                double *A;
+                int MyLDA;
+                epetraMultiVectorX->ExtractView(&A,&MyLDA);
+                
+                Teuchos::RCP<Epetra_MultiVector> epetraMultiVectorXTmp(new Epetra_MultiVector(View,epetraMap,A,MyLDA,x.getNumVectors()));
+                xTmp = Teuchos::RCP<Xpetra::EpetraMultiVectorT<GO,NO> >(new Xpetra::EpetraMultiVectorT<GO,NO>(epetraMultiVectorXTmp));
+                yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
+                
+                CoarseSolver_->apply(*xTmp,*yTmp,mode);
+            } else {
+                yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
+            }
+        } else{
+            if (OnCoarseSolveComm_) {
+                x.replaceMap(CoarseSolveMap_);
+                yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
+                CoarseSolver_->apply(x,*yTmp,mode);
+            } else {
+                yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
+            }
         }
+        
         if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
             yTmp->replaceMap(SwapMap_);
         }
@@ -206,6 +233,22 @@ namespace FROSch {
             yTmp->replaceMap(GatheringMaps_[GatheringMaps_.size()-1]);
         }
         y = *yTmp;
+        
+//        MultiVectorPtr yTmp;
+//        if (OnCoarseSolveComm_) {
+//            x.replaceMap(CoarseSolveMap_);
+//            yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
+//            CoarseSolver_->apply(x,*yTmp,mode);
+//        } else {
+//            yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
+//        }
+//        if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
+//            yTmp->replaceMap(SwapMap_);
+//        }
+//        else {
+//            yTmp->replaceMap(GatheringMaps_[GatheringMaps_.size()-1]);
+//        }
+//        y = *yTmp;
     }
     
     template<class SC,class LO,class GO,class NO>
@@ -242,9 +285,11 @@ namespace FROSch {
     template<class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::setUpCoarseOperator()
     {
-        if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false && !this->IsComputed_) {
-            CoarseSolver_.reset(); // Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below.
+        
+        if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false) {
+            CoarseSolver_.reset(); // CH: Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below. The comm is reset when buildCoarseSolveMap(k0) is called and is consequently not correct if Mumps solver is destroyed (only for Epetra).
         }
+
         // Build CoarseMatrix_
         CrsMatrixPtr k0;
 #ifdef FROSCH_TIMER
@@ -325,7 +370,7 @@ namespace FROSch {
                     }
                     
                     CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_);
-//                    Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
+//                    Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));    CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
 #ifdef FROSCH_TIMER
                     GatheringTM.~TimeMonitor();
                     TimeMonitor_Type ComputeTM(*ComputeTimer_);
@@ -333,14 +378,14 @@ namespace FROSch {
 
                     if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                         if (this->Verbose_)
-                            std::cout << "Coarse Problem does not or can not reuse Symbolic Factorization" << std::endl;
+                            std::cout << "\t### Coarse Operator(" << 0 << ") level is not reusing symbolic factorization." << std::endl;
                         
                         CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
                         CoarseSolver_->initialize();
                     }
                     else{
                         if (this->Verbose_)
-                            std::cout << "Coarse Problem use Symbolic Factorization" << std::endl;
+                            std::cout << "\t### Coarse Operator(" << 0 << ") level is reusing prior symbolic factorization." << std::endl;
                         
                         CoarseSolver_->resetMatrix(CoarseMatrix_);
                     }
@@ -388,7 +433,7 @@ namespace FROSch {
 #endif
                     if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                         if (this->Verbose_)
-                            std::cout << "Coarse Problem does not or can not reuse Symbolic Factorization" << std::endl;
+                            std::cout << "\t### Coarse Operator(" << 0 << ") is not reusing symbolic factorization." << std::endl;
                         if (!this->ParameterList_->sublist("CoarseSolver").get("SolverType","Amesos").compare("MueLu")) {
                             CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseDimension_));
                         }
@@ -400,7 +445,7 @@ namespace FROSch {
                     }
                     else{
                         if (this->Verbose_)
-                            std::cout << "Coarse Problem reuse Symbolic Factorization" << std::endl;
+                            std::cout << "\t### Coarse Operator(" << 0 << ") is reusing prior symbolic factorization." << std::endl;
                         CoarseSolver_->resetMatrix(CoarseMatrix_);
                     }
 
@@ -652,11 +697,11 @@ namespace FROSch {
         }
 
         if (this->Verbose_) {
-            std::cout << "### ------------------------------------- ###" << std::endl;
-            std::cout << "### - Number ranks coarse matrix  : " << NumProcsCoarseSolve_ << std::endl;
-            std::cout << "### - Partion type                : " << DistributionList_->get("Type","linear") << std::endl;
-            std::cout << "### - Gathering steps             : " << DistributionList_->get("GatheringSteps",1) << std::endl;
-            std::cout << "### ------------------------------------- ### " << std::endl;
+            std::cout << "\t### ---------------------------------------- " << std::endl;
+            std::cout << "\t### - Number ranks coarse matrix  : " << NumProcsCoarseSolve_ << std::endl;
+            std::cout << "\t### - Partion type                : " << DistributionList_->get("Type","linear") << std::endl;
+            std::cout << "\t### - Gathering steps             : " << DistributionList_->get("GatheringSteps",1) << std::endl;
+            std::cout << "\t### ---------------------------------------- " << std::endl;
         }
 //        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
 //        CoarseSolveMap_->describe(*fancy,Teuchos::VERB_EXTREME);
