@@ -378,14 +378,14 @@ namespace FROSch {
 
                     if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                         if (this->Verbose_)
-                            std::cout << "\t### Coarse Operator(" << 0 << ") level is not reusing symbolic factorization." << std::endl;
+                            std::cout << "\t### Coarse Operator(" << 1 << ") level is not reusing symbolic factorization." << std::endl;
                         
                         CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
                         CoarseSolver_->initialize();
                     }
                     else{
                         if (this->Verbose_)
-                            std::cout << "\t### Coarse Operator(" << 0 << ") level is reusing prior symbolic factorization." << std::endl;
+                            std::cout << "\t### Coarse Operator(" << 1 << ") level is reusing prior symbolic factorization." << std::endl;
                         
                         CoarseSolver_->resetMatrix(CoarseMatrix_);
                     }
@@ -433,7 +433,7 @@ namespace FROSch {
 #endif
                     if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                         if (this->Verbose_)
-                            std::cout << "\t### Coarse Operator(" << 0 << ") is not reusing symbolic factorization." << std::endl;
+                            std::cout << "\t### Coarse Operator(" << 1 << ") is not reusing symbolic factorization." << std::endl;
                         if (!this->ParameterList_->sublist("CoarseSolver").get("SolverType","Amesos").compare("MueLu")) {
                             CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseDimension_));
                         }
@@ -445,7 +445,7 @@ namespace FROSch {
                     }
                     else{
                         if (this->Verbose_)
-                            std::cout << "\t### Coarse Operator(" << 0 << ") is reusing prior symbolic factorization." << std::endl;
+                            std::cout << "\t### Coarse Operator(" << 1 << ") is reusing prior symbolic factorization." << std::endl;
                         CoarseSolver_->resetMatrix(CoarseMatrix_);
                     }
 
