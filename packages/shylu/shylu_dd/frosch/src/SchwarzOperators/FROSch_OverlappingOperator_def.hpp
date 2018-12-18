@@ -120,12 +120,9 @@ namespace FROSch {
             this->K_->apply(x,*xTmp,mode,1.0,0.0);
         }
         
-        
-        
-        //new implementation from AH PR
         MultiVectorPtr xOverlap;
         MultiVectorPtr xOverlapTmp; // AH 11/28/2018: For Epetra, xOverlap will only have a view to the values of xOverlapTmp. Therefore, xOverlapTmp should not be deleted before xOverlap is used.
-//        MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMatrix_->getDomainMap(),x.getNumVectors());
+
         MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
         // AH 11/28/2018: replaceMap does not update the GlobalNumRows. Therefore, we have to create a new MultiVector on the serial Communicator. In Epetra, we can prevent to copy the MultiVector.
         if (xTmp->getMap()->lib() == Xpetra::UseEpetra) {
@@ -146,7 +143,7 @@ namespace FROSch {
                 
                 Teuchos::RCP<Epetra_MultiVector> epetraMultiVectorXOverlap(new Epetra_MultiVector(View,epetraMap,A,MyLDA,x.getNumVectors()));
                 xOverlap = Teuchos::RCP<Xpetra::EpetraMultiVectorT<GO,NO> >(new Xpetra::EpetraMultiVectorT<GO,NO>(epetraMultiVectorXOverlap));
-
+                
                 yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
             }
         } else {
@@ -158,48 +155,11 @@ namespace FROSch {
                 yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
             }
         }
-        //end new implementation
-        //
         
         if (OnFirstLevelComm_) {
             SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
         }
         yOverlap->replaceMap(OverlappingMap_);
-        
-//        //old implementation - prototypes not in any PR
-//        MultiVectorPtr xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
-//        MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
-//        
-//        {
-//#ifdef FROSCH_DETAIL_TIMER
-//            this->MpiComm_->barrier();
-//            TimeMonitor_Type ApplyScatterTM(*ApplyScatterTimer_);
-//#endif
-//            xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
-//#ifdef FROSCH_DETAIL_TIMER
-//            this->MpiComm_->barrier();
-//#endif
-//        }
-//        {
-//#ifdef FROSCH_DETAIL_TIMER
-//            this->MpiComm_->barrier();
-//            TimeMonitor_Type ApplySolveTM(*ApplySolveTimer_);
-//#endif
-//            if (OnFirstLevelComm_) {
-//                yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
-//                xOverlap->replaceMap(OverlappingMatrix_->getDomainMap());
-//                SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
-//            }
-//            yOverlap->replaceMap(OverlappingMap_);
-//#ifdef FROSCH_DETAIL_TIMER
-//            this->MpiComm_->barrier();
-//#endif
-//        }
-//        //end old implementation
-        
-        
-        
-        
         
         xTmp->putScalar(0.0);
         if (Combine_ == Restricted){
@@ -208,7 +168,7 @@ namespace FROSch {
             TimeMonitor_Type ApplyRestTM(*ApplyRestTimer_);
 #endif
             xTmp->doImport(*yOverlap,*GatherRestricted_,Xpetra::INSERT);
-
+            
 #ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
 #endif

@@ -142,7 +142,7 @@ namespace MueLu {
         RCP<Matrix> A = Teuchos::rcp_dynamic_cast<Matrix>(Op);
         if (A != Teuchos::null) {
           Teuchos::RCP<MultiVector> nullspace = l0->Get<RCP<MultiVector>>("Nullspace");
-          TEUCHOS_TEST_FOR_EXCEPTION(A->GetFixedBlockSize() > nullspace->getNumVectors(), Exceptions::RuntimeError, "user-provided nullspace has fewer vectors (" << nullspace->getNumVectors() << ") than number of PDE equations (" << A->GetFixedBlockSize() << ")");
+          TEUCHOS_TEST_FOR_EXCEPTION(static_cast<size_t>(A->GetFixedBlockSize()) > nullspace->getNumVectors(), Exceptions::RuntimeError, "user-provided nullspace has fewer vectors (" << nullspace->getNumVectors() << ") than number of PDE equations (" << A->GetFixedBlockSize() << ")");
         } else {
           this->GetOStream(Warnings0) << "Skipping dimension check of user-supplied nullspace because user-supplied operator is not a matrix" << std::endl;
         }
@@ -339,9 +339,9 @@ namespace MueLu {
 
         if (data[i] < H.GetNumLevels()) {
           RCP<Level> L = H.GetLevel(data[i]);
-          if (data[i] < levelManagers_.size() && L->IsAvailable(name,&*levelManagers_[i]->GetFactory(name))) {
+          if (data[i] < levelManagers_.size() && L->IsAvailable(name,&*levelManagers_[data[i]]->GetFactory(name))) {
 	    // Try generating factory
-            RCP<T> M = L->template Get< RCP<T> >(name,&*levelManagers_[i]->GetFactory(name));
+            RCP<T> M = L->template Get< RCP<T> >(name,&*levelManagers_[data[i]]->GetFactory(name));
             if (!M.is_null()) {
               Xpetra::IO<Scalar, LocalOrdinal, GlobalOrdinal, Node>::Write(fileName,* M);
             }

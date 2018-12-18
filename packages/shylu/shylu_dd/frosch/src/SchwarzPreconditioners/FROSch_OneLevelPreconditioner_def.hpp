@@ -61,7 +61,7 @@ namespace FROSch {
             OverlappingOperator_ = AlgebraicOverlappingOperatorPtr(new AlgebraicOverlappingOperator<SC,LO,GO,NO>(k,sublist(parameterList,"AlgebraicOverlappingOperator")));
             
         } else {
-            FROSCH_ASSERT(0!=0,"OverlappingOperator Type unkown.");
+            FROSCH_ASSERT(false,"OverlappingOperator Type unkown.");
         }
         if (!this->ParameterList_->get("Level Combination","Additive").compare("Multiplicative")) {
             UseMultiplicative_ = true;
@@ -108,7 +108,7 @@ namespace FROSch {
             AlgebraicOverlappingOperatorPtr algebraicOverlappigOperator = Teuchos::rcp_static_cast<AlgebraicOverlappingOperator<SC,LO,GO,NO> >(OverlappingOperator_);
             ret = algebraicOverlappigOperator->initialize(overlap,repeatedMap);
         } else {
-            FROSCH_ASSERT(0!=0,"OverlappingOperator Type unkown.");
+            FROSCH_ASSERT(false,"OverlappingOperator Type unkown.");
         }
         return ret;
     }
