@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
             RepeatedMaps[block] = FROSch::BuildRepeatedMap<SC,LO,GO,NO>(K[block]); //RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(cout)); RepeatedMaps[block]->describe(*fancy,VERB_EXTREME);
         }
         
-        Comm->barrier(); if (Comm->getRank()==0) cout << "##############################\n# Assembly Monolythic System #\n##############################\n" << endl;
+        Comm->barrier(); if (Comm->getRank()==0) cout << "##############################\n# Assembly Monolithic System #\n##############################\n" << endl;
         
         RCP<Matrix<SC,LO,GO,NO> > KMonolithic;
         if (NumberOfBlocks>1) {

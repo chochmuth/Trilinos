@@ -39,18 +39,19 @@
 // ************************************************************************
 //@HEADER
 
-#ifndef _FROSCH_SUMOPERATOR_DECL_HPP
-#define _FROSCH_SUMOPERATOR_DECL_HPP
+#ifndef _FROSCH_LEVELCOMBINATIONOPERATOR_DECL_HPP
+#define _FROSCH_LEVELCOMBINATIONOPERATOR_DECL_HPP
 
-#include <FROSch_LevelCombinationOperator_def.hpp>
-
+#include <FROSch_SchwarzOperator_def.hpp>
+#include <FROSch_CoarseOperator_decl.hpp>
+#include <FROSch_OverlappingOperator_decl.hpp>
 namespace FROSch {
     
     template <class SC = Xpetra::Operator<>::scalar_type,
     class LO = typename Xpetra::Operator<SC>::local_ordinal_type,
     class GO = typename Xpetra::Operator<SC,LO>::global_ordinal_type,
     class NO = typename Xpetra::Operator<SC,LO,GO>::node_type>
-    class SumOperator : public LevelCombinationOperator<SC,LO,GO,NO> {
+    class LevelCombinationOperator : public SchwarzOperator<SC,LO,GO,NO> {
         
     public:
         
@@ -81,26 +82,63 @@ namespace FROSch {
 
         typedef typename SchwarzOperator<SC,LO,GO,NO>::SubdomainSolverPtr SubdomainSolverPtr;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::ParameterListPtr ParameterListPtr;
+        
         typedef typename SchwarzOperator<SC,LO,GO,NO>::Time_Type Time_Type;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::TimePtr_Type TimePtr_Type;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::TimeMonitor_Type TimeMonitor_Type;
         
-        SumOperator(CommPtr comm);
+        LevelCombinationOperator(CommPtr comm);
         
-        SumOperator(SchwarzOperatorPtrVecPtr operators);
+        LevelCombinationOperator(SchwarzOperatorPtrVecPtr operators);
         
-        ~SumOperator();
+        LevelCombinationOperator(CrsMatrixPtr k, ParameterListPtr parameterList);
+        
+        LevelCombinationOperator(CrsMatrixPtr k, SchwarzOperatorPtrVecPtr operators, ParameterListPtr parameterList);
+        
+        ~LevelCombinationOperator();
+        
+        virtual int initialize();
+        
+        virtual int initialize(MapPtr repeatedMap);
+        
+        virtual int compute();
         
         virtual void apply(const MultiVector &x,
                            MultiVector &y,
                            bool usePreconditionerOnly,
                            Teuchos::ETransp mode=Teuchos::NO_TRANS,
                            SC alpha=Teuchos::ScalarTraits<SC>::one(),
-                           SC beta=Teuchos::ScalarTraits<SC>::zero()) const;    
+                           SC beta=Teuchos::ScalarTraits<SC>::zero()) const = 0;
 
-        virtual std::string description() const;
+        void applyCoarseOperator(const MultiVector &x, MultiVector &y);
+
+        virtual ConstMapPtr getDomainMap() const;
+        
+        virtual ConstMapPtr getRangeMap() const;
+        
+        virtual void describe(Teuchos::FancyOStream &out,
+                              const Teuchos::EVerbosityLevel verbLevel=Teuchos::Describable::verbLevel_default) const;
+        
+        virtual std::string description() const = 0;
+        
+        int addOperator(SchwarzOperatorPtr op);
+        
+        int addOperators(SchwarzOperatorPtrVecPtr operators);
+        
+        int resetOperator(UN iD,
+        		 	 	  SchwarzOperatorPtr op);
+        
+        int enableOperator(UN iD,
+        				   bool enable);
+
+        UN getNumOperators();
 
     protected:
+        
+        SchwarzOperatorPtrVec OperatorVector_;
+        
+        BoolVec EnableOperators_;
 
         TimePtr_Type ApplySumTimer_;
     };

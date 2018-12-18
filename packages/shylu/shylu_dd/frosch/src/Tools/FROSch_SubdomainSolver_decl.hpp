@@ -87,6 +87,7 @@ namespace FROSch {
     class SubdomainSolver : public Xpetra::Operator<SC,LO,GO,NO> {
                 
     public:
+        typedef unsigned UN;
         
         typedef Xpetra::Map<LO,GO,NO> Map;
         typedef Teuchos::RCP<Map> MapPtr;

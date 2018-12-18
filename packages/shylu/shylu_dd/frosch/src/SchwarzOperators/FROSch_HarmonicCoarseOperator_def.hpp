@@ -403,6 +403,7 @@ namespace FROSch {
             
             //Build mVPhiGamma
             MultiVectorPtr mVPhiGamma = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(kIGamma->getDomainMap(),coarseMap->getNodeNumElements());
+            UNVec numLocalBlockRows(NumberOfBlocks_);
             {
 #ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
@@ -411,7 +412,6 @@ namespace FROSch {
 
                 LO jj=0;
                 LO kk=0;
-                UNVec numLocalBlockRows(NumberOfBlocks_);
                 for (UN i=0; i<NumberOfBlocks_; i++) {
                     UN j = 0;
                     UN k = 0;

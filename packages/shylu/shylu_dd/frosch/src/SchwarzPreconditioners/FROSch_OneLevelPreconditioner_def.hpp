@@ -51,8 +51,7 @@ namespace FROSch {
                                                                             ParameterListPtr parameterList) :
     SchwarzPreconditioner<SC,LO,GO,NO> (parameterList,k->getRangeMap()->getComm()),
     K_ (k),
-    SumOperator_ (new SumOperator<SC,LO,GO,NO>(k->getRangeMap()->getComm())),
-    MultiplicativeOperator_ (new MultiplicativeOperator<SC,LO,GO,NO>(k,parameterList)),
+    LevelCombinationOperator_(),
     OverlappingOperator_ (),
     UseMultiplicative_(false)
     {
@@ -66,13 +65,16 @@ namespace FROSch {
         if (!this->ParameterList_->get("Level Combination","Additive").compare("Multiplicative")) {
             UseMultiplicative_ = true;
         }
+        
         if (UseMultiplicative_) {
-            MultiplicativeOperator_->addOperator(OverlappingOperator_);
+            MultiplicativeOperatorPtr multiplicativeOperator = rcp(new MultiplicativeOperator<SC,LO,GO,NO>(k,parameterList));
+            LevelCombinationOperator_ = multiplicativeOperator;
         }
         else{
-            SumOperator_->addOperator(OverlappingOperator_);
+            SumOperatorPtr sumOperator = rcp(new SumOperator<SC,LO,GO,NO>(k->getRangeMap()->getComm()));
+            LevelCombinationOperator_ = sumOperator;
         }
-        
+        LevelCombinationOperator_->addOperator(OverlappingOperator_);
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -126,15 +128,10 @@ namespace FROSch {
                                                     SC alpha,
                                                     SC beta) const
     {
-        if (UseMultiplicative_) {
-            if ( this->ParameterList_->get("Only apply coarse",false) )
-                return MultiplicativeOperator_->preApplyCoarse(x,y);
-            else
-                return MultiplicativeOperator_->apply(x,y,true,mode,alpha,beta);
-        }
-        else{
-            return SumOperator_->apply(x,y,true,mode,alpha,beta);
-        }
+        if ( this->ParameterList_->get("Only apply coarse",false) )
+            return LevelCombinationOperator_->applyCoarseOperator(x,y);
+        else
+            return LevelCombinationOperator_->apply(x,y,true,mode,alpha,beta);
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -153,13 +150,7 @@ namespace FROSch {
     void OneLevelPreconditioner<SC,LO,GO,NO>::describe(Teuchos::FancyOStream &out,
                                                         const Teuchos::EVerbosityLevel verbLevel) const
     {
-        if (UseMultiplicative_) {
-            MultiplicativeOperator_->describe(out,verbLevel);
-        }
-        else{
-            SumOperator_->describe(out,verbLevel);
-        }
-
+        LevelCombinationOperator_->describe(out,verbLevel);
     }
     
     template <class SC,class LO,class GO,class NO>

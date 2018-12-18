@@ -231,7 +231,7 @@ namespace FROSch {
                 MultiVectorPtr basisfunctions = phiGammaReducedGDSW(blockId,option,useRotations,dimension,nodeList,partMappings,vertices,edges,faces,blockMap);
                 
                 if (this->ParameterList_->get("Set One Phi",false)) {
-                    addOnesPhiGamma(blockId,dofsPerNode,AncestorVertices,AncestorEdges,AncestorFaces,partMappings);
+                    addOnesPhiGamma(basisfunctions,dofsPerNode,AncestorVertices,AncestorEdges,AncestorFaces,partMappings);
                 }
                 
                 this->InterfaceCoarseSpaces_[blockId]->addSubspace(blockMap,basisfunctions);
@@ -243,7 +243,7 @@ namespace FROSch {
     
     // soll geloescht werden, wenn wir vertices mit ancestors zu egdes machen.
     template <class SC,class LO,class GO,class NO>
-    int RGDSWCoarseOperator<SC,LO,GO,NO>::addOnesPhiGamma(MultiVectorPtr basisfunctions ,UN blockId, UN dofsPerNode, EntitySetPtr vertices, EntitySetPtr edges, EntitySetPtr faces, LOVecPtr2D partMappings )
+    int RGDSWCoarseOperator<SC,LO,GO,NO>::addOnesPhiGamma(MultiVectorPtr basisfunctions, UN dofsPerNode, EntitySetPtr vertices, EntitySetPtr edges, EntitySetPtr faces, LOVecPtr2D partMappings )
     {
         
         LO itmp=0;
@@ -251,7 +251,7 @@ namespace FROSch {
         for (UN k=0; k<dofsPerNode; k++) {
             for (UN j=0; j<vertices->getNumEntities(); j++) {
                 InterfaceEntityPtr vertex = vertices->getEntity(j);
-                basisfunctions[blockId]->replaceLocalValue(vertex->getGammaDofID(0,k),partMappings[itmp][vertex->getAncestorID()],1.);
+                basisfunctions->replaceLocalValue(vertex->getGammaDofID(0,k),partMappings[itmp][vertex->getAncestorID()],1.);
             }
             itmp++;
         }
@@ -261,7 +261,7 @@ namespace FROSch {
             for (UN j=0; j<edges->getNumEntities(); j++) {
                 InterfaceEntityPtr edge = edges->getEntity(j);
                 for (UN jj=0; jj<edge->getNumNodes(); jj++) {
-                    basisfunctions[blockId]->replaceLocalValue(edge->getGammaDofID(jj,k),partMappings[itmp][edge->getAncestorID()],1.);
+                    basisfunctions->replaceLocalValue(edge->getGammaDofID(jj,k),partMappings[itmp][edge->getAncestorID()],1.);
                 }
             }
             itmp++;
@@ -272,7 +272,7 @@ namespace FROSch {
             for (UN j=0; j<faces->getNumEntities(); j++) {
                 InterfaceEntityPtr face = faces->getEntity(j);
                 for (UN jj=0; jj<face->getNumNodes(); jj++) {
-                    basisfunctions[blockId]->replaceLocalValue(face->getGammaDofID(jj,k),partMappings[itmp][face->getAncestorID()],1.);
+                    basisfunctions->replaceLocalValue(face->getGammaDofID(jj,k),partMappings[itmp][face->getAncestorID()],1.);
                 }
             }
             itmp++;
@@ -301,7 +301,7 @@ namespace FROSch {
         MapPtr serialGammaMap = Xpetra::MapFactory<LO,GO,NO>::Build(this->K_->getRangeMap()->lib(),this->GammaDofs_[blockId].size(),0,this->SerialComm_);
         MultiVectorPtr basisfunctions;
         if (this->NotOnCoarseSolveComm_) {
-            basisfunctions; = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(serialGammaMap,blockMap->getNodeNumElements());
+            basisfunctions = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(serialGammaMap,blockMap->getNodeNumElements());
         }
         
         LO itmp=0;

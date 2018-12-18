@@ -107,7 +107,7 @@ namespace FROSch {
         
         int resetMatrix(CrsMatrixPtr &k);
         
-        int preApplyCoarse(MultiVectorPtr &x,MultiVectorPtr &y);
+        int applyCoarseOperator(MultiVectorPtr &x,MultiVectorPtr &y);
         
         CrsMatrixPtr getPhi( );
 

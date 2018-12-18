@@ -51,10 +51,18 @@ namespace FROSch {
                                                                                         ParameterListPtr parameterList) :
     SchwarzPreconditioner<SC,LO,GO,NO> (parameterList,k->getRangeMap()->getComm()),
     K_ (k),
-    SumOperator_ (new SumOperator<SC,LO,GO,NO>(k->getRangeMap()->getComm())),
+    LevelCombinationOperator_ (),
     FirstLevelOperator_ (new AlgebraicOverlappingOperator<SC,LO,GO,NO>(k,sublist(parameterList,"OneLevelOperator")))
     {
-        SumOperator_->addOperator(FirstLevelOperator_);
+        if (!parameterList->get("Level Combination","Additive").compare("Additive")) {
+            SumOperatorPtr sumOperator = rcp(new SumOperator<SC,LO,GO,NO>(k->getRangeMap()->getComm()));
+            LevelCombinationOperator_ = sumOperator;
+        }
+        else if(!parameterList->get("Level Combination","Additive").compare("Multiplicative")) {
+            MultiplicativeOperatorPtr multiplicativeOperator = rcp(new MultiplicativeOperator<SC,LO,GO,NO>(k, parameterList));
+            LevelCombinationOperator_ = multiplicativeOperator;
+        }
+        LevelCombinationOperator_->addOperator(FirstLevelOperator_);
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -83,7 +91,7 @@ namespace FROSch {
                                                                 SC alpha,
                                                                 SC beta) const
     {
-        return SumOperator_->apply(x,y,true,mode,alpha,beta);
+        return LevelCombinationOperator_->apply(x,y,true,mode,alpha,beta);
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -102,7 +110,7 @@ namespace FROSch {
     void AlgebraicOverlappingPreconditioner<SC,LO,GO,NO>::describe(Teuchos::FancyOStream &out,
                                                                    const Teuchos::EVerbosityLevel verbLevel) const
     {
-        SumOperator_->describe(out,verbLevel);
+        LevelCombinationOperator_->describe(out,verbLevel);
     }
     
     template <class SC,class LO,class GO,class NO>

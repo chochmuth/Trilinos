@@ -364,7 +364,7 @@ namespace FROSch {
         GO offset = 0;
         for (unsigned i=1; i<mapVector.size(); i++) {
             LO nodeNumElements = mapVector[i]->getNodeNumElements();
-            tmpOffset += mapVector[i-1]->getMaxAllGlobalIndex()+1;
+            offset += mapVector[i-1]->getMaxAllGlobalIndex()+1;
             
             Teuchos::Array<GO> subElementList(nodeNumElements);
             for (LO j=0; j<nodeNumElements; j++) {
@@ -744,6 +744,21 @@ namespace FROSch {
         return Xpetra::MapFactory<LO,GO,NO>::Build(lib,-1,mapArrayView,0,comm);
     }
     
+    template <class SC, class LO, class GO,class NO>
+    Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > ConvertToXpetra(Xpetra::UnderlyingLib lib,
+                                                                    Epetra_MultiVector &vector,
+                                                                    Teuchos::RCP<const Teuchos::Comm<int> > comm)
+    {
+        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map = ConvertToXpetra<LO,GO,NO>(lib,vector.Map(),comm);
+        Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > xMultiVector = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(map,vector.NumVectors());
+        for (LO i=0; i<vector.NumVectors(); i++) {
+            for (LO j=0; j<vector.MyLength(); j++) {
+                xMultiVector->getDataNonConst(i)[j] = vector[i][j];
+            }
+        }
+        return xMultiVector;
+    }
+    
     template <class SC, class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > ConvertToXpetra(Xpetra::UnderlyingLib lib,
                                                                Epetra_CrsMatrix &matrix,
@@ -751,6 +766,7 @@ namespace FROSch {
     {
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > rowMap = ConvertToXpetra<LO,GO,NO>(lib,matrix.RowMap(),comm);
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > domainMap = ConvertToXpetra<LO,GO,NO>(lib, matrix.OperatorDomainMap(), comm);
+        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > rangeMap = ConvertToXpetra<LO,GO,NO>(lib, matrix.OperatorRangeMap(), comm);
         Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > xmatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(rowMap,matrix.MaxNumEntries());
         for (unsigned i=0; i<xmatrix->getNodeNumRows(); i++) {
             LO numEntries;
@@ -766,28 +782,13 @@ namespace FROSch {
             }
             xmatrix->insertGlobalValues(matrix.RowMap().GID64(i),indicesArray(),valuesArrayView);
 #else
-                indicesArray[j] = matrix.ColMap().GID(indices[j]);
+            indicesArray[j] = matrix.ColMap().GID(indices[j]);
             }
             xmatrix->insertGlobalValues(matrix.RowMap().GID(i),indicesArray(),valuesArrayView);
 #endif
         }
-        xmatrix->fillComplete(domainMap,rowMap);
+        xmatrix->fillComplete(domainMap,rangeMap);
         return xmatrix;
-    }
-
-    template <class SC, class LO, class GO,class NO>
-    Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > ConvertToXpetra(Xpetra::UnderlyingLib lib,
-                                                                    Epetra_MultiVector &vector,
-                                                                    Teuchos::RCP<const Teuchos::Comm<int> > comm)
-    {
-        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map = ConvertToXpetra<LO,GO,NO>(lib,vector.Map(),comm);
-        Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > xMultiVector = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(map,vector.NumVectors());
-        for (LO i=0; i<vector.NumVectors(); i++) {
-            for (LO j=0; j<vector.MyLength(); j++) {
-                xMultiVector->getDataNonConst(i)[j] = vector[i][j];
-            }
-        }
-        return xMultiVector;
     }
 #endif
 
@@ -857,35 +858,29 @@ namespace FROSch {
         return multiVector;
     }
 
-    template <class SC, class LO,class GO,class NO>
-    Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > ConvertToXpetra(Xpetra::UnderlyingLib lib,
-                                                               Epetra_CrsMatrix &matrix,
-                                                               Teuchos::RCP<const Teuchos::Comm<int> > comm)
+    template <class SC, class LO,class GO, class NO>
+    Teuchos::RCP<Epetra_CrsMatrix> ConvertToEpetra(const Xpetra::Matrix<SC,LO,GO,NO> &matrix,
+                                                   Teuchos::RCP<Epetra_Comm> epetraComm)
     {
-        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > rowMap = ConvertToXpetra<LO,GO,NO>(lib, matrix.RowMap(), comm);
-        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > domainMap = ConvertToXpetra<LO,GO,NO>(lib, matrix.OperatorDomainMap(), comm);
-        Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > xmatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(rowMap,matrix.MaxNumEntries());
-        for (unsigned i=0; i<xmatrix->getNodeNumRows(); i++) {
-            LO numEntries;
-            LO* indices;
-            SC* values;
-            matrix.ExtractMyRowView(i,numEntries,values,indices);
-            
-            Teuchos::Array<GO> indicesArray(numEntries);
-            Teuchos::ArrayView<SC> valuesArrayView(values,numEntries);
-            for (LO j=0; j<numEntries; j++) {
-#ifdef FROSCH_Epetra64
-                indicesArray[j] = matrix.ColMap().GID64(indices[j]);
+        Teuchos::RCP<Epetra_Map> rowMap = ConvertToEpetra<LO,GO,NO>(*matrix.getRowMap(),epetraComm);
+        Teuchos::RCP<Epetra_Map> domainMap = ConvertToEpetra<LO,GO,NO>(*matrix.getDomainMap(),epetraComm);
+        Teuchos::RCP<Epetra_Map> rangeMap = ConvertToEpetra<LO,GO,NO>(*matrix.getRangeMap(),epetraComm);
+        Teuchos::RCP<Epetra_CrsMatrix> matrixEpetra(new Epetra_CrsMatrix(Copy,*rowMap,matrix.getGlobalMaxNumRowEntries()));
+        Teuchos::ArrayView<const SC> valuesArrayView;
+        Teuchos::ArrayView<const LO> indicesArrayView;
+        
+        for (LO i=0; i<(LO) matrix.getRowMap()->getNodeNumElements(); i++) {
+            matrix.getLocalRowView(i, indicesArrayView, valuesArrayView);
+            Teuchos::Array<GO> indicesGlobal(indicesArrayView.size());
+            for (LO j=0; j<indicesArrayView.size(); j++) {
+                indicesGlobal[j] = matrix.getColMap()->getGlobalElement(indicesArrayView[j]);
             }
-            xmatrix->insertGlobalValues(matrix.RowMap().GID64(i),indicesArray(),valuesArrayView);
-#else
-                indicesArray[j] = matrix.ColMap().GID(indices[j]);
+            if (indicesArrayView.size()>0) {
+                matrixEpetra->InsertGlobalValues(matrix.getRowMap()->getGlobalElement(i), indicesArrayView.size(), &(valuesArrayView[0]), &(indicesGlobal[0]));
             }
-            xmatrix->insertGlobalValues(matrix.RowMap().GID(i),indicesArray(),valuesArrayView);
-#endif
         }
-        xmatrix->fillComplete(domainMap,rowMap);
-        return xmatrix;
+        matrixEpetra->FillComplete(*domainMap, *rangeMap);
+        return matrixEpetra;
     }
 #endif
 

@@ -495,24 +495,10 @@ namespace FROSch {
             }
 #endif
         } else {
-            FROSCH_ASSERT(false,"Distribution Type unknown!");
+                FROSCH_ASSERT(false,"Distribution Type unknown!");
+            }
         }
-
-       
         
-        return 0;
-    }
-    
-    
-    template<class SC,class LO,class GO,class NO>
-    int CoarseOperator<SC,LO,GO,NO>::computeCoarseOperator()
-    {
-#ifdef FROSCH_TIMER
-        TimeMonitor_Type ComputeTM(*ComputeTimer_);
-#endif
-        if (OnCoarseSolveComm_) {
-            CoarseSolver_->compute();
-        }
         return 0;
     }
     

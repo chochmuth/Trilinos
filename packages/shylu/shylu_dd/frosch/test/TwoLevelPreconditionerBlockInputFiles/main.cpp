@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
                 FROSCH_ASSERT(false,"PreconditionerPosition unknown...");
             }
             if (!parameterList->sublist("TwoLevelPreconditioner").get("Level Combination","Additive").compare("Multiplicative")) {
-                TwoLevelPrec->preApplyCoarse(rhs,xSolution);
+                TwoLevelPrec->applyCoarseOperator(rhs,xSolution);
             }
             belosLinearProblem->setProblem(xSolution,rhs);
             belosSoverManager->solve();

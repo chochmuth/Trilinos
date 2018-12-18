@@ -78,12 +78,8 @@ namespace FROSch {
             } else {
                 FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
             } // TODO: Add ability to disable individual levels
-            if (this->UseMultiplicative_) {
-                this->MultiplicativeOperator_->addOperator(CoarseOperator_);
-            }
-            else{
-                this->SumOperator_->addOperator(CoarseOperator_);
-            }
+
+            this->LevelCombinationOperator_->addOperator(CoarseOperator_);
         }
     }
     
@@ -281,7 +277,7 @@ namespace FROSch {
     template <class SC,class LO,class GO,class NO>
     std::string TwoLevelBlockPreconditioner<SC,LO,GO,NO>::description() const
     {
-        return "GDSW Preconditioner";
+        return "Two Level Block Preconditioner";
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -291,20 +287,15 @@ namespace FROSch {
         this->OverlappingOperator_->resetMatrix(this->K_);
         if (this->ParameterList_->get("TwoLevel",true)) {
             CoarseOperator_->resetMatrix(this->K_);
-            if (this->UseMultiplicative_) this->MultiplicativeOperator_->resetMatrix(this->K_);
+            this->LevelCombinationOperator_->resetMatrix(this->K_);
         }
         return 0;
     }
     
     template <class SC,class LO,class GO,class NO>
-    int TwoLevelBlockPreconditioner<SC,LO,GO,NO>::preApplyCoarse(MultiVectorPtr &x,MultiVectorPtr &y)
+    int TwoLevelBlockPreconditioner<SC,LO,GO,NO>::applyCoarseOperator(MultiVectorPtr &x,MultiVectorPtr &y)
     {
-        if (this->UseMultiplicative_) {
-            this->MultiplicativeOperator_->preApplyCoarse(*x,*y);
-        }
-        else{
-            FROSCH_ASSERT(false,"preApplyCoarse(MultiVectorPtr &x) only implemented for MultiplicativeOperator.")
-        }
+        this->LevelCombinationOperator_->applyCoarseOperator(*x,*y);
         return 0;
     }
 

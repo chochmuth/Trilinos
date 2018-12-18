@@ -52,7 +52,7 @@ namespace FROSch {
     AlgebraicOverlappingPreconditioner<SC,LO,GO,NO> (k,parameterList),
     CoarseLevelOperator_ (new GDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"GDSWOperator")))
     {
-        this->SumOperator_->addOperator(CoarseLevelOperator_);
+        this->LevelCombinationOperator_->addOperator(CoarseLevelOperator_);
     }
     
     template <class SC,class LO,class GO,class NO>

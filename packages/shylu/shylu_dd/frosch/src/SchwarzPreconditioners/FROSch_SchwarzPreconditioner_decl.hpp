@@ -80,6 +80,7 @@ namespace FROSch {
         
         typedef Teuchos::RCP<SumOperator<SC,LO,GO,NO> > SumOperatorPtr;
         typedef Teuchos::RCP<MultiplicativeOperator<SC,LO,GO,NO> > MultiplicativeOperatorPtr;
+        typedef Teuchos::RCP<LevelCombinationOperator<SC,LO,GO,NO> > LevelCombinationOperatorPtr;
         typedef Teuchos::RCP<OverlappingOperator<SC,LO,GO,NO> > OverlappingOperatorPtr;
         typedef Teuchos::RCP<AlgebraicOverlappingOperator<SC,LO,GO,NO> > AlgebraicOverlappingOperatorPtr;
         typedef Teuchos::RCP<CoarseOperator<SC,LO,GO,NO> > CoarseOperatorPtr;

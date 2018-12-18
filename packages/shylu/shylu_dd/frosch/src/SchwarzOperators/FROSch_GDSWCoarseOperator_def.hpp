@@ -315,8 +315,6 @@ namespace FROSch {
             useFaceRotations = false;
         }
         
-        
-        
 #ifdef FROSCH_TIMER
         TimeMonitor_Type InterfaceTM(*this->InterfaceTimer_);
         InterfaceTM.setStackedTimer(Teuchos::null);
@@ -343,6 +341,16 @@ namespace FROSch {
         interface = DDInterface_->getInterface();
         interior = DDInterface_->getInterior();
         
+        
+//        ////////////////////
+//        // Build PhiGamma //
+//        ////////////////////
+//#ifdef FROSCH_TIMER
+//        TimeMonitor_Type ComputePhiTM(*this->ComputePhiTimer_);
+//        ComputePhiTM.setStackedTimer(Teuchos::null);
+//        TimeMonitor_Type FullTM(*this->FullSetupTimer_);
+//        FullTM.setStackedTimer(Teuchos::null);
+//#endif
         // Check for interface
         if (interface->getNumEntities()==0) {
             this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior);
@@ -527,243 +535,11 @@ namespace FROSch {
                 for (UN i=0; i<numEntitiesGlobal.size(); i++) {
                     this->BlockCoarseDimension_[blockId] += numEntitiesGlobal[i];
                 }
-            
-                ////////////////////
-                // Build PhiGamma //
-                ////////////////////
-    #ifdef FROSCH_TIMER
-                TimeMonitor_Type ComputePhiTM(*this->ComputePhiTimer_);
-                ComputePhiTM.setStackedTimer(Teuchos::null);
-                TimeMonitor_Type FullTM(*this->FullSetupTimer_);
-                FullTM.setStackedTimer(Teuchos::null);
-    #endif
-                phiGammaGDSW(blockId,useRotations,dimension,dofsPerNode,nodeList,partMappings,vertices,shortEdges,straightEdges,edges,faces,coarseSpaceFunctions);
-
             }
         }
         
         return 0;
-    }
-    
-    
-    template <class SC,class LO,class GO,class NO>
-    int GDSWCoarseOperator<SC,LO,GO,NO>::phiGammaGDSW(UN blockId,
-                                                      bool buildRotations,
-                                                      UN dimension,
-                                                      UN dofsPerNode,
-                                                      MultiVectorPtr nodeList,
-                                                      LOVecPtr2D partMappings, // TODO Kann man hier den 2D Vektor auch ersetzen
-                                                      EntitySetPtr vertices,
-                                                      EntitySetPtr shortEdges,
-                                                      EntitySetPtr straightEdges,
-                                                      EntitySetPtr edges,
-                                                      EntitySetPtr faces,
-                                                      BoolVecPtr coarseSpaceFunctions)
-    {
-        if (buildRotations) {
-            FROSCH_ASSERT(nodeList->getNumVectors()==dimension,"dimension of the nodeList is wrong.");
-        }
-
-        //Epetra_SerialComm serialComm;
-        MapPtr serialGammaMap = Xpetra::MapFactory<LO,GO,NO>::Build(this->BlockCoarseMaps_[blockId]->lib(),this->GammaDofs_[blockId].size(),0,this->SerialComm_);
-
-        if (this->NotOnCoarseSolveComm_) {
-            this->MVPhiGamma_[blockId] = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(serialGammaMap,this->BlockCoarseMaps_[blockId]->getNodeNumElements());
-        }
-
-        LO ii=0;
-        SC x,y,z,rx,ry,rz;
-        SCVecPtr dir;
-        LO tmp=0;
-        // vertices
-        if (coarseSpaceFunctions[0]) {
-            for (UN k=0; k<dofsPerNode; k++) {
-                for (UN i=0; i<vertices->getNumEntities(); i++) {
-                    this->MVPhiGamma_[blockId]->replaceLocalValue(vertices->getEntity(i)->getGammaDofID(0,k),partMappings[ii][i],1.0);
-                }
-                ii++;
-            }
-        }
-        
-        // Short edges
-        if (coarseSpaceFunctions[1]) { // Translations
-            for (UN k=0; k<dofsPerNode; k++) {
-                for (UN i=0; i<shortEdges->getNumEntities(); i++) {
-                    for (UN j=0; j<shortEdges->getEntity(i)->getNumNodes(); j++) {
-                        this->MVPhiGamma_[blockId]->replaceLocalValue(shortEdges->getEntity(i)->getGammaDofID(j,k),partMappings[ii][i],1.0);
-=======
-            if (useForCoarseSpace && (useVertexTranslations||useShortEdgeTranslations||useShortEdgeRotations||useStraightEdgeTranslations||useStraightEdgeRotations||useEdgeTranslations||useEdgeRotations||useFaceTranslations||useFaceRotations)) {
-                
-                ////////////////////////////////
-                // Build Processor Map Coarse //
-                ////////////////////////////////
-                // Vertices
-                if (useVertexTranslations) {
-                    vertices = DDInterface_->getVertices();
-                    vertices->buildEntityMap(nodesMap);
-                    
-                    MultiVectorPtrVecPtr translations = this->computeTranslations(blockId,vertices);
-                    for (UN i=0; i<translations.size(); i++) {
-                        this->InterfaceCoarseSpaces_[blockId]->addSubspace(vertices->getEntityMap(),translations[i]);
->>>>>>> f4001d998e3008d044809cbb7aadfff1dd452198
-                    }
-                }
-                // ShortEdges
-                if (useShortEdgeTranslations || useShortEdgeRotations) {
-                    shortEdges = DDInterface_->getShortEdges();
-                    shortEdges->buildEntityMap(nodesMap);
-                    
-                    if (useShortEdgeTranslations) {
-                        MultiVectorPtrVecPtr translations = this->computeTranslations(blockId,shortEdges);
-                        for (UN i=0; i<translations.size(); i++) {
-                            this->InterfaceCoarseSpaces_[blockId]->addSubspace(shortEdges->getEntityMap(),translations[i]);
-                        }
-                    }
-                    if (useShortEdgeRotations) {
-                        MultiVectorPtrVecPtr rotations = this->computeRotations(blockId,dimension,nodeList,shortEdges);
-                        for (UN i=0; i<rotations.size(); i++) {
-                            this->InterfaceCoarseSpaces_[blockId]->addSubspace(shortEdges->getEntityMap(),rotations[i]);
-                        }
-                    }
-                }
-                // StraightEdges
-                if (useStraightEdgeTranslations || useStraightEdgeRotations) {
-                    straightEdges = DDInterface_->getStraightEdges();
-                    straightEdges->buildEntityMap(nodesMap);
-                    
-                    if (useShortEdgeTranslations) {
-                        MultiVectorPtrVecPtr translations = this->computeTranslations(blockId,straightEdges);
-                        for (UN i=0; i<translations.size(); i++) {
-                            this->InterfaceCoarseSpaces_[blockId]->addSubspace(straightEdges->getEntityMap(),translations[i]);
-                        }
-                    }
-                    if (useShortEdgeRotations) {
-                        MultiVectorPtrVecPtr rotations = this->computeRotations(blockId,dimension,nodeList,straightEdges);
-                        for (UN i=0; i<rotations.size(); i++) {
-                            this->InterfaceCoarseSpaces_[blockId]->addSubspace(straightEdges->getEntityMap(),rotations[i]);
-                        }
-                    }
-                }
-                // Edges
-                if (useEdgeTranslations || useEdgeRotations) {
-                    edges = DDInterface_->getEdges();
-                    edges->buildEntityMap(nodesMap);
-                    
-                    if (useShortEdgeTranslations) {
-                        MultiVectorPtrVecPtr translations = this->computeTranslations(blockId,edges);
-                        for (UN i=0; i<translations.size(); i++) {
-                            this->InterfaceCoarseSpaces_[blockId]->addSubspace(edges->getEntityMap(),translations[i]);
-                        }
-                    }
-                    if (useShortEdgeRotations) {
-                        MultiVectorPtrVecPtr rotations = this->computeRotations(blockId,dimension,nodeList,edges);
-                        for (UN i=0; i<rotations.size(); i++) {
-                            this->InterfaceCoarseSpaces_[blockId]->addSubspace(edges->getEntityMap(),rotations[i]);
-                        }
-                    }
-                }
-                // Faces
-                if (useFaceTranslations || useFaceRotations) {
-                    faces = DDInterface_->getFaces();
-                    faces->buildEntityMap(nodesMap);
-                    
-                    if (useShortEdgeTranslations) {
-                        MultiVectorPtrVecPtr translations = this->computeTranslations(blockId,faces);
-                        for (UN i=0; i<translations.size(); i++) {
-                            this->InterfaceCoarseSpaces_[blockId]->addSubspace(faces->getEntityMap(),translations[i]);
-                        }
-                    }
-                    if (useShortEdgeRotations) {
-                        MultiVectorPtrVecPtr rotations = this->computeRotations(blockId,dimension,nodeList,faces);
-                        for (UN i=0; i<rotations.size(); i++) {
-                            this->InterfaceCoarseSpaces_[blockId]->addSubspace(faces->getEntityMap(),rotations[i]);
-                        }
-                    }
-                }
-                
-                this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace();
-                
-                // Count entities
-                GOVec numEntitiesGlobal(5);
-                if (useVertexTranslations) {
-                    numEntitiesGlobal[0] = vertices->getEntityMap()->getMaxAllGlobalIndex();
-                    if (vertices->getEntityMap()->lib()==Xpetra::UseEpetra || vertices->getEntityMap()->getGlobalNumElements()>0) {
-                        numEntitiesGlobal[0] += 1;
-                    }
-                } else {
-                    numEntitiesGlobal[0] = -1;
-                }
-                if (useShortEdgeTranslations || useShortEdgeRotations) {
-                    numEntitiesGlobal[1] = shortEdges->getEntityMap()->getMaxAllGlobalIndex();
-                    if (shortEdges->getEntityMap()->lib()==Xpetra::UseEpetra || shortEdges->getEntityMap()->getGlobalNumElements()>0) {
-                        numEntitiesGlobal[1] += 1;
-                    }
-                } else {
-                    numEntitiesGlobal[1] = -1;
-                }
-                if (useStraightEdgeTranslations || useStraightEdgeRotations) {
-                    numEntitiesGlobal[2] = straightEdges->getEntityMap()->getMaxAllGlobalIndex();
-                    if (straightEdges->getEntityMap()->lib()==Xpetra::UseEpetra || straightEdges->getEntityMap()->getGlobalNumElements()>0) {
-                        numEntitiesGlobal[2] += 1;
-                    }
-                } else {
-                    numEntitiesGlobal[2] = -1;
-                }
-                if (useEdgeTranslations || useEdgeRotations) {
-                    numEntitiesGlobal[3] = edges->getEntityMap()->getMaxAllGlobalIndex();
-                    if (edges->getEntityMap()->lib()==Xpetra::UseEpetra || edges->getEntityMap()->getGlobalNumElements()>0) {
-                        numEntitiesGlobal[3] += 1;
-                    }
-                } else {
-                    numEntitiesGlobal[3] = -1;
-                }
-                if (useFaceTranslations || useFaceRotations) {
-                    numEntitiesGlobal[4] = faces->getEntityMap()->getMaxAllGlobalIndex();
-                    if (faces->getEntityMap()->lib()==Xpetra::UseEpetra || faces->getEntityMap()->getGlobalNumElements()>0) {
-                        numEntitiesGlobal[4] += 1;
-                    }
-                } else {
-                    numEntitiesGlobal[4] = -1;
-                }
-                
-                for (UN i=0; i<numEntitiesGlobal.size(); i++) {
-                    if (numEntitiesGlobal[i]<0) {
-                        numEntitiesGlobal[i] = 0;
-                    }
-                }
-                
-                if (this->Verbose_) {
-                    
-                    std::cout << "\n\
-                    --------------------------------------------\n\
-                    # vertices:       --- " << numEntitiesGlobal[0] << "\n\
-                    # shortEdges:     --- " << numEntitiesGlobal[1] << "\n\
-                    # straightEdges:  --- " << numEntitiesGlobal[2] << "\n\
-                    # edges:          --- " << numEntitiesGlobal[3] << "\n\
-                    # faces:          --- " << numEntitiesGlobal[4] << "\n\
-                    --------------------------------------------\n\
-                    Coarse space:\n\
-                    --------------------------------------------\n\
-                    vertices: translations      --- " << useVertexTranslations << "\n\
-                    shortEdges: translations    --- " << useShortEdgeTranslations << "\n\
-                    shortEdges: rotations       --- " << useShortEdgeRotations << "\n\
-                    straightEdges: translations --- " << useStraightEdgeTranslations << "\n\
-                    straightEdges: rotations    --- " << useStraightEdgeRotations << "\n\
-                    edges: translations         --- " << useEdgeTranslations << "\n\
-                    edges: rotations            --- " << useEdgeRotations << "\n\
-                    faces: translations         --- " << useFaceTranslations << "\n\
-                    faces: rotations            --- " << useFaceRotations << "\n\
-                    --------------------------------------------\n";
-                }
-                
-                this->BlockCoarseDimension_[blockId] = 0;
-                for (UN i=0; i<numEntitiesGlobal.size(); i++) {
-                    this->BlockCoarseDimension_[blockId] += numEntitiesGlobal[i];
-                }
-            }
-        }
-        return 0;
-    }    
+    }      
 }
 
 #endif

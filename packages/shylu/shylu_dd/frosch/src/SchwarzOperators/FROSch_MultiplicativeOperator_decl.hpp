@@ -42,7 +42,7 @@
 #ifndef _FROSCH_MULTIPLICATIVEOPERATOR_DECL_HPP
 #define _FROSCH_MULTIPLICATIVEOPERATOR_DECL_HPP
 
-#include <FROSch_SchwarzOperator_def.hpp>
+#include <FROSch_LevelCombinationOperator_def.hpp>
 
 namespace FROSch {
     
@@ -50,7 +50,7 @@ namespace FROSch {
     class LO = typename Xpetra::Operator<SC>::local_ordinal_type,
     class GO = typename Xpetra::Operator<SC,LO>::global_ordinal_type,
     class NO = typename Xpetra::Operator<SC,LO,GO>::node_type>
-    class MultiplicativeOperator : public SchwarzOperator<SC,LO,GO,NO> {
+    class MultiplicativeOperator : public LevelCombinationOperator<SC,LO,GO,NO> {
         
     public:
         
@@ -82,48 +82,16 @@ namespace FROSch {
         
         ~MultiplicativeOperator();
         
-        virtual int initialize();
-        
-        virtual int initialize(MapPtr repeatedMap);
-        
-        virtual int compute();
-        
-        void preApplyCoarse(const MultiVector &x, MultiVector &y);
-        
         virtual void apply(const MultiVector &x,
                            MultiVector &y,
                            bool usePreconditionerOnly,
                            Teuchos::ETransp mode=Teuchos::NO_TRANS,
                            SC alpha=Teuchos::ScalarTraits<SC>::one(),
                            SC beta=Teuchos::ScalarTraits<SC>::zero()) const;
-        
-        virtual ConstMapPtr getDomainMap() const;
-        
-        virtual ConstMapPtr getRangeMap() const;
-        
-        virtual void describe(Teuchos::FancyOStream &out,
-                              const Teuchos::EVerbosityLevel verbLevel=Teuchos::Describable::verbLevel_default) const;
-        
+
         virtual std::string description() const;
-        
-        int addOperator(SchwarzOperatorPtr op);
-        
-        int addOperators(SchwarzOperatorPtrVecPtr operators);
-        
-        int resetOperator(UN iD,
-                          SchwarzOperatorPtr op);
-        
-        int enableOperator(UN iD,
-                           bool enable);
-        
-        UN getNumOperators();
-        
-        
+
     protected:
-        
-        SchwarzOperatorPtrVec OperatorVector_;
-        
-        BoolVec EnableOperators_;
         
         TimePtr_Type ApplyMultTimer_;
     };

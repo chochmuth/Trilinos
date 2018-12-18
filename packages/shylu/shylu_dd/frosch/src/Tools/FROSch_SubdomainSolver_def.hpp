@@ -360,7 +360,7 @@ namespace FROSch {
                 Teuchos::ArrayView< const LO > indices;
                 Teuchos::ArrayView< const SC > values;
                 tpetraMat_->resumeFill();
-                for (LO i=0; i<tpetraMat->getNodeNumRows(); i++) {
+                for (UN i=0; i<tpetraMat->getNodeNumRows(); i++) {
                     tpetraMat->getLocalRowView( i, indices, values );
                     tpetraMat_->replaceLocalValues (i, indices, values);
                 }
