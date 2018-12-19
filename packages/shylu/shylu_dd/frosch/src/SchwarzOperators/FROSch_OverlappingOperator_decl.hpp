@@ -80,7 +80,6 @@ namespace FROSch {
         typedef typename SchwarzOperator<SC,LO,GO,NO>::UN UN;
         
 
-
         OverlappingOperator(CrsMatrixPtr k,
                             ParameterListPtr parameterList);
         
@@ -96,6 +95,10 @@ namespace FROSch {
                           Teuchos::ETransp mode=Teuchos::NO_TRANS,
                           SC alpha=Teuchos::ScalarTraits<SC>::one(),
                           SC beta=Teuchos::ScalarTraits<SC>::zero()) const;
+        
+        void extend(MultiVectorPtr x, MultiVectorPtr &xOverlap) const;
+
+        void combine(MultiVectorPtr yOverlap, MultiVectorPtr y) const;
         
         MapPtr getOverlappingMap();
         
@@ -124,6 +127,7 @@ namespace FROSch {
         MapPtr OverlappingMap_;            
         
         ImporterPtr Scatter_;
+        
         ExporterPtr GatherRestricted_;
         
         SubdomainSolverPtr SubdomainSolver_;
@@ -135,7 +139,11 @@ namespace FROSch {
         int LevelID_;
         
         bool OnFirstLevelComm_;
+
         CommPtr FirstLevelSolveComm_;
+        
+        mutable MultiVectorPtr XOverlapEpetra_; //CH 12/19/18: AH 11/28/2018: For Epetra, xOverlap will only have a view to the values of xOverlapTmp. Therefore, xOverlapTmp should not be deleted before xOverlap is used.
+
         
 #ifdef FROSCH_TIMER
         TimePtr_Type OverlapTimer_;

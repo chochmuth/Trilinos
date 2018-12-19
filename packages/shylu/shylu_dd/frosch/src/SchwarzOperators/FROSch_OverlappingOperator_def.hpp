@@ -59,7 +59,8 @@ namespace FROSch {
     Combine_(),
     LevelID_(this->ParameterList_->get("Level ID",1)),
     OnFirstLevelComm_(false),
-    FirstLevelSolveComm_()
+    FirstLevelSolveComm_(),
+    XOverlapEpetra_()
 #ifdef FROSCH_TIMER
     ,OverlapTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Build Overlap")),
     ExtractTimer_(TimeMonitor_Type::getNewCounter("FROSch: Overlapping Operator("+ Teuchos::toString(LevelID_)+"): Extract Local Matrices")),
@@ -121,16 +122,40 @@ namespace FROSch {
         }
         
         MultiVectorPtr xOverlap;
-        MultiVectorPtr xOverlapTmp; // AH 11/28/2018: For Epetra, xOverlap will only have a view to the values of xOverlapTmp. Therefore, xOverlapTmp should not be deleted before xOverlap is used.
 
         MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+
+        extend(xTmp,xOverlap);
+        yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
+
+        if (OnFirstLevelComm_) {
+            SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
+        }
+        yOverlap->replaceMap(OverlappingMap_);
+        
+        xTmp->putScalar(0.0);
+        
+        combine(yOverlap,xTmp);
+        
+        if (!usePreconditionerOnly && mode != Teuchos::NO_TRANS) {
+            this->K_->apply(*xTmp,*xTmp,mode,1.0,0.0);
+        }
+        y.update(alpha,*xTmp,beta);
+#ifdef FROSCH_DETAIL_TIMER
+        this->MpiComm_->barrier();
+#endif
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    void OverlappingOperator<SC,LO,GO,NO>::extend(MultiVectorPtr x, MultiVectorPtr &xOverlap) const
+    {
         // AH 11/28/2018: replaceMap does not update the GlobalNumRows. Therefore, we have to create a new MultiVector on the serial Communicator. In Epetra, we can prevent to copy the MultiVector.
-        if (xTmp->getMap()->lib() == Xpetra::UseEpetra) {
-            xOverlapTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+        if (x->getMap()->lib() == Xpetra::UseEpetra) {
+            XOverlapEpetra_ = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x->getNumVectors());
             
-            xOverlapTmp->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
+            XOverlapEpetra_->doImport(*x,*Scatter_,Xpetra::INSERT);
             
-            const Teuchos::RCP<const Xpetra::EpetraMultiVectorT<GO,NO> > xEpetraMultiVectorXOverlapTmp = Teuchos::rcp_dynamic_cast<const Xpetra::EpetraMultiVectorT<GO,NO> >(xOverlapTmp);
+            const Teuchos::RCP<const Xpetra::EpetraMultiVectorT<GO,NO> > xEpetraMultiVectorXOverlapTmp = Teuchos::rcp_dynamic_cast<const Xpetra::EpetraMultiVectorT<GO,NO> >(XOverlapEpetra_);
             Teuchos::RCP<Epetra_MultiVector> epetraMultiVectorXOverlapTmp = xEpetraMultiVectorXOverlapTmp->getEpetra_MultiVector();
             
             if (OnFirstLevelComm_) {
@@ -141,33 +166,28 @@ namespace FROSch {
                 int MyLDA;
                 epetraMultiVectorXOverlapTmp->ExtractView(&A,&MyLDA);
                 
-                Teuchos::RCP<Epetra_MultiVector> epetraMultiVectorXOverlap(new Epetra_MultiVector(View,epetraMap,A,MyLDA,x.getNumVectors()));
+                Teuchos::RCP<Epetra_MultiVector> epetraMultiVectorXOverlap(new Epetra_MultiVector(View,epetraMap,A,MyLDA,x->getNumVectors()));
                 xOverlap = Teuchos::RCP<Xpetra::EpetraMultiVectorT<GO,NO> >(new Xpetra::EpetraMultiVectorT<GO,NO>(epetraMultiVectorXOverlap));
-                
-                yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
             }
         } else {
-            xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+            xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x->getNumVectors());
             
-            xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
+            xOverlap->doImport(*x,*Scatter_,Xpetra::INSERT);
             if (OnFirstLevelComm_) {
                 xOverlap->replaceMap(OverlappingMatrix_->getDomainMap());
-                yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
             }
         }
-        
-        if (OnFirstLevelComm_) {
-            SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
-        }
-        yOverlap->replaceMap(OverlappingMap_);
-        
-        xTmp->putScalar(0.0);
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    void OverlappingOperator<SC,LO,GO,NO>::combine(MultiVectorPtr yOverlap, MultiVectorPtr y) const
+    {
         if (Combine_ == Restricted){
 #ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
             TimeMonitor_Type ApplyRestTM(*ApplyRestTimer_);
 #endif
-            xTmp->doImport(*yOverlap,*GatherRestricted_,Xpetra::INSERT);
+            y->doImport(*yOverlap,*GatherRestricted_,Xpetra::INSERT);
             
 #ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
@@ -178,28 +198,20 @@ namespace FROSch {
             this->MpiComm_->barrier();
             TimeMonitor_Type ApplyNormalTM(*ApplyNormalTimer_);
 #endif
-            xTmp->doExport(*yOverlap,*Scatter_,Xpetra::ADD);
+            y->doExport(*yOverlap,*Scatter_,Xpetra::ADD);
 #ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
 #endif
         }
         if (Combine_ == Averaging) {
             ConstSCVecPtr scaling = Multiplicity_->getData(0);
-            for (unsigned j=0; j<xTmp->getNumVectors(); j++) {
-                SCVecPtr values = xTmp->getDataNonConst(j);
+            for (unsigned j=0; j<y->getNumVectors(); j++) {
+                SCVecPtr values = y->getDataNonConst(j);
                 for (unsigned i=0; i<values.size(); i++) {
                     values[i] = values[i] / scaling[i];
                 }
             }
         }
-        
-        if (!usePreconditionerOnly && mode != Teuchos::NO_TRANS) {
-            this->K_->apply(*xTmp,*xTmp,mode,1.0,0.0);
-        }
-        y.update(alpha,*xTmp,beta);
-#ifdef FROSCH_DETAIL_TIMER
-        this->MpiComm_->barrier();
-#endif
     }
     
     template <class SC,class LO,class GO,class NO>
