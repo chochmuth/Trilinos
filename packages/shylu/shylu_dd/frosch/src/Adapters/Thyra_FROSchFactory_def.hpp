@@ -137,7 +137,7 @@ namespace Thyra {
             RCP<FROSchLinearOp<SC, LO, GO, NO> > fROSch_LinearOp = Teuchos::null;
             fROSch_LinearOp = rcp_dynamic_cast<FROSchLinearOp<SC, LO, GO, NO> >(thyra_precOp, true);
             
-            RCP<  Xpetra::Operator< > > xpetraOp = fROSch_LinearOp->getXpetraOperator();//getConstXpetraOperator();
+            RCP<  Xpetra::Operator<SC, LO, GO, NO > > xpetraOp = fROSch_LinearOp->getXpetraOperator();//getConstXpetraOperator();
             
             FROSCH_ASSERT(paramList_->isParameter("FROSch Preconditioner Type"),"FROSch Preconditioner Type is not defined!");
             
