@@ -106,7 +106,7 @@ namespace FROSch {
             this->IsComputed_ = true;
         } else if(!this->ParameterList_->get("Recycling","none").compare("all") && this->IsComputed_) {
             // Maybe use some advanced settings in the future
-        } else {
+        } else {// CH 01/10/2019: none or standard case. If standard or none are choosen than the full coarse space is built again. In the standard case we reuse only information of the first level.
             clearCoarseSpace(); // AH 12/11/2018: If we do not clear the coarse space, we will always append just append the coarse space
             MapPtr subdomainMap = this->computeCoarseSpace(CoarseSpace_); // AH 12/11/2018: This map could be overlapping, repeated, or unique. This depends on the specific coarse operator
             CoarseSpace_->assembleCoarseSpace();

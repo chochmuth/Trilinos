@@ -134,7 +134,7 @@ namespace FROSch {
     void LevelCombinationOperator<SC,LO,GO,NO>::applyCoarseOperator(const MultiVector &x, MultiVector &y)
     {
         FROSCH_ASSERT(this->OperatorVector_.size()==2,"Should be a Two-Level Operator.");
-        this->OperatorVector_[1]->apply(x,y,true); // It is assumed that the CoarseOperator is at position [1].
+        this->OperatorVector_[1]->apply(x,y,true); // It is assumed that the CoarseOperator is at position 1.
         
     }
     

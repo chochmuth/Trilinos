@@ -187,7 +187,7 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
         }
-
+        this->IsInitialized_ = true;
         return ret;
     }
     
@@ -197,6 +197,7 @@ namespace FROSch {
         int ret = 0;
         if (0>this->OverlappingOperator_->compute()) ret -= 1;
         if (0>CoarseOperator_->compute()) ret -= 10;
+        this->IsComputed_ = true;        
         return ret;
     }
     

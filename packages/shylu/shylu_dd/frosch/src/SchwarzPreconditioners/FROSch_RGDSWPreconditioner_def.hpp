@@ -131,7 +131,7 @@ namespace FROSch {
         int ret = 0;
         if (0>this->FirstLevelOperator_->initialize(overlap,repeatedMap)) ret -= 1;
         if (0>CoarseLevelOperator_->initialize(dimension,repeatedMap)) ret -= 10;
-        
+        this->IsInitialized_ = true;
         return 0;
     }
     
@@ -144,7 +144,7 @@ namespace FROSch {
         int ret = 0;
         if (0>this->FirstLevelOperator_->initialize(overlap,repeatedMap)) ret -= 1;
         if (0>CoarseLevelOperator_->initialize(dimension,repeatedMap,dirichletBoundaryDofs)) ret -= 10;
-        
+        this->IsInitialized_ = true;
         return 0;
     }
     
@@ -162,7 +162,7 @@ namespace FROSch {
         MapPtrVecPtr repeatedDofMaps;
         if (0>BuildDofMaps(repeatedMap,dofsPerNode,dofOrdering,repeatedNodesMap,repeatedDofMaps)) ret -= 100;
         if (0>CoarseLevelOperator_->initialize(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps)) ret -=10;
-        
+        this->IsInitialized_ = true;
         return ret;
     }
     
@@ -181,7 +181,7 @@ namespace FROSch {
         MapPtrVecPtr repeatedDofMaps;
         if (0>BuildDofMaps(repeatedMap,dofsPerNode,dofOrdering,repeatedNodesMap,repeatedDofMaps)) ret -= 100;
         if (0>CoarseLevelOperator_->initialize(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps,dirichletBoundaryDofs)) ret -=10;
-        
+        this->IsInitialized_ = true;
         return ret;
     }
     
@@ -200,7 +200,7 @@ namespace FROSch {
         MapPtrVecPtr repeatedDofMaps;
         if (0>BuildDofMaps(repeatedMap,dofsPerNode,dofOrdering,repeatedNodesMap,repeatedDofMaps)) ret -= 100;
         if (0>CoarseLevelOperator_->initialize(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps,nodeList)) ret -=10;
-        
+        this->IsInitialized_ = true;
         return ret;
     }
     
@@ -221,7 +221,7 @@ namespace FROSch {
         MapPtrVecPtr repeatedDofMaps;
         if (0>BuildDofMaps(repeatedMap,dofsPerNode,dofOrdering,repeatedNodesMap,repeatedDofMaps)) ret -= 100;
         if (0>CoarseLevelOperator_->initialize(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps,dirichletBoundaryDofs,nodeList)) ret -=10;
-        
+        this->IsInitialized_ = true;
         return ret;
     }
     
@@ -231,6 +231,7 @@ namespace FROSch {
         int ret = 0;
         if (0>this->FirstLevelOperator_->compute()) ret -= 1;
         if (0>CoarseLevelOperator_->compute()) ret -= 10;
+        this->IsComputed_ = true;        
         return ret;
     }
     

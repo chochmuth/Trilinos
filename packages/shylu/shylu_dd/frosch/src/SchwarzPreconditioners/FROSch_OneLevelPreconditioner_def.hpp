@@ -112,12 +112,14 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"OverlappingOperator Type unkown.");
         }
+        this->IsInitialized_ = true;        
         return ret;
     }
     
     template <class SC,class LO,class GO,class NO>
     int OneLevelPreconditioner<SC,LO,GO,NO>::compute()
     {
+        this->IsComputed_ = true;
         return OverlappingOperator_->compute();
     }
     
@@ -128,10 +130,12 @@ namespace FROSch {
                                                     SC alpha,
                                                     SC beta) const
     {
-        if ( this->ParameterList_->get("Only apply coarse",false) )
+        if ( this->ParameterList_->get("Only apply coarse",false) ){
             return LevelCombinationOperator_->applyCoarseOperator(x,y);
-        else
+        }
+        else{
             return LevelCombinationOperator_->apply(x,y,true,mode,alpha,beta);
+        }
     }
     
     template <class SC,class LO,class GO,class NO>

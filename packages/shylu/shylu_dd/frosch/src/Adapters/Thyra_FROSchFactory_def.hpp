@@ -124,21 +124,24 @@ namespace Thyra {
         // Retrieve concrete preconditioner object
         const Ptr<DefaultPreconditioner<SC> > defaultPrec = ptr(dynamic_cast<DefaultPreconditioner<SC> *>(prec));
         TEUCHOS_TEST_FOR_EXCEPT(is_null(defaultPrec));
-        
-        // extract preconditioner operator
-        RCP<LinearOpBase<SC> > thyra_precOp = Teuchos::null;
-        thyra_precOp = rcp_dynamic_cast<LinearOpBase<SC> >(defaultPrec->getNonconstUnspecifiedPrecOp(), true);
-        
-        
+
         // Abstract SchwarzPreconditioner
         RCP<SchwarzPreconditioner<SC,LO,GO,NO> > SchwarzPreconditioner;
+        std::string recycle = paramList_->get("Recycling", "none");
+        if (recycle.compare("none") && recycle.compare("standard") && recycle.compare("basis") && recycle.compare("full") ) {
+            FROSCH_ASSERT(false,"FROSch Preconditioner unknown recycling type. Set \"Recycling\" to \"none\", \"standard\", \"basis\" or \"full\".");
+        }
         //-------Build new SchwarzPreconditioner or reusing existing SchwarzPreconditioner --------------
-        if ( paramList_->get("Recycle now", false) ) {
+        if (recycle.compare("none") && paramList_->get("Computed",false)) {
+            // extract preconditioner operator
+            RCP<LinearOpBase<SC> > thyra_precOp = Teuchos::null;
+            thyra_precOp = rcp_dynamic_cast<LinearOpBase<SC> >(defaultPrec->getNonconstUnspecifiedPrecOp(), true);
+            
             RCP<FROSchLinearOp<SC, LO, GO, NO> > fROSch_LinearOp = Teuchos::null;
             fROSch_LinearOp = rcp_dynamic_cast<FROSchLinearOp<SC, LO, GO, NO> >(thyra_precOp, true);
             
             RCP<  Xpetra::Operator<SC, LO, GO, NO > > xpetraOp = fROSch_LinearOp->getXpetraOperator();//getConstXpetraOperator();
-            
+
             FROSCH_ASSERT(paramList_->isParameter("FROSch Preconditioner Type"),"FROSch Preconditioner Type is not defined!");
             
             if (!paramList_->get("FROSch Preconditioner Type","TwoLevelPreconditioner").compare("AlgebraicOverlappingPreconditioner")) {
@@ -281,6 +284,8 @@ namespace Thyra {
             }
             
             SchwarzPreconditioner->compute();
+            paramList_->set("Computed",true);
+            
             //-----------------------------------------------
             
             RCP<LinearOpBase<SC> > thyraPrecOp = Teuchos::null;

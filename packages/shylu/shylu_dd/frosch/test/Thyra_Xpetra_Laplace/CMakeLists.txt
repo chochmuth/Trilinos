@@ -953,3 +953,139 @@ ARGS "--M=3 --DIM=3 --O=1 --NB=3 --DPN=3 --ORD=1 --PLIST=ParameterLists/Paramete
 COMM mpi
 NUM_MPI_PROCS 8
 )
+
+#######################################
+# TwoLevelPreconditioner_RGDSW_Hybrid #
+#######################################
+## Epetra
+IF(ShyLU_DDFROSch_ENABLE_Epetra)
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM2_DPN1_ORD0_EPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=1 --ORD=0 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USEEPETRA"
+COMM mpi
+NUM_MPI_PROCS 4
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM2_DPN2_ORD0_EPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=2 --ORD=0 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USEEPETRA"
+COMM mpi
+NUM_MPI_PROCS 4
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM2_DPN1_ORD1_EPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=1 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USEEPETRA"
+COMM mpi
+NUM_MPI_PROCS 4
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM2_DPN2_ORD1_EPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=2 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USEEPETRA"
+COMM mpi
+NUM_MPI_PROCS 4
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM3_DPN1_ORD0_EPETRA
+ARGS "--M=3 --DIM=3 --O=1 --NB=1 --DPN=1 --ORD=0 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USEEPETRA"
+COMM mpi
+NUM_MPI_PROCS 8
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM3_DPN3_ORD0_EPETRA
+ARGS "--M=3 --DIM=3 --O=1 --NB=1 --DPN=3 --ORD=0 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USEEPETRA"
+COMM mpi
+NUM_MPI_PROCS 8
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM3_DPN1_ORD1_EPETRA
+ARGS "--M=3 --DIM=3 --O=1 --NB=1 --DPN=1 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USEEPETRA"
+COMM mpi
+NUM_MPI_PROCS 8
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM3_DPN3_ORD1_EPETRA
+ARGS "--M=3 --DIM=3 --O=1 --NB=1 --DPN=3 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USEEPETRA"
+COMM mpi
+NUM_MPI_PROCS 8
+)
+ENDIF()
+
+## Tpetra
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM2_DPN1_ORD0_TPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=1 --ORD=0 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 4
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM2_DPN2_ORD0_TPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=2 --ORD=0 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 4
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM2_DPN1_ORD1_TPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=1 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 4
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM2_DPN2_ORD1_TPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=2 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 4
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM3_DPN1_ORD0_TPETRA
+ARGS "--M=3 --DIM=3 --O=1 --NB=1 --DPN=1 --ORD=0 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 8
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM3_DPN3_ORD0_TPETRA
+ARGS "--M=3 --DIM=3 --O=1 --NB=1 --DPN=3 --ORD=0 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 8
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM3_DPN1_ORD1_TPETRA
+ARGS "--M=3 --DIM=3 --O=1 --NB=1 --DPN=1 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 8
+)
+
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLP_RGDSW_HYBRID_DIM3_DPN3_ORD1_TPETRA
+ARGS "--M=3 --DIM=3 --O=1 --NB=1 --DPN=3 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelPreconditioner_Hybrid_RGDSW.xml --USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 8
+)
+

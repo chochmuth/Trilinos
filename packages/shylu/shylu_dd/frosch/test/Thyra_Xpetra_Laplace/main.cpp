@@ -361,23 +361,40 @@ int main(int argc, char *argv[])
         linearSolverBuilder.setParameterList(parameterList);
         
         Comm->barrier(); if (Comm->getRank()==0) cout << "######################\n# Thyra PrepForSolve #\n######################\n" << endl;
-        
         RCP<LinearOpWithSolveFactoryBase<SC> > lowsFactory =
         linearSolverBuilder.createLinearSolveStrategy("");
         
         lowsFactory->setOStream(out);
         lowsFactory->setVerbLevel(Teuchos::VERB_HIGH);
-        
         Comm->barrier(); if (Comm->getRank()==0) cout << "###########################\n# Thyra LinearOpWithSolve #\n###########################" << endl;
-        
-        RCP<LinearOpWithSolveBase<SC> > lows =
-        linearOpWithSolve(*lowsFactory, K_thyra);
-        
+        RCP<LinearOpWithSolveBase<SC> > lows;
+        if (!sublist(plList,"FROSch")->get("Level Combination","Additive").compare("Multiplicative")) {
+            Comm->barrier(); if (Comm->getRank()==0) cout << "###########################\n# Thyra Build Preconditioner #\n###########################" << endl;
+
+            RCP<PreconditionerFactoryBase<SC> > precFactory = linearSolverBuilder.createPreconditioningStrategy("");
+            
+            RCP<PreconditionerBase<SC> > Preconditioner_thyra = precFactory->createPrec();
+            initializePrec<SC>(*precFactory, K_thyra, Preconditioner_thyra.ptr());
+
+            lows = lowsFactory->createOp();
+            
+            initializePreconditionedOp<SC>(*lowsFactory, K_thyra, Preconditioner_thyra.getConst(), lows.ptr());
+            // To use a hybrid two-level preconditioner efficiently we must set the starting solution of the iterative method. It is the result of a coarse level application to the rhs.
+            sublist(plList, "FROSch")->set("Only apply coarse",true);            
+            Teuchos::RCP<const Thyra::LinearOpBase<SC> > thyra_linOp = Preconditioner_thyra->getUnspecifiedPrecOp();
+            Thyra::apply( *thyra_linOp, Thyra::NOTRANS, *thyraB, thyraX.ptr() );
+            sublist(plList, "FROSch")->set("Only apply coarse",false);
+            
+        } else{
+            lows = linearOpWithSolve(*lowsFactory, K_thyra);
+            
+        }
+
         Comm->barrier(); if (Comm->getRank()==0) cout << "\n#########\n# Solve #\n#########" << endl;
         SolveStatus<double> status =
         solve<double>(*lows, Thyra::NOTRANS, *thyraB, thyraX.ptr());
-        
-        Comm->barrier(); if (Comm->getRank()==0) cout << "\n#############\n# Finished! #\n#############" << endl;        
+
+        Comm->barrier(); if (Comm->getRank()==0) cout << "\n#############\n# Finished! #\n#############" << endl;
     }
     
     return(EXIT_SUCCESS);
