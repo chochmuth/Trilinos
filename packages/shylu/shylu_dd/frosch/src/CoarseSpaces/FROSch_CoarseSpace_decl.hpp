@@ -87,11 +87,12 @@ namespace FROSch {
         int addSubspace(MapPtr subspaceBasisMap,
                         MultiVectorPtr subspaceBasis = Teuchos::null);
         
-        int assembleCoarseSpace();
+        int assembleCoarseSpace(bool notOnCoarseSolveComm=true);
         
         int buildGlobalBasisMatrix(ConstMapPtr rowMap,
                                    ConstMapPtr repeatedMap,
-                                   SC treshold);
+                                   SC treshold,
+                                   bool notOnCoarseSolveComm=true);
         
         int clearCoarseSpace();
         

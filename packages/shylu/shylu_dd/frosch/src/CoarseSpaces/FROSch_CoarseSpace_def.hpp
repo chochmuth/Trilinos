@@ -80,7 +80,7 @@ namespace FROSch {
     }
     
     template <class SC,class LO,class GO,class NO>
-    int CoarseSpace<SC,LO,GO,NO>::assembleCoarseSpace()
+    int CoarseSpace<SC,LO,GO,NO>::assembleCoarseSpace(bool notOnCoarseSolveComm)
     {
         FROSCH_ASSERT(UnassembledBasesMaps_.size()>0,"UnassembledBasesMaps_.size()==0");
         FROSCH_ASSERT(UnassembledSubspaceBases_.size()>0,"UnassembledSubspaceBases_.size()==0");
@@ -88,7 +88,9 @@ namespace FROSch {
         UN itmp = 0;
         LOVecPtr2D partMappings;
         AssembledBasisMap_ = AssembleMaps(UnassembledBasesMaps_(),partMappings);
-        AssembledBasis_ = Xpetra::MultiVectorFactory<SC,LO,GO,NO >::Build(SerialRowMap_,AssembledBasisMap_->getNodeNumElements());
+        if (notOnCoarseSolveComm) {
+            AssembledBasis_ = Xpetra::MultiVectorFactory<SC,LO,GO,NO >::Build(SerialRowMap_,AssembledBasisMap_->getNodeNumElements());
+        }
         for (UN i=0; i<UnassembledBasesMaps_.size(); i++) {
             for (UN j=0; j<UnassembledBasesMaps_[i]->getNodeNumElements(); j++) {
                 AssembledBasis_->getDataNonConst(itmp).deepCopy(UnassembledSubspaceBases_[i]->getData(j)()); // Here, we copy data. Do we need to do this?
@@ -108,10 +110,13 @@ namespace FROSch {
     template <class SC,class LO,class GO,class NO>
     int CoarseSpace<SC,LO,GO,NO>::buildGlobalBasisMatrix(ConstMapPtr rowMap,
                                                          ConstMapPtr repeatedMap,
-                                                         SC treshold)
+                                                         SC treshold,
+                                                         bool notOnCoarseSolveComm)
     {
         FROSCH_ASSERT(!AssembledBasisMap_.is_null(),"AssembledBasisMap_.is_null().");
-        FROSCH_ASSERT(!AssembledBasis_.is_null(),"AssembledBasis_.is_null().");
+        if (notOnCoarseSolveComm) {
+            FROSCH_ASSERT(!AssembledBasis_.is_null(),"AssembledBasis_.is_null().");
+        }
         
         GlobalBasisMatrix_ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(rowMap,AssembledBasisMap_,AssembledBasisMap_->getNodeNumElements()); // Nonzeroes abhängig von dim/dofs!!!
         
@@ -119,21 +124,22 @@ namespace FROSch {
         SC valueTmp;
         LOVec indices;
         SCVec values;
-
-        for (UN i=0; i<AssembledBasis_->getLocalLength(); i++) {
-            indices.resize(0);
-            values.resize(0);
-            for (UN j=0; j<AssembledBasis_->getNumVectors(); j++) {
-                valueTmp=AssembledBasis_->getData(j)[i];
-                if (fabs(valueTmp)>treshold) {
-                    indices.push_back(j);
-                    values.push_back(valueTmp);
+        if (notOnCoarseSolveComm) {
+            for (UN i=0; i<AssembledBasis_->getLocalLength(); i++) {
+                indices.resize(0);
+                values.resize(0);
+                for (UN j=0; j<AssembledBasis_->getNumVectors(); j++) {
+                    valueTmp=AssembledBasis_->getData(j)[i];
+                    if (fabs(valueTmp)>treshold) {
+                        indices.push_back(j);
+                        values.push_back(valueTmp);
+                    }
                 }
-            }
-            iD = rowMap->getLocalElement(repeatedMap->getGlobalElement(i));
-            
-            if (iD!=-1) {
-                GlobalBasisMatrix_->insertLocalValues(iD,indices(),values());
+                iD = rowMap->getLocalElement(repeatedMap->getGlobalElement(i));
+                
+                if (iD!=-1) {
+                    GlobalBasisMatrix_->insertLocalValues(iD,indices(),values());
+                }
             }
         }
         GlobalBasisMatrix_->fillComplete(AssembledBasisMap_,rowMap);

@@ -84,6 +84,8 @@ namespace FROSch {
         if (this->MpiComm_->getRank() < this->MpiComm_->getSize() - this->ParameterList_->get("Mpi Ranks Coarse",0)) {
             NotOnCoarseSolveComm_ = true;
         }
+        std::cout << "this->ParameterList_->get(\"Mpi Ranks Coarse\",0):"<<this->ParameterList_->get("Mpi Ranks Coarse",0)<< std::endl;
+        std::cout << this->MpiComm_->getRank() << " NotOnCoarseSolveComm_:" << NotOnCoarseSolveComm_ << std::endl;
     }
     
     template<class SC,class LO,class GO,class NO>
@@ -109,8 +111,8 @@ namespace FROSch {
         } else {// CH 01/10/2019: none or standard case. If standard or none are choosen than the full coarse space is built again. In the standard case we reuse only information of the first level.
             clearCoarseSpace(); // AH 12/11/2018: If we do not clear the coarse space, we will always append just append the coarse space
             MapPtr subdomainMap = this->computeCoarseSpace(CoarseSpace_); // AH 12/11/2018: This map could be overlapping, repeated, or unique. This depends on the specific coarse operator
-            CoarseSpace_->assembleCoarseSpace();
-            CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8));
+            CoarseSpace_->assembleCoarseSpace(NotOnCoarseSolveComm_);
+            CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8),NotOnCoarseSolveComm_);
             Phi_ = CoarseSpace_->getGlobalBasisMatrix();
             this->setUpCoarseOperator();
             
@@ -350,10 +352,11 @@ namespace FROSch {
 
             //------------------------------------------------------------------------------------------------------------------------
             // Communicate coarse matrix
-            
+
             if (!DistributionList_->get("Type","linear").compare("linear")) {
- 
+
                 CrsMatrixPtr tmpCoarseMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[0],k0->getGlobalMaxNumRowEntries());
+                
                 CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),GatheringMaps_[0]);
                 tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[0],Xpetra::INSERT);
                 
@@ -367,11 +370,7 @@ namespace FROSch {
                 }
                 if (this->ParameterList_->get("Write Coarse matrix",false)) {
                     tmpCoarseMatrix->fillComplete();
-                    
                     Teuchos::RCP<Epetra_MpiComm> epetraMpiComm(new Epetra_MpiComm(MPI_COMM_WORLD));
-//                    const Epetra_Comm& tmpComm = dynamic_cast<const Epetra_Comm&> (*epetraMpiComm);
-//                    Teuchos::RCP<Epetra_Comm> tmpCommPtr(new Epetra_Comm(tmpComm));
-
                     Teuchos::RCP<Epetra_CrsMatrix> epertaMat = ConvertToEpetra(*tmpCoarseMatrix, epetraMpiComm);
                     EpetraExt::RowMatrixToMatlabFile("CoarseMat.dat",*epertaMat);
                     FROSCH_ASSERT(false,"Coarse matrix was saved and fillComplete was called. We cant contiune with the fillCompete matrix.");
@@ -549,6 +548,7 @@ namespace FROSch {
                 LO numProcsGatheringStep = this->MpiComm_->getSize() - NumProcsCoarseSolve_;
                 GO numGlobalIndices = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1;
                 GO numMyRows;
+                GO scanResult;
                 double gatheringFactor = pow(double(this->MpiComm_->getSize()-NumProcsCoarseSolve_)/double(NumProcsCoarseSolve_),1.0/double(gatheringSteps));
                 
                 for (int i=0; i<gatheringSteps-1; i++) {
@@ -561,7 +561,15 @@ namespace FROSch {
                             numMyRows = numGlobalIndices/numProcsGatheringStep;
                         }
                     }
-                    GatheringMaps_[i] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,numMyRows,0,this->MpiComm_);
+                    
+                    scanResult = 0;
+                    Teuchos::scan<int, GO> (*this->MpiComm_, Teuchos::REDUCE_SUM, numMyRows, Teuchos::outArg (scanResult));
+                    const GO myOffset = scanResult - numMyRows;
+                    std::vector<GO> stdIndexList(numMyRows);
+                    Teuchos::ArrayView<GO> indexList(stdIndexList);
+                    std::iota(stdIndexList.begin(),stdIndexList.end(),(GO) myOffset);
+
+                    GatheringMaps_[i] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,indexList,0,this->MpiComm_);
                 }
                 
                 numMyRows = 0;
@@ -572,8 +580,16 @@ namespace FROSch {
                         numMyRows = numGlobalIndices/NumProcsCoarseSolve_;
                     }
                 }
-                GatheringMaps_[gatheringSteps-1] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,numMyRows,0,this->MpiComm_);
-                
+                {
+                    scanResult = 0;
+                    Teuchos::scan<int, GO> (*this->MpiComm_, Teuchos::REDUCE_SUM, numMyRows, Teuchos::outArg (scanResult));
+                    const GO myOffset = scanResult - numMyRows;
+                    std::vector<GO> stdIndexList(numMyRows);
+                    Teuchos::ArrayView<GO> indexList(stdIndexList);
+                    std::iota(stdIndexList.begin(),stdIndexList.end(),(GO) myOffset);
+
+                    GatheringMaps_[gatheringSteps-1] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,indexList,0,this->MpiComm_);
+                }
                 
                 GO numGlobalElements = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1;
                 numMyRows = (LO) (((numGlobalElements) / NumProcsCoarseSolve_) + 100.*std::numeric_limits<double>::epsilon());
@@ -581,12 +597,19 @@ namespace FROSch {
                 if (remainingEl > this->MpiComm_->getRank() - (this->MpiComm_->getSize() - NumProcsCoarseSolve_) && this->MpiComm_->getRank() >= this->MpiComm_->getSize() - NumProcsCoarseSolve_) {
                     numMyRows++;
                 }
-                //Not a parallel coarse solve proc. Therfore these procs don't any rows
+                //Not a parallel coarse solve proc. Therfore these procs don't own any rows.
                 if (!(this->MpiComm_->getRank() >= this->MpiComm_->getSize() - NumProcsCoarseSolve_)) {
                     numMyRows = 0;
                 }
                 
-                SwapMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),numGlobalElements,numMyRows,0,this->MpiComm_);
+                scanResult = 0;
+                Teuchos::scan<int, GO> (*this->MpiComm_, Teuchos::REDUCE_SUM, numMyRows, Teuchos::outArg (scanResult));
+                const GO myOffset = scanResult - numMyRows;
+                std::vector<GO> stdIndexList(numMyRows);
+                Teuchos::ArrayView<GO> indexList(stdIndexList);
+                std::iota(stdIndexList.begin(),stdIndexList.end(),(GO) myOffset);
+                
+                SwapMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),numGlobalElements,indexList,0,this->MpiComm_);
                 
                 //------------------------------------------------------------------------------------------------------------------------
                 // Use a separate Communicator for the coarse problem
@@ -645,6 +668,7 @@ namespace FROSch {
                 LO numProcsGatheringStep = this->MpiComm_->getSize();
                 GO numGlobalIndices = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1;
                 GO numMyRows;
+                GO scanResult;
                 double gatheringFactor = pow(double(this->MpiComm_->getSize())/double(NumProcsCoarseSolve_),1.0/double(gatheringSteps));
                 
                 for (int i=0; i<gatheringSteps-1; i++) {
@@ -658,7 +682,14 @@ namespace FROSch {
                             numMyRows = numGlobalIndices/numProcsGatheringStep;
                         }
                     }
-                    GatheringMaps_[i] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,numMyRows,0,this->MpiComm_);
+                    scanResult = 0;
+                    Teuchos::scan<int, GO> (*this->MpiComm_, Teuchos::REDUCE_SUM, numMyRows, Teuchos::outArg (scanResult));
+                    const GO myOffset = scanResult - numMyRows;
+                    std::vector<GO> stdIndexList(numMyRows);
+                    Teuchos::ArrayView<GO> indexList(stdIndexList);
+                    std::iota(stdIndexList.begin(),stdIndexList.end(),(GO) myOffset);
+                    
+                    GatheringMaps_[i] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,indexList,0,this->MpiComm_);
                 }
                 
                 numMyRows = 0;
@@ -669,8 +700,16 @@ namespace FROSch {
                         numMyRows = numGlobalIndices/NumProcsCoarseSolve_;
                     }
                 }
-                GatheringMaps_[gatheringSteps-1] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,numMyRows,0,this->MpiComm_);
-                //cout << *GatheringMaps_->at(gatheringSteps-1);
+                
+                scanResult = 0;
+                Teuchos::scan<int, GO> (*this->MpiComm_, Teuchos::REDUCE_SUM, numMyRows, Teuchos::outArg (scanResult));
+                const GO myOffset = scanResult - numMyRows;
+                std::vector<GO> stdIndexList(numMyRows);
+                Teuchos::ArrayView<GO> indexList(stdIndexList);
+                std::iota(stdIndexList.begin(),stdIndexList.end(),(GO) myOffset);
+                
+                GatheringMaps_[gatheringSteps-1] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,indexList,0,this->MpiComm_);
+
                 //------------------------------------------------------------------------------------------------------------------------
                 // Use a separate Communicator for the coarse problem
                 MapPtr tmpCoarseMap = GatheringMaps_[GatheringMaps_.size()-1];

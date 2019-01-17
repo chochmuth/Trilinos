@@ -155,7 +155,7 @@ namespace FROSch {
                 }
             }
         }
-        
+        //ch 19/01/17: we need to modify the below function call to address parallel coarse solves. Atm the variable CoarseOperator::NotOnCoarseSolveComm_ is not known here.
         LocalPartitionOfUnitySpace_->assembleCoarseSpace();
         
         return 0;
