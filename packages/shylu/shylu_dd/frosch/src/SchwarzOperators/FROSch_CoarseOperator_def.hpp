@@ -416,6 +416,7 @@ namespace FROSch {
                         
                         CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
                         CoarseSolver_->initialize();
+                        std::cout << "after CoarseSolver_->initialize()" <<std::endl;
                     }
                     else{
                         if (this->Verbose_)
@@ -423,8 +424,9 @@ namespace FROSch {
                         
                         CoarseSolver_->resetMatrix(CoarseMatrix_);
                     }
-                    
+                        std::cout << "pre CoarseSolver_->initialize()" <<std::endl;
                     CoarseSolver_->compute();
+                        std::cout << "after CoarseSolver_->compute()" <<std::endl;
                 
                 }
                 
