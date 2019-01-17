@@ -84,8 +84,6 @@ namespace FROSch {
         if (this->MpiComm_->getRank() < this->MpiComm_->getSize() - this->ParameterList_->get("Mpi Ranks Coarse",0)) {
             NotOnCoarseSolveComm_ = true;
         }
-        std::cout << "this->ParameterList_->get(\"Mpi Ranks Coarse\",0):"<<this->ParameterList_->get("Mpi Ranks Coarse",0)<< std::endl;
-        std::cout << this->MpiComm_->getRank() << " NotOnCoarseSolveComm_:" << NotOnCoarseSolveComm_ << std::endl;
     }
     
     template<class SC,class LO,class GO,class NO>

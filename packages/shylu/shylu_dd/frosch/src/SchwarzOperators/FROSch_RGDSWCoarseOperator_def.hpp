@@ -300,7 +300,6 @@ namespace FROSch {
         
         MapPtr serialGammaMap = Xpetra::MapFactory<LO,GO,NO>::Build(this->K_->getRangeMap()->lib(),this->GammaDofs_[blockId].size(),0,this->SerialComm_);
         MultiVectorPtr basisfunctions;
-        std::cout << "rank:"<<this->MpiComm_->getRank() << " this->NotOnCoarseSolveComm_:" << this->NotOnCoarseSolveComm_ << "blockMap->getNodeNumElements():"<<blockMap->getNodeNumElements()<< std::endl;
         if (this->NotOnCoarseSolveComm_) {
             basisfunctions = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(serialGammaMap,blockMap->getNodeNumElements());
         }
