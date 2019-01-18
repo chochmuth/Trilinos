@@ -430,7 +430,7 @@ namespace Amesos2
     Teuchos::TimeMonitor convTimer(this->timers_.mtxConvTime_);
     #endif
       std::cout << "begin loadA_impl" << std::endl;
-    std:cout << "reuse_SymbolicFactorization:"<<reuse_SymbolicFactorization<<std::endl;
+      std::cout << "reuse_SymbolicFactorization:"<<reuse_SymbolicFactorization<<std::endl;
     if(MUMPS_MATRIX_LOAD == false || (current_phase==NUMFACT && reuse_SymbolicFactorization))
       {
         // Only the root image needs storage allocated
