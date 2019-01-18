@@ -425,11 +425,12 @@ namespace Amesos2
   MUMPS<Matrix,Vector>::loadA_impl(EPhase current_phase)
   {
     using Teuchos::as;
-    
+
     #ifdef HAVE_AMESOS2_TIMERS
     Teuchos::TimeMonitor convTimer(this->timers_.mtxConvTime_);
     #endif
-    
+      std::cout << "begin loadA_impl" << std::endl;
+    std:cout << "reuse_SymbolicFactorization:"<<reuse_SymbolicFactorization<<std::endl;
     if(MUMPS_MATRIX_LOAD == false || (current_phase==NUMFACT && reuse_SymbolicFactorization))
       {
         // Only the root image needs storage allocated
@@ -469,7 +470,7 @@ namespace Amesos2
           ConvertToTriplet();
         }
       }
-    
+      std::cout << "end loadA_impl()" << std::endl;
     MUMPS_MATRIX_LOAD = true;
     return (true);
   }//end loadA_impl()
