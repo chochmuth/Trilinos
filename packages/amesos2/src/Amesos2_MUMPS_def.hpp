@@ -389,7 +389,6 @@ namespace Amesos2
       is_contiguous_ = parameterList->get<bool>("IsContiguous");
 
     }
-      std::cout << "checking for reuse_SymbolicFactorization"
     if( parameterList->isParameter("Reuse SymbolicFactorization") ){
       reuse_SymbolicFactorization = parameterList->get<bool>("Reuse SymbolicFactorization",false);
     }
