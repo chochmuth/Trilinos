@@ -387,7 +387,8 @@ namespace Amesos2
 
     }
     if( parameterList->isParameter("Reuse SymbolicFactorization") ){
-      reuse_SymbolicFactorization = parameterList->get<bool>("Reuse SymbolicFactorization");
+      reuse_SymbolicFactorization = parameterList->get<bool>("Reuse SymbolicFactorization",false);
+        std::cout << "from List reuse_SymbolicFactorization:" << reuse_SymbolicFactorization << std::endl;
     }
   }//end set parameters()
   
