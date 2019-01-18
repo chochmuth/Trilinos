@@ -294,7 +294,6 @@ namespace FROSch {
 #endif
             } else {
                 IsComputed_ = true;
-                std::cout << "pre Amesos2SolverTpetra_->numericFactorization();" << std::endl;
                 Amesos2SolverTpetra_->numericFactorization();
             }
 #ifdef HAVE_SHYLU_DDFROSCH_MUELU
