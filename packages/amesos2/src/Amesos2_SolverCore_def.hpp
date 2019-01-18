@@ -143,16 +143,12 @@ SolverCore<ConcreteSolver,Matrix,Vector>::numericFactorization()
   Teuchos::TimeMonitor LocalTimer1(timers_.totalTime_);
 #endif
 
-    std::cout << "SolverCore<ConcreteSolver,Matrix,Vector>::numericFactorization()" << std::endl;
-    std::cout << "matrix_loaded_:" << matrix_loaded_ << std::endl;
   if( !status_.symbolicFactorizationDone() ){
     symbolicFactorization();
     if( !matrix_loaded_ ) loadA(NUMFACT);
   } else {
-      std::cout << "symbolicFactorization done!" << std::endl;
     loadA(NUMFACT);
   }
-    std::cout << "after LOAD A !" << std::endl;
   static_cast<solver_type*>(this)->numericFactorization_impl();
   ++status_.numNumericFact_;
   status_.last_phase_ = NUMFACT;
