@@ -413,8 +413,9 @@ namespace FROSch {
                     if (sublist(this->ParameterList_,"CoarseSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                         if (this->Verbose_)
                             std::cout << "\t### Coarse Operator(" << 1 << ") level is not reusing symbolic factorization." << std::endl;
-                        
+                        std::cout << "pre CoarseSolver_.reset(new...)" <<std::endl;
                         CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
+                        std::cout << "pre CoarseSolver_->initialize()" <<std::endl;                        
                         CoarseSolver_->initialize();
                         std::cout << "after CoarseSolver_->initialize()" <<std::endl;
                     }
