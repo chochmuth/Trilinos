@@ -79,6 +79,7 @@ namespace Amesos2
     , rowind_()
     , colptr_()
     , is_contiguous_(true)
+    , reuse_SymbolicFactorization(false)
   {
 
     typedef FunctionMap<MUMPS,scalar_type>  function_map;
@@ -319,6 +320,8 @@ namespace Amesos2
     using Teuchos::ParameterEntryValidator;
 
     RCP<const Teuchos::ParameterList> valid_params = getValidParameters_impl();
+      
+      std::cout << "setting from params" << std::endl;
     /*To Do --- add support for parameters */
     if(parameterList->isParameter("ICNTL(1)"))
       {
@@ -386,9 +389,9 @@ namespace Amesos2
       is_contiguous_ = parameterList->get<bool>("IsContiguous");
 
     }
+      std::cout << "checking for reuse_SymbolicFactorization"
     if( parameterList->isParameter("Reuse SymbolicFactorization") ){
       reuse_SymbolicFactorization = parameterList->get<bool>("Reuse SymbolicFactorization",false);
-        std::cout << "from List reuse_SymbolicFactorization:" << reuse_SymbolicFactorization << std::endl;
     }
   }//end set parameters()
   
