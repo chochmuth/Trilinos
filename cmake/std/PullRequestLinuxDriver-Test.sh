@@ -6,6 +6,63 @@
 # merged with the Trilinos:develop branch by PullRequestLinuxDriver.sh.
 #
 
+#
+# Functions
+#
+
+# Test the branch constraints for a Pull Request:
+# - Only pull requests from trilinos/Trilnos::develop are allowed
+#   to go into trilinos/Trilinos::master.  This check will help
+#   reduce accidental PR's into master directly.
+#
+# Parameters:
+#    src_repo   - Source repository of the PR (i.e., https://github.com/trilinos/Trilnos.git)
+#    src_branch - Branchname from the source repository.
+#    dst_repo   - Destination repository url
+#    dst_branch - Branchname in the destination repository
+#
+# On error, this function will exit the script with error code 99.
+#
+function test_pr_constraints_master()
+{
+    src_repo=${1:?}
+    src_branch=${2:?}
+    dst_repo=${3:?}
+    dst_branch=${4:?}
+
+    echo -e "------------------------------------------------------------------------------------------"
+
+    re_trilinos_url="(git@github.com:|https:\/\/github.com\/){1}trilinos\/Trilinos(\.git)?$"
+
+    if [[ "${dst_repo:?}" =~ ${re_trilinos_url:?} ]] && [[ "${dst_branch:?}" == "master"  ]]
+    then
+        echo -e "NOTICE: Destination branch is trilinos/Trilnos::master"
+
+        re_src_branchname="master_merge_[0-9]{8}_[0-9]{6}"
+
+        if [[ ! "${src_repo:?}" =~ ${re_trilinos_url:?} ]] || [[ ! "${src_branch:?}" =~ ${re_src_branchname:?} ]]
+        then
+            echo -e "ERROR : Source branch is NOT trilinos/Trilinos::master_merge_YYYYMMDD_HHMMSS"
+            echo -e "      : This violates Trilinos policy, pull requests into the master branch are restricted."
+            echo -e "      : Perhaps you forgot to specify the develop branch as the target in your PR?"
+            echo -e "------------------------------------------------------------------------------------------"
+            echo -e ""
+            exit 99
+        else
+            echo -e "NOTICE: Source branch IS trilinos/Trilinos::develop"
+            echo -e "      : This is allowed, proceeding with testing."
+        fi
+    else
+        echo -e "NOTICE: Destination branch is NOT trilinos/Trilinos::master"
+        echo -e "      : PR testing will proceed."
+    fi
+
+    echo -e "------------------------------------------------------------------------------------------"
+    echo -e ""
+}
+
+
+
 # This script expects to start out in the root level of the Jenkins workspace.
 # Let's make sure we're there.
 cd ${WORKSPACE:?}
@@ -52,21 +109,33 @@ which -a env
 
 # Useful information for when it counts.
 echo -e ""
-echo -e "================================================================================"
+echo -e "=========================================================================================="
 echo -e "Jenkins Environment Variables:"
 echo -e "- JOB_BASE_NAME: ${JOB_BASE_NAME:?}"
 echo -e "- JOB_NAME     : ${JOB_NAME:?}"
 echo -e "- WORKSPACE    : ${WORKSPACE:?}"
 echo -e "- NODE_NAME    : ${NODE_NAME:?}"
 echo -e ""
-echo -e "================================================================================"
+echo -e "=========================================================================================="
+echo -e "Parameters:"
+echo -e "- TRILINOS_SOURCE_BRANCH: ${TRILINOS_SOURCE_BRANCH:?}"
+echo -e "- TRILINOS_SOURCE_REPO  : ${TRILINOS_SOURCE_REPO:?}"
+echo -e "- TRILINOS_SOURCE_SHA   : ${TRILINOS_SOURCE_SHA:?}"
+echo -e ""
+echo -e "- TRILINOS_TARGET_BRANCH: ${TRILINOS_TARGET_BRANCH:?}"
+echo -e "- TRILINOS_TARGET_REPO  : ${TRILINOS_TARGET_REPO:?}"
+echo -e "- TRILINOS_TARGET_SHA   : ${TRILINOS_TARGET_SHA:?}"
+echo -e ""
+echo -e "- PULLREQUESTNUM        : ${PULLREQUESTNUM:?}"
+echo -e ""
+echo -e "=========================================================================================="
 echo -e "Environment:"
 echo -e ""
 echo -e "  pwd = `pwd`"
 echo -e ""
 env
 echo -e ""
-echo -e "================================================================================"
+echo -e "=========================================================================================="
 echo -e ""
 
 ## Rather than do proper option handling right now I am just going to
@@ -77,15 +146,37 @@ echo -e ""
 : ${TRILINOS_TARGET_BRANCH:?}
 : ${TRILINOS_SOURCE_SHA:?}
 : ${PULLREQUESTNUM:?}
+: ${NODE_NAME:?}
 : ${JOB_BASE_NAME:?}
 : ${BUILD_NUMBER:?}
 : ${WORKSPACE:?}
 
-source /projects/sems/modulefiles/utils/sems-modules-init.sh
-
 declare -i ierror=0
 #Have to keep loading git
-module load sems-git/2.10.1
+cuda_regex=".*(_cuda_).*"
+ride_regex=".*(ride).*"
+if [[ ${JOB_BASE_NAME:?} =~ ${cuda_regex} ]]; then
+    if [[ ${NODE_NAME:?} =~ ${ride_regex} ]]; then
+        echo -e "Job is CUDA"
+        module load git/2.10.1
+    else
+        echo -e "ERROR: Unable to find matching environment for CUDA job not on Ride."
+        exit -1
+    fi
+else
+    source /projects/sems/modulefiles/utils/sems-modules-init.sh
+    module load sems-git/2.10.1
+fi
+
+#--------------------------------------------
+# Apply Guards
+#--------------------------------------------
+
+# if the target branch is master and source branch is not develop then
+# we should auto-fail the PR.
+test_pr_constraints_master ${TRILINOS_SOURCE_REPO:?} ${TRILINOS_SOURCE_BRANCH:?} \
+                           ${TRILINOS_TARGET_REPO:?} ${TRILINOS_TARGET_BRANCH:?}
+
 
 
 #--------------------------------------------
@@ -141,7 +232,7 @@ elif [ "Trilinos_pullrequest_gcc_4.9.3" == "${JOB_BASE_NAME:?}" ] ; then
     fi
 elif [ "Trilinos_pullrequest_gcc_4.9.3_SERIAL" == "${JOB_BASE_NAME:?}" ] ; then
     # TODO: Update this to use a 4.9.3 SERIAL testing environment script.
-    source ${TRILINOS_DRIVER_SRC_DIR}/cmake/std/sems/PullRequestGCC4.9.3TestingEnvSERIAL.sh 
+    source ${TRILINOS_DRIVER_SRC_DIR}/cmake/std/sems/PullRequestGCC4.9.3TestingEnvSERIAL.sh
     ierror=$?
     if [[ $ierror != 0 ]]; then
         echo -e "There was an issue loading the gcc environment. The error code was: $ierror"
@@ -159,6 +250,13 @@ elif [ "Trilinos_pullrequest_gcc_7.3.0" == "${JOB_BASE_NAME:?}" ] ; then
     ierror=$?
     if [[ $ierror != 0 ]]; then
         echo -e "There was an issue loading the gcc environment. The error code was: $ierror"
+        exit $ierror
+    fi
+elif [ "Trilinos_pullrequest_cuda_9.2" == "${JOB_BASE_NAME:?}" ] ; then
+    source ${TRILINOS_DRIVER_SRC_DIR}/cmake/std/sems/PullRequestCuda9.2TestingEnv.sh
+    ierror=$?
+    if [[ $ierror != 0 ]]; then
+        echo -e "There was an issue loading the cuda environment. The error code was: $ierror"
         exit $ierror
     fi
 elif [ "Trilinos_pullrequest_intel_17.0.1" == "${JOB_BASE_NAME:?}" ] ; then
@@ -183,11 +281,18 @@ module list
 # This crashes for the serial case since MPI variables are not set
 # - See Issue #3625
 # - wcm: bugfix #3673
-regex=".*(_SERIAL)$"
-if [[ ! ${JOB_BASE_NAME:?} =~ ${regex} ]]; then
-    echo -e "MPI type = sems-${SEMS_MPI_NAME:?}/${SEMS_MPI_VERSION:?}"
-else
+serial_regex=".*(_SERIAL)$"
+if [[ ${JOB_BASE_NAME:?} =~ ${serial_regex} ]]; then
     echo -e "Job is SERIAL"
+elif [[ ${JOB_BASE_NAME:?} =~ ${cuda_regex} ]]; then
+    if [[ ${NODE_NAME:?} =~ ${ride_regex} ]]; then
+        echo -e "Job is CUDA"
+        echo -e "MPI type = sems-${MPI_VENDOR:?}/${MPI_VERSION:?}"
+    else
+        echo -e "MPI Vendor and Versions may not be set correctly for CUDA job not on Ride."
+    fi
+else
+    echo -e "MPI type = sems-${SEMS_MPI_NAME:?}/${SEMS_MPI_VERSION:?}"
 fi
 
 CDASH_TRACK="Pull Request"
@@ -230,7 +335,7 @@ cmake -P packageEnables.cmake
 
 build_name="PR-$PULLREQUESTNUM-test-$JOB_BASE_NAME-$BUILD_NUMBER"
 
-#This should be runnable from anywhere, but all the tests so far have been from the 
+#This should be runnable from anywhere, but all the tests so far have been from the
 #same dir the simple_testing.cmake file was in.
 cd TFW_testing_single_configure_prototype &> /dev/null
 echo -e "Set CWD = `pwd`"
@@ -249,6 +354,8 @@ else
         CONFIG_SCRIPT=PullRequestLinuxGCC7.2.0TestingSettings.cmake
     elif [ "Trilinos_pullrequest_gcc_7.3.0" == "${JOB_BASE_NAME:?}" ]; then
         CONFIG_SCRIPT=PullRequestLinuxGCC7.3.0TestingSettings.cmake
+    elif [ "Trilinos_pullrequest_cuda_9.2" == "${JOB_BASE_NAME:?}" ]; then
+        CONFIG_SCRIPT=PullRequestLinuxCuda9.2TestingSettings.cmake
     fi
 fi
 
@@ -273,6 +380,3 @@ fi
 # Reset to known directory location.
 # - ${WORKSPACE} is set by Jenkins and points to the root workspace directory.
 cd ${WORKSPACE:?}
-
-
-

@@ -62,13 +62,11 @@
 #include "Tpetra_Details_reallocDualViewIfNeeded.hpp"
 #include "Tpetra_Details_PackTraits.hpp"
 #include "Tpetra_KokkosRefactor_Details_MultiVectorDistObjectKernels.hpp"
-
-
-
 #include "KokkosCompat_View.hpp"
 #include "KokkosBlas.hpp"
 #include "KokkosKernels_Utils.hpp"
 #include "Kokkos_Random.hpp"
+#include "Kokkos_ArithTraits.hpp"
 
 #ifdef HAVE_TPETRA_INST_FLOAT128
 namespace Kokkos {
@@ -299,6 +297,43 @@ namespace { // (anonymous)
 
 
 namespace Tpetra {
+
+  namespace Details {
+    // Work-around for #3823.  The right way to fix this is to fix
+    // KokkosBlas::dot for complex, but this at least makes Tpetra's
+    // tests pass for complex.
+    template<class XVector,class YVector>
+    typename ::Kokkos::Details::InnerProductSpaceTraits<typename XVector::non_const_value_type>::dot_type
+    localDotWorkAround (const XVector& x, const YVector& y)
+    {
+      using x_value_type = typename XVector::non_const_value_type;
+      using y_value_type = typename YVector::non_const_value_type;
+
+      if (Kokkos::ArithTraits<x_value_type>::is_complex ||
+          Kokkos::ArithTraits<y_value_type>::is_complex) {
+        using IPT = ::Kokkos::Details::InnerProductSpaceTraits<x_value_type>;
+        using dot_type = typename IPT::dot_type;
+        using execution_space = typename XVector::execution_space;
+        using range_type = Kokkos::RangePolicy<execution_space, int>;
+        // Use double precision internally; this should improve
+        // accuracy for complex<float> and thus help more tests pass.
+        using impl_dot_type = typename Teuchos::ScalarTraits<dot_type>::doublePrecision;
+
+        impl_dot_type result;
+        Kokkos::parallel_reduce
+          ("Tpetra::MultiVector oneColDotWorkAround",
+           range_type (0, x.extent (0)),
+           KOKKOS_LAMBDA (const int lclRow, impl_dot_type& dst) {
+            dst += IPT::dot (x(lclRow), y(lclRow));
+          }, result);
+        return static_cast<dot_type> (result);
+      }
+      else {
+        return KokkosBlas::dot (x, y);
+      }
+    }
+  } // namespace Details
+
 
   template <class Scalar, class LocalOrdinal, class GlobalOrdinal, class Node>
   bool
@@ -1904,7 +1939,8 @@ namespace Tpetra {
         auto x_1d = Kokkos::subview (x_2d, rowRng, 0);
         auto y_2d = y.template getLocalView<dev_memory_space> ();
         auto y_1d = Kokkos::subview (y_2d, rowRng, 0);
-        lclDot = KokkosBlas::dot (x_1d, y_1d);
+        // Work-around for #3823; see notes above.
+        lclDot = ::Tpetra::Details::localDotWorkAround (x_1d, y_1d);
 
         if (x.isDistributed ()) {
           using Teuchos::outArg;
@@ -2587,8 +2623,6 @@ namespace Tpetra {
     using ::Tpetra::Details::ProfilingRegion;
     using ::Tpetra::Details::Blas::fill;
     typedef typename dual_view_type::t_dev::memory_space DMS;
-    //typedef typename dual_view_type::t_host::memory_space HMS;
-    typedef typename dual_view_type::t_host::device_type HMS; // avoid CudaUVMSpace issues
     typedef typename dual_view_type::t_dev::execution_space DES;
     typedef typename dual_view_type::t_host::execution_space HES;
     typedef LocalOrdinal LO;
@@ -5077,25 +5111,10 @@ namespace Tpetra {
   template <class ST, class LO, class GO, class NT>
   void MultiVector<ST, LO, GO, NT>::
   swap(MultiVector<ST, LO, GO, NT> & mv) {
-    // Cache maps & views
-    Teuchos::RCP<const map_type> map = mv.map_;
-    dual_view_type  view, origView;
-    Teuchos::Array<size_t> whichVectors; // FIXME: This is a deep copy
-    view         = mv.view_;
-    origView     = mv.origView_;
-    whichVectors = mv.whichVectors_;
-
-    // Swap this-> mv
-    mv.map_          = this->map_;
-    mv.view_         = this->view_;
-    mv.origView_     = this->origView_;
-    mv.whichVectors_ = this->whichVectors_;
-
-    // Swap mv -> this
-    this->map_          = map;
-    this->view_         = view;
-    this->origView_     = origView;
-    this->whichVectors_ = whichVectors;
+    std::swap(mv.map_, this->map_);
+    std::swap(mv.view_, this->view_);
+    std::swap(mv.origView_, this->origView_);
+    std::swap(mv.whichVectors_, this->whichVectors_);
   }
 
   template <class Scalar, class LO, class GO, class NT>
