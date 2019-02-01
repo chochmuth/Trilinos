@@ -154,7 +154,7 @@ namespace FROSch {
                     }
                 }
                 
-                this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace();
+                this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->NotOnCoarseSolveComm_);
                 
                 // Count entities
                 GO numCoarseNodesGlobal;

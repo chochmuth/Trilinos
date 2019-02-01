@@ -224,38 +224,6 @@ namespace FROSch {
         return 0;
     }
     
-    
-    //delete after interface for reduced is identified correct
-    template <class SC,class LO,class GO,class NO>
-    int DDInterface<SC,LO,GO,NO>::sortEntitiesMod()
-    {
-        // Edges_
-        InterfaceEntityPtrVecPtr extractedVertices = Edges_->sortOutVertices();
-        for (UN i=0; i<extractedVertices.size(); i++) {
-            Vertices_->addEntity(extractedVertices[i]);
-//            Vertices_->addChangedType();
-        }
-        
-        // Faces_
-        extractedVertices = Faces_->sortOutVertices();
-        for (UN i=0; i<extractedVertices.size(); i++) {
-            Vertices_->addEntity(extractedVertices[i]);
-//            Vertices_->addChangedType();            
-        }
-        
-        
-        return 0;
-    }
-    
-    template<class SC,class LO,class GO,class NO>
-    int DDInterface<SC,LO,GO,NO>::initializeChangedType()
-    {
-        Vertices_->initializeChangedType();
-        
-        return 0;
-    }
-
-    
     template <class SC,class LO,class GO,class NO>
     int DDInterface<SC,LO,GO,NO>::removeEmptyEntities()
     {
