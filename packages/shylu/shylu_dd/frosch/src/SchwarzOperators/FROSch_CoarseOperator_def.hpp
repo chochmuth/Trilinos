@@ -534,16 +534,29 @@ namespace FROSch {
             Teuchos::RCP<Epetra_CrsMatrix> epertaPhiMat = ConvertToEpetra(*Phi_, epetraMpiComm);
             EpetraExt::RowMatrixToMatlabFile("Phi.dat",*epertaPhiMat);
         }
+
+        if (this->Verbose_)
+            std::cout << "\t### pre build k0" << std::endl;
         
         CrsMatrixPtr k0 = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),CoarseSpace_->getBasisMap()->getNodeNumElements());
+        
+        if (this->Verbose_)
+            std::cout << "\t### after build k0" << std::endl;
         
         if (this->ParameterList_->get("Use Triple MatrixMultiply",false)) {
             Xpetra::TripleMatrixMultiply<SC,LO,GO,NO>::MultiplyRAP(*Phi_,true,*this->K_,false,*Phi_,false,*k0);
         }
         else{
             CrsMatrixPtr tmp = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(this->K_->getRowMap(),50);
+            if (this->Verbose_)
+                std::cout << "\t### tmp crs" << std::endl;
             Xpetra::MatrixMatrix<SC,LO,GO,NO>::Multiply(*this->K_,false,*Phi_,false,*tmp);
+            if (this->Verbose_)
+                std::cout << "\t### KPhi" << std::endl;
             Xpetra::MatrixMatrix<SC,LO,GO,NO>::Multiply(*Phi_,true,*tmp,false,*k0);
+            if (this->Verbose_)
+                std::cout << "\t### PhiTKPhi" << std::endl;
+            
         }
 //        k0->describe(*fancy,Teuchos::VERB_EXTREME);
         return k0;
