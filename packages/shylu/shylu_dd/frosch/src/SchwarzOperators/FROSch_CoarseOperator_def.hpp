@@ -160,8 +160,19 @@ namespace FROSch {
                 this->K_->apply(x,*xTmp,mode,1.0,0.0);
             }
             
-            MultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],x.getNumVectors());
-            MultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],y.getNumVectors());
+            MultiVectorPtr xCoarseSolve;
+            if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0)
+                xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(SwapMap_,y.getNumVectors());
+            else
+                xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],y.getNumVectors());
+
+            
+            MultiVectorPtr yCoarseSolve;
+            if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0)
+                yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(SwapMap_,y.getNumVectors());
+            else
+                yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],y.getNumVectors());
+
             {
 #ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
