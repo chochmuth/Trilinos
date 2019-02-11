@@ -138,11 +138,13 @@ namespace FROSch {
         GOVec mapVector(0);
         GO tmp = 0;
         for (UN i=0; i<NumberOfBlocks_; i++) {
-            for (UN j=0; j<InterfaceCoarseSpaces_[i]->getBasisMap()->getNodeNumElements(); j++) {
+            if (InterfaceCoarseSpaces_[i]->hasBasisMap()) {
+                for (UN j=0; j<InterfaceCoarseSpaces_[i]->getBasisMap()->getNodeNumElements(); j++) {
                     mapVector.push_back(InterfaceCoarseSpaces_[i]->getBasisMap()->getGlobalElement(j)+tmp);
                 }
                 tmp += InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()+1;
             }
+        }
         return Xpetra::MapFactory<LO,GO,NO>::Build(DofsMaps_[0][0]->lib(),-1,mapVector(),0,this->MpiComm_);
     }
     
@@ -411,25 +413,44 @@ namespace FROSch {
                 this->MpiComm_->barrier();
                 TimeMonitor_Type FillPhiGammaTM(*FillPhiGammaTimer_);
 #endif
-
+                
+                //<<<<<<< HEAD
+                //                LO jj=0;
+                //                LO kk=0;
+                //                for (UN i=0; i<NumberOfBlocks_; i++) {
+                //                    UN j = 0;
+                //                    UN k = 0;
+                //                    if (InterfaceCoarseSpaces_[i]->hasAssembledBasis()) {
+                //                        numLocalBlockRows[i] = InterfaceCoarseSpaces_[i]->getLocalBasis()->getNumVectors();
+                //                        for (j=0; j<numLocalBlockRows[i]; j++) {
+                //                            for (k=0; k<InterfaceCoarseSpaces_[i]->getLocalBasis()->getLocalLength(); k++) {
+                //                                mVPhiGamma->replaceLocalValue(k+kk,j+jj,InterfaceCoarseSpaces_[i]->getLocalBasis()->getData(j)[k]);
+                //                                mVPhi->replaceLocalValue(indicesGammaDofsAll[k+kk],j+jj,InterfaceCoarseSpaces_[i]->getLocalBasis()->getData(j)[k]);
+                //                            }
+                //                        }
+                //                    } else { // Das ist für den Fall, dass keine Basisfunktionen für einen Block gebaut werden sollen
+                //                        k=GammaDofs_[i].size();
+                //=======
+                //        //Build mVPhiGamma
+                //        MultiVectorPtr mVPhiGamma = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(kIGamma->getDomainMap(),coarseMap->getNodeNumElements());
                 LO jj=0;
                 LO kk=0;
+                //        UNVec numLocalBlockRows(NumberOfBlocks_);
                 for (UN i=0; i<NumberOfBlocks_; i++) {
                     UN j = 0;
                     UN k = 0;
                     if (InterfaceCoarseSpaces_[i]->hasAssembledBasis()) {
-                        numLocalBlockRows[i] = InterfaceCoarseSpaces_[i]->getLocalBasis()->getNumVectors();
+                        numLocalBlockRows[i] = InterfaceCoarseSpaces_[i]->getAssembledBasis()->getNumVectors();
                         for (j=0; j<numLocalBlockRows[i]; j++) {
-                            for (k=0; k<InterfaceCoarseSpaces_[i]->getLocalBasis()->getLocalLength(); k++) {
-                                mVPhiGamma->replaceLocalValue(k+kk,j+jj,InterfaceCoarseSpaces_[i]->getLocalBasis()->getData(j)[k]);
-                                mVPhi->replaceLocalValue(indicesGammaDofsAll[k+kk],j+jj,InterfaceCoarseSpaces_[i]->getLocalBasis()->getData(j)[k]);
+                            for (k=0; k<InterfaceCoarseSpaces_[i]->getAssembledBasis()->getLocalLength(); k++) {
+                                mVPhiGamma->replaceLocalValue(k+kk,j+jj,InterfaceCoarseSpaces_[i]->getAssembledBasis()->getData(j)[k]);
+                                mVPhi->replaceLocalValue(indicesGammaDofsAll[k+kk],j+jj,InterfaceCoarseSpaces_[i]->getAssembledBasis()->getData(j)[k]);
+                                //>>>>>>> 4d523eba0ab9fecf217d51da8e150d353b7c8642
                             }
+                            jj += j;
+                            kk += k;
                         }
-                    } else { // Das ist für den Fall, dass keine Basisfunktionen für einen Block gebaut werden sollen
-                        k=GammaDofs_[i].size();
                     }
-                    jj += j;
-                    kk += k;
                 }
 #ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
