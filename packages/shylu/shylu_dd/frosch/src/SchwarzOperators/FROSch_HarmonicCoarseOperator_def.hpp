@@ -447,10 +447,12 @@ namespace FROSch {
                                 mVPhi->replaceLocalValue(indicesGammaDofsAll[k+kk],j+jj,InterfaceCoarseSpaces_[i]->getAssembledBasis()->getData(j)[k]);
                                 //>>>>>>> 4d523eba0ab9fecf217d51da8e150d353b7c8642
                             }
-                            jj += j;
-                            kk += k;
                         }
+                    } else { // Das ist für den Fall, dass keine Basisfunktionen für einen Block gebaut werden sollen
+                        k=GammaDofs_[i].size();
                     }
+                    jj += j;
+                    kk += k;
                 }
 #ifdef FROSCH_DETAIL_TIMER
                 this->MpiComm_->barrier();
