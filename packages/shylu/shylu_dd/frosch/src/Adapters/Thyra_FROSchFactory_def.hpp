@@ -97,6 +97,7 @@ namespace Thyra {
                                                            const ESupportSolveUse supportSolveUse) const
     {
         
+    
         RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout));
                 
         //PreCheck

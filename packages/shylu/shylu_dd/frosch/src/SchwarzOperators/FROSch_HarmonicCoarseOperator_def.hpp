@@ -127,8 +127,7 @@ namespace FROSch {
         MultiVectorPtr localCoarseSpaceBasis = computeExtensions(repeatedMatrix->getRowMap(),coarseMap,indicesGammaDofsAll(),indicesIDofsAll(),kII,kIGamma);
         
         coarseSpace->addSubspace(coarseMap,localCoarseSpaceBasis);
-        if (this->Verbose_)
-            std::cout << "\t### computeCoarseSpace done." << std::endl;
+
         return repeatedMap;
     }
     
@@ -490,8 +489,6 @@ namespace FROSch {
                     ExtensionSolver_->initialize();
                     ExtensionSolver_->compute();
                     
-                    if (this->Verbose_)
-                        std::cout << "\t### compute extensions done." << std::endl;
                 }
                 else{
                     if (this->Verbose_)
@@ -568,8 +565,6 @@ namespace FROSch {
 #endif
             }
         }
-        if (this->Verbose_)
-            std::cout << "\t### pre return mvPhi." << std::endl;
         
         return mVPhi;
     }

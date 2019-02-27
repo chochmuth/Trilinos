@@ -107,12 +107,12 @@ namespace FROSch {
         // Maps //
         //////////
         FROSCH_ASSERT(!repeatedMapVec.is_null(),"repeatedMapVec.is_null() = true. Please provide the repeated maps.");
-        
+
         // Build dofsMaps and repeatedNodesMap
-        MapPtrVecPtr repeatedNodesMapVec;
+        MapPtrVecPtr repeatedNodesMapVec(dofsMapsVec.size());
         if (dofsMapsVec.is_null()) {
             if (0>BuildDofMapsVec(repeatedMapVec,dofsPerNodeVec,dofOrderingVec,repeatedNodesMapVec,dofsMapsVec)) ret -= 100; // Todo: Rückgabewerte
-            } else {
+        } else {
             FROSCH_ASSERT(dofsMapsVec.size()==dofsPerNodeVec.size(),"dofsMapsVec.size()!=dofsPerNodeVec.size()");
             for (UN j=0; j<dofsMapsVec.size(); j++) {
                 FROSCH_ASSERT(dofsMapsVec[j].size()==dofsPerNodeVec[j],"dofsMapsVec[block].size()!=dofsPerNodeVec[block]");
@@ -120,6 +120,7 @@ namespace FROSch {
                     FROSCH_ASSERT(!dofsMapsVec[j][i].is_null(),"dofsMapsVec[block][i].is_null()");
                 }
             }
+            repeatedNodesMapVec = BuildNodeMapsFromDofMaps( dofsMapsVec, dofsPerNodeVec, dofOrderingVec );
         }
         
         //////////////////////////
@@ -138,6 +139,8 @@ namespace FROSch {
         else{
             nodeListVec.resize(nmbBlocks);
         }
+        
+        
         
         //////////////////////////////////////////
         // Determine dirichletBoundaryDofs //
@@ -162,16 +165,13 @@ namespace FROSch {
                 dirichletBoundaryDofsVec[subNumber][counterSub[subNumber]] = dirichletBoundaryDofs[i];
                 counterSub[subNumber]++;
             }
-
-
-            
             //dirichletBoundaryDofsVec = GOVecPtr2D(repeatedMapVec.size());
             for (UN i=0; i<dirichletBoundaryDofsVec.size(); i++) {
                 dirichletBoundaryDofsVec[i].resize(counterSub[i]);
             }
             
         }
-
+        
 #ifdef FROSCH_TIMER
         this->MpiComm_->barrier();
         TimeMonitor_Type SetupTwoLevelTM(*SetupTwoLevel_);

@@ -262,7 +262,10 @@ namespace FROSch {
             this->DofsPerNode_.resize(this->DofsPerNode_.size()+1);
             this->BlockCoarseDimension_.resize(this->BlockCoarseDimension_.size()+1);
             this->NumberOfBlocks_++;
+
             resetCoarseSpaceBlock(this->NumberOfBlocks_-1,dimension,dofsPerNodeVec[i],repeatedNodesMapVec[i],repeatedDofMapsVec[i],dirichletBoundaryDofsVec[i],nodeListVec[i]);
+            
+
         }
         return 0;
     }

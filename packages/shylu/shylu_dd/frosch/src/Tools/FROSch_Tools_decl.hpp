@@ -115,7 +115,14 @@ namespace FROSch {
     Teuchos::RCP<Xpetra::Map<LO,GO,NO> > BuildMapFromNodeMap(Teuchos::RCP<Xpetra::Map<LO,GO,NO> > &nodesMap,
                                                              unsigned dofsPerNode,
                                                              unsigned dofOrdering);
-    
+    template <class LO,class GO,class NO>
+    Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > BuildNodeMapsFromDofMaps( Teuchos::ArrayRCP<Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > >dofsMapsVecVec,
+                                                                                      Teuchos::ArrayRCP<unsigned> dofsPerNodeVec,
+                                                                                      Teuchos::ArrayRCP<DofOrdering> dofOrderingVec);
+
+//    template <class LO,class GO,class NO>
+//    Teuchos::RCP<Xpetra::Map<LO,GO,NO> > ReduceMinGIDtoZero(Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mapIn);
+
     template <class LO,class GO,class NO>
     Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > BuildSubMaps(Teuchos::RCP<const Xpetra::Map<LO,GO,NO> > &fullMap,
                                                                           Teuchos::ArrayRCP<GO> maxSubGIDVec);

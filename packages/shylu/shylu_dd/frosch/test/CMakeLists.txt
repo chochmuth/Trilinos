@@ -1,5 +1,7 @@
 ADD_SUBDIRECTORIES(
+    BuildNodeMaps
     Import_Tpetra
+    InterfaceBlocks
     InterfacePartitionOfUnity
     InterfaceSets
     LocalPartitionOfUnityBasis

@@ -110,19 +110,10 @@ namespace FROSch {
             clearCoarseSpace(); // AH 12/11/2018: If we do not clear the coarse space, we will always append just append the coarse space
             MapPtr subdomainMap = this->computeCoarseSpace(CoarseSpace_); // AH 12/11/2018: This map could be overlapping, repeated, or unique. This depends on the specific coarse operator
 
-            if (this->Verbose_)
-                std::cout << "\t### pre assembleCoarseSpace ." << std::endl;
-
             CoarseSpace_->assembleCoarseSpace(NotOnCoarseSolveComm_);
-            
-            if (this->Verbose_)
-                std::cout << "\t### pre buildGlobalBasisMatrix." << std::endl;
             
             CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8),NotOnCoarseSolveComm_);
             Phi_ = CoarseSpace_->getGlobalBasisMatrix();
-
-            if (this->Verbose_)
-                std::cout << "\t### pre setUpCoarseOperator." << std::endl;
 
             this->setUpCoarseOperator();
             
@@ -352,8 +343,6 @@ namespace FROSch {
             CoarseSolver_.reset(); // CH: Reset coarse solver here, as there are problems with Amesos_MUMPS, when reusing the whole preconditioner and resetting CoarseSolver_ below. The comm is reset when buildCoarseSolveMap(k0) is called and is consequently not correct if Mumps solver is destroyed (only for Epetra).
         }
 
-        if (this->Verbose_)
-            std::cout << "\t### after CoarseSolver.reset()." << std::endl;
         // Build CoarseMatrix_
         CrsMatrixPtr k0;
 #ifdef FROSCH_TIMER
@@ -364,8 +353,6 @@ namespace FROSch {
 #ifdef FROSCH_TIMER
             TimeMonitor_Type BuildCoarseTM(*BuildCoarseTimer_);
 #endif
-            if (this->Verbose_)
-                std::cout << "\t### pre buildCoarseMatrix" << std::endl;
 
             k0 = buildCoarseMatrix();
         }
@@ -373,8 +360,6 @@ namespace FROSch {
 #ifdef FROSCH_TIMER
             TimeMonitor_Type GatheringTM(*GatheringTimer_);
 #endif
-            if (this->Verbose_)
-                std::cout << "\t### pre buildCoarseSolveMap" << std::endl;
             // Build Map for the coarse solver
             buildCoarseSolveMap(k0);
 
@@ -545,29 +530,16 @@ namespace FROSch {
             Teuchos::RCP<Epetra_CrsMatrix> epertaPhiMat = ConvertToEpetra(*Phi_, epetraMpiComm);
             EpetraExt::RowMatrixToMatlabFile("Phi.dat",*epertaPhiMat);
         }
-
-        if (this->Verbose_)
-            std::cout << "\t### pre build k0" << std::endl;
         
         CrsMatrixPtr k0 = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),CoarseSpace_->getBasisMap()->getNodeNumElements());
-        
-        if (this->Verbose_)
-            std::cout << "\t### after build k0" << std::endl;
         
         if (this->ParameterList_->get("Use Triple MatrixMultiply",false)) {
             Xpetra::TripleMatrixMultiply<SC,LO,GO,NO>::MultiplyRAP(*Phi_,true,*this->K_,false,*Phi_,false,*k0);
         }
         else{
             CrsMatrixPtr tmp = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(this->K_->getRowMap(),50);
-            if (this->Verbose_)
-                std::cout << "\t### tmp crs" << std::endl;
             Xpetra::MatrixMatrix<SC,LO,GO,NO>::Multiply(*this->K_,false,*Phi_,false,*tmp);
-            if (this->Verbose_)
-                std::cout << "\t### KPhi" << std::endl;
             Xpetra::MatrixMatrix<SC,LO,GO,NO>::Multiply(*Phi_,true,*tmp,false,*k0);
-            if (this->Verbose_)
-                std::cout << "\t### PhiTKPhi" << std::endl;
-            
         }
 //        k0->describe(*fancy,Teuchos::VERB_EXTREME);
         return k0;
@@ -581,9 +553,6 @@ namespace FROSch {
             NumProcsCoarseSolve_ = this->ParameterList_->get("Mpi Ranks Coarse",0);
             
             if (!DistributionList_->get("Type","linear").compare("linear")) {
-                if (this->Verbose_)
-                    std::cout << "\t### mpicoarse ranks>0 and type linear" << std::endl;
-
                 
                 int gatheringSteps = DistributionList_->get("GatheringSteps",1);
                 GatheringMaps_.resize(gatheringSteps);
@@ -596,10 +565,6 @@ namespace FROSch {
                 double gatheringFactor = pow(double(this->MpiComm_->getSize()-NumProcsCoarseSolve_)/double(NumProcsCoarseSolve_),1.0/double(gatheringSteps));
 
                 for (int i=0; i<gatheringSteps-1; i++) {
-
-                    if (this->Verbose_)
-                        std::cout << "\t### Gathering " << i<< std::endl;
-
                     numMyRows = 0;
                     numProcsGatheringStep = LO(numProcsGatheringStep/gatheringFactor);
                     if (this->MpiComm_->getRank()%((this->MpiComm_->getSize()-NumProcsCoarseSolve_)/numProcsGatheringStep) == 0 && this->MpiComm_->getRank()/((this->MpiComm_->getSize()-NumProcsCoarseSolve_)/numProcsGatheringStep) < numProcsGatheringStep) {
@@ -620,9 +585,6 @@ namespace FROSch {
                     GatheringMaps_[i] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,indexList,0,this->MpiComm_);
                 }
                 
-                if (this->Verbose_)
-                    std::cout << "\t### Last Gathering " << std::endl;
-
                 numMyRows = 0;
                 if (this->MpiComm_->getRank()%((this->MpiComm_->getSize()-NumProcsCoarseSolve_)/NumProcsCoarseSolve_) == 0 && this->MpiComm_->getRank()/((this->MpiComm_->getSize()-NumProcsCoarseSolve_)/NumProcsCoarseSolve_) < NumProcsCoarseSolve_) {
                     if (this->MpiComm_->getRank()==0) {
@@ -641,13 +603,7 @@ namespace FROSch {
 
                     GatheringMaps_[gatheringSteps-1] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,indexList,0,this->MpiComm_);
                 }
-                
-                if (this->Verbose_)
-                    std::cout << "\t### Last Gathering map done "<< std::endl;
-
-                
-
-                
+           
                 GO numGlobalElements = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1;
                 numMyRows = (LO) (((numGlobalElements) / NumProcsCoarseSolve_) + 100.*std::numeric_limits<double>::epsilon());
                 LO remainingEl = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1 - NumProcsCoarseSolve_*numMyRows;
@@ -658,10 +614,6 @@ namespace FROSch {
                 if (!(this->MpiComm_->getRank() >= this->MpiComm_->getSize() - NumProcsCoarseSolve_)) {
                     numMyRows = 0;
                 }
-                
-                
-                if (this->Verbose_)
-                    std::cout << "\t### pre swap map " << std::endl;
 
                 scanResult = 0;
                 Teuchos::scan<int, GO> (*this->MpiComm_, Teuchos::REDUCE_SUM, numMyRows, Teuchos::outArg (scanResult));
@@ -671,8 +623,7 @@ namespace FROSch {
                 std::iota(stdIndexList.begin(),stdIndexList.end(),(GO) myOffset);
                 
                 SwapMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),numGlobalElements,indexList,0,this->MpiComm_);
-                if (this->Verbose_)
-                    std::cout << "\t### swap map done" << std::endl;
+
                 //------------------------------------------------------------------------------------------------------------------------
                 // Use a separate Communicator for the coarse problem
                 
@@ -685,8 +636,7 @@ namespace FROSch {
                 CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
                 //Tpetra error when using  numGlobalElements instead of -1 below
                 CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
-                if (this->Verbose_)
-                    std::cout << "\t### CoarseSolveMap_ done." << std::endl;
+
             }
             else {
                 FROSCH_ASSERT(false,"Only linear distribution for coarse matrix is supported if parallel levels are used!");
@@ -724,9 +674,6 @@ namespace FROSch {
             }
             
             if (!DistributionList_->get("Type","linear").compare("linear")) {
-                if (this->Verbose_)
-                    std::cout << "\t### mpicoarse ranks>0 and type linear" << std::endl;
-                
                 //gathering on consecutive procs
                 int gatheringSteps = DistributionList_->get("GatheringSteps",1);
                 GatheringMaps_.resize(gatheringSteps);
@@ -739,10 +686,6 @@ namespace FROSch {
                 double gatheringFactor = pow(double(this->MpiComm_->getSize())/double(NumProcsCoarseSolve_),1.0/double(gatheringSteps));
                 
                 for (int i=0; i<gatheringSteps-1; i++) {
-
-                    if (this->Verbose_)
-                        std::cout << "\t### Gathering " << i<< std::endl;
-
                     numMyRows = 0;
                     numProcsGatheringStep = LO(numProcsGatheringStep/gatheringFactor);
                     //if (this->Verbose_) std::cout << i << " " << numProcsGatheringStep << " " << numGlobalIndices << std::endl;
@@ -763,9 +706,6 @@ namespace FROSch {
                     GatheringMaps_[i] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,indexList,0,this->MpiComm_);
                 }
                 
-                if (this->Verbose_)
-                    std::cout << "\t### Last Gathering " << std::endl;
-                
                 numMyRows = 0;
                 if (this->MpiComm_->getRank()%(this->MpiComm_->getSize()/NumProcsCoarseSolve_) == 0 && this->MpiComm_->getRank()/(this->MpiComm_->getSize()/NumProcsCoarseSolve_) < NumProcsCoarseSolve_) {
                     if (this->MpiComm_->getRank()==0) {
@@ -783,8 +723,6 @@ namespace FROSch {
                 std::iota(stdIndexList.begin(),stdIndexList.end(),(GO) myOffset);
                 
                 GatheringMaps_[gatheringSteps-1] = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,indexList,0,this->MpiComm_);
-                if (this->Verbose_)
-                    std::cout << "\t### Last Gathering map done "<< std::endl;
 
                 //------------------------------------------------------------------------------------------------------------------------
                 // Use a separate Communicator for the coarse problem
@@ -795,9 +733,6 @@ namespace FROSch {
                 }
                 CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
                 CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
-                if (this->Verbose_)
-                    std::cout << "\t### CoarseSolveMap_ done "<< std::endl;
-
 
 #ifdef HAVE_SHYLU_DDFROSCH_ZOLTAN2
             } else if(!DistributionList_->get("Type","linear").compare("Zoltan2")){

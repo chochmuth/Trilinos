@@ -45,7 +45,6 @@
 #include <FROSch_Tools_decl.hpp>
 
 namespace FROSch {
-    
     template <class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Map<LO,GO,NO> > BuildUniqueMap(const Teuchos::RCP<const Xpetra::Map<LO,GO,NO> > map)
     {
@@ -499,12 +498,110 @@ namespace FROSch {
         }
         return Xpetra::MapFactory<LO,GO,NO>::Build(nodesMap->lib(),-1,globalIDs(),0,nodesMap->getComm());
     }
-    
+
+    template <class LO,class GO,class NO>
+    Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > BuildNodeMapsFromDofMaps( Teuchos::ArrayRCP<Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > > dofsMapsVecVec,
+                                                                  Teuchos::ArrayRCP<unsigned> dofsPerNodeVec,
+                                                                  Teuchos::ArrayRCP<DofOrdering> dofOrderingVec)
+    {
+        
+        typedef Xpetra::Map<LO,GO,NO> Map;
+        typedef Teuchos::RCP<Map> MapPtr;
+        typedef Teuchos::ArrayRCP<MapPtr> MapPtrVecPtr;
+        
+        FROSCH_ASSERT(!dofsMapsVecVec.is_null(),"dofsMapsVecVec.is_null().");
+        FROSCH_ASSERT(dofsPerNodeVec.size()==dofOrderingVec.size() && dofsPerNodeVec.size()==dofsMapsVecVec.size(),"ERROR: Wrong number of maps, dof information and/or dof orderings");
+        unsigned nmbBlocks = dofsMapsVecVec.size();
+        for (unsigned i=0; i<nmbBlocks; i++){
+            FROSCH_ASSERT(dofOrderingVec[i]==NodeWise || dofOrderingVec[i]==DimensionWise,"ERROR: Specify a valid DofOrdering.");
+            FROSCH_ASSERT(dofsMapsVecVec[i].size() == dofsPerNodeVec[i] ,"ERROR: The number of dofsPerNode does not match the number of dofsMaps for a block.");
+        }
+
+        Teuchos::RCP< const Teuchos::Comm< int > > 	comm = dofsMapsVecVec[0][0]->getComm();
+        
+        //Check if the current block is a real block, or if dof indicies are consecutive over more than one block.
+        Teuchos::Array<bool> isMergedPrior( nmbBlocks, false );
+        Teuchos::Array<bool> isMergedAfter( nmbBlocks, false );
+
+        for (unsigned block=1; block<nmbBlocks; block++) {
+            if ( dofsMapsVecVec[block-1][0]->getMaxAllGlobalIndex() > dofsMapsVecVec[block][0]->getMinAllGlobalIndex()) {// It is enough to compare the first dofMaps of each block
+                isMergedPrior[block] = true;
+                isMergedAfter[block-1] = true;
+            }
+        }
+        
+        //Determine offset for each block based on isMergedPrior and isMergedAfter.
+        Teuchos::Array<GO> blockOffset( nmbBlocks, Teuchos::ScalarTraits<GO>::zero() ); //if blocks are real blocks, this entry here will give provide the correct offset.
+        Teuchos::Array<GO> consBlockOffset( nmbBlocks, Teuchos::ScalarTraits<GO>::zero() );
+        Teuchos::Array<GO> consThisBlockOffset( nmbBlocks, Teuchos::ScalarTraits<GO>::zero() );
+        for (unsigned block=0; block<nmbBlocks; block++) {
+
+            consBlockOffset[block] += dofsPerNodeVec[block]; //add own dofs
+
+            unsigned i = block;
+            while (isMergedAfter[i]) {
+                consBlockOffset[block] += dofsPerNodeVec[i+1];
+                i++;
+            }
+            i = block;
+            while (isMergedPrior[i]) {
+                consBlockOffset[block] += dofsPerNodeVec[i-1];
+                i--;
+            }
+            
+            if ( !isMergedPrior[block] && block>0 ) {
+                blockOffset[block] += dofsMapsVecVec[block-1][dofsMapsVecVec[block-1].size()-1]->getMaxAllGlobalIndex(); //It is assumed that the last dofMap of a block has the highest GID of all block dof maps.
+                unsigned j = block;
+                while (isMergedAfter[j]) {
+                    blockOffset[j] = blockOffset[block];
+                    j++;
+                }
+            }
+        }
+                
+        MapPtrVecPtr nodeMapsVec( nmbBlocks );
+        // Build node maps for all blocks
+        for (unsigned block=0; block<nmbBlocks; block++) {
+            
+            if (dofOrderingVec[block] == NodeWise) {
+                Teuchos::ArrayView< const GO > globalIndices = dofsMapsVecVec[block][0]->getNodeElementList();
+                Teuchos::Array<GO> globalIndicesNode( globalIndices );
+                GO offset = dofsMapsVecVec[block][0]->getMinAllGlobalIndex();
+                for (unsigned i=0; i<globalIndicesNode.size(); i++){
+                    // multiplier is not correct if isMergedPrior==true because we substract minAllGIDBlock. We have to adjust for this later
+                    // was ist wenn mergedPrior und blockOffset existiert, dann ist multiplier falsch.
+                    GO multiplier = (globalIndicesNode[i] - offset) / (consBlockOffset[block]);
+                    GO rest = (globalIndicesNode[i] - offset) % (consBlockOffset[block]);
+                    globalIndicesNode[i] = multiplier + rest;
+                    
+                }
+                nodeMapsVec[block] = Xpetra::MapFactory<LO,GO,NO>::Build( dofsMapsVecVec[block][0]->lib(), -1,globalIndicesNode(), 0, dofsMapsVecVec[block][0]->getComm() );
+            }
+            else{ //DimensionWise
+                GO minGID = dofsMapsVecVec[block][0]->getMinAllGlobalIndex();
+                Teuchos::ArrayView< const GO > globalIndices = dofsMapsVecVec[block][0]->getNodeElementList();
+                Teuchos::Array<GO> globalIndicesNode( globalIndices );
+                for (unsigned i=0; i<globalIndicesNode.size(); i++)
+                    globalIndicesNode[i] -= minGID;
+                
+                nodeMapsVec[block] = Xpetra::MapFactory<LO,GO,NO>::Build( dofsMapsVecVec[block][0]->lib(), -1,globalIndicesNode(), 0, dofsMapsVecVec[block][0]->getComm() );
+            }
+        }
+        return nodeMapsVec;
+    }
 //    template <class LO,class GO,class NO>
-//    Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > BuildSubMaps(Teuchos::RCP<const Xpetra::Map<LO,GO,NO> > &fullMap,
-//                                                                          Teuchos::ArrayRCP<GO> maxSubGIDVec){
+//    Teuchos::RCP<Xpetra::Map<LO,GO,NO> > ReduceMinGIDtoZero(Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mapIn){
+//
+//        if (mapIn->getMinAllGlobalIndex()==Teuchos::ScalarTraits<GO>::zero())
+//            return mapIn;
 //        
-//          Teuchos::RCP<Xpetra::Map<LO,GO,NO> > fullMapNonConst = Teuchos::rcp_dynamic_cast<Xpetra::Map<LO,GO,NO> >(fullMap);
+//        Teuchos::ArrayView< const GO > globalIndices = mapIn->getNodeElementList();
+//        Teuchos::Array<GO> globalIndicesOut(globalIndices);
+//        GO offset = mapIn->getMinAllGlobalIndex();
+//        for (unsigned i=0; i<globalIndicesOut.size(); i++ ) {
+//            globalIndicesOut[i] -= offset;
+//        }
+//        return Xpetra::MapFactory<LO,GO,NO>::Build( mapIn->lib(), -1, globalIndicesOut(), 0, mapIn->getComm() );
 //    }
     
     template <class LO,class GO,class NO>
