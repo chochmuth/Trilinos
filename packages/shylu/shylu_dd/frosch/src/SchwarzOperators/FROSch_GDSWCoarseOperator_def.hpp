@@ -355,7 +355,7 @@ namespace FROSch {
 //        FullTM.setStackedTimer(Teuchos::null);
 //#endif
         // Check for interface
-        if (interface->getNumEntities()==0) {
+        if (this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes()==0) {
             this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior);
         } else {
             this->GammaDofs_[blockId] = LOVecPtr(this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes());
