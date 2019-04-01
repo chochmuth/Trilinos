@@ -89,6 +89,9 @@ namespace FROSch {
     
     template <class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Map<LO,GO,NO> > MergeMaps(Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapVector);
+
+    template <class LO,class GO,class NO>
+    Teuchos::RCP<Xpetra::Map<LO,GO,NO> > MergeMapsCont(Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapVector);
     
     template <class LO,class GO,class NO>
     int BuildDofMaps(const Teuchos::RCP<Xpetra::Map<LO,GO,NO> > map,

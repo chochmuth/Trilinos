@@ -94,6 +94,8 @@ namespace FROSch {
                                                              MapPtrVecPtr2D dofsMapsVec,
                                                              GOVecPtr2D dirichletBoundaryDofsVec)
     {
+//        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+        
         ////////////
         // Checks //
         ////////////
@@ -141,11 +143,15 @@ namespace FROSch {
         }
         
         
-        
         //////////////////////////////////////////
         // Determine dirichletBoundaryDofs //
         //////////////////////////////////////////
-        MapPtr repeatedMap = MergeMaps(repeatedMapVec);
+        MapPtr repeatedMap;
+        if (this->ParameterList_->get("Continuous Blocks",false))
+            repeatedMap = MergeMapsCont( repeatedMapVec );
+        else
+            repeatedMap = MergeMaps( repeatedMapVec );
+        
         if (dirichletBoundaryDofsVec.is_null()) {
             dirichletBoundaryDofsVec.resize(repeatedMapVec.size());
             LOVecPtr counterSub(repeatedMapVec.size(),0);

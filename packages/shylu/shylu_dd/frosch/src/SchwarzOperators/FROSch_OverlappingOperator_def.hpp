@@ -248,12 +248,26 @@ namespace FROSch {
 #ifdef FROSCH_TIMER
         TimeMonitor_Type FullTM(*FullSetupTimer_);
 #endif
-//        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
         {
 #ifdef FROSCH_TIMER
             TimeMonitor_Type OverlapTM(*ExtractTimer_);
 #endif
+//            Teuchos::RCP<Epetra_MpiComm> epetraMpiComm(new Epetra_MpiComm(MPI_COMM_WORLD));
+//            Teuchos::RCP<Epetra_CrsMatrix> epertaMat = ConvertToEpetra(*(OverlappingMatrix_), epetraMpiComm);
+//            EpetraExt::RowMatrixToMatlabFile("K.dat",*epertaMat);
+            
             OverlappingMatrix_ = ExtractLocalSubdomainMatrix(OverlappingMatrix_,OverlappingMap_,OnFirstLevelComm_);
+
+//            Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
+//
+//            OverlappingMap_->describe(*fancy,Teuchos::VERB_EXTREME);
+//            
+//            Teuchos::RCP<Epetra_MpiComm> epetraSerialComm(new Epetra_MpiComm(MPI_COMM_SELF));
+//            Teuchos::RCP<Epetra_CrsMatrix> epertaMatSub = ConvertToEpetra(*(OverlappingMatrix_), epetraSerialComm);
+//            std::string outName = "K" + std::to_string( this->MpiComm_->getRank() ) + ".dat";
+//            EpetraExt::RowMatrixToMatlabFile(outName.c_str(),*epertaMatSub);
+
         }
         
 #ifdef FROSCH_TIMER

@@ -376,6 +376,24 @@ namespace FROSch {
     }
 
     template <class LO,class GO,class NO>
+    Teuchos::RCP<Xpetra::Map<LO,GO,NO> > MergeMapsCont(Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapVector){
+        FROSCH_ASSERT(!mapVector.is_null(),"mapVector is null!");
+        FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
+        // add more checks
+        
+        Teuchos::Array<GO> elementList(0);
+        for (unsigned i=0; i<mapVector.size(); i++) {
+            LO nodeNumElements = mapVector[i]->getNodeNumElements();
+            Teuchos::Array<GO> subElementList(nodeNumElements);
+            for (LO j=0; j<nodeNumElements; j++) {
+                subElementList[j] = mapVector[i]->getGlobalElement(j);
+            }
+            elementList.insert(elementList.end(),subElementList.begin(),subElementList.end());
+        }
+        return Xpetra::MapFactory<LO,GO,NO>::Build(mapVector[0]->lib(),-1,elementList(),0,mapVector[0]->getComm());
+    }
+    
+    template <class LO,class GO,class NO>
     int BuildDofMapsVec(const Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapVec,
                         Teuchos::ArrayRCP<unsigned> dofsPerNodeVec,
                         Teuchos::ArrayRCP<FROSch::DofOrdering> dofOrderingVec,
