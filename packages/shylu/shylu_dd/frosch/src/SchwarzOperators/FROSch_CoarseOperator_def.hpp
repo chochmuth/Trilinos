@@ -43,6 +43,7 @@
 #define _FROSCH_COARSEOPERATOR_DEF_HPP
 #include <EpetraExt_RowMatrixOut.h>
 #include <FROSch_CoarseOperator_decl.hpp>
+#include <MatrixMarket_Tpetra.hpp>
 namespace FROSch {
     
     template<class SC,class LO,class GO,class NO>
@@ -104,14 +105,21 @@ namespace FROSch {
             this->setUpCoarseOperator();
             
             this->IsComputed_ = true;
-        } else if(!this->ParameterList_->get("Recycling","none").compare("all") && this->IsComputed_) {
+        } else if(!this->ParameterList_->get("Recycling","none").compare("full") && this->IsComputed_) {
             // Maybe use some advanced settings in the future
         } else {// CH 01/10/2019: none or standard case. If standard or none are choosen than the full coarse space is built again. In the standard case we reuse only information of the first level.
             clearCoarseSpace(); // AH 12/11/2018: If we do not clear the coarse space, we will always append just append the coarse space
-            MapPtr subdomainMap = this->computeCoarseSpace(CoarseSpace_); // AH 12/11/2018: This map could be overlapping, repeated, or unique. This depends on the specific coarse operator
+            
+            MapPtr subdomainMap;
+            {
+#ifdef FROSCH_TIMER
+                TimeMonitor_Type ComputePhiTM(*ComputePhiTimer_);
+#endif
+                subdomainMap = this->computeCoarseSpace(CoarseSpace_); // AH 12/11/2018: This map could be overlapping, repeated, or unique. This depends on the specific coarse operator
+            }
 
             CoarseSpace_->assembleCoarseSpace(NotOnCoarseSolveComm_);
-            
+
             CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8),NotOnCoarseSolveComm_);
             Phi_ = CoarseSpace_->getGlobalBasisMatrix();
 
@@ -381,14 +389,14 @@ namespace FROSch {
                     
                     tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[j],Xpetra::INSERT);
                 }
-                if (this->ParameterList_->get("Write Coarse matrix",false)) {
-                    tmpCoarseMatrix->fillComplete();
-                    Teuchos::RCP<Epetra_MpiComm> epetraMpiComm(new Epetra_MpiComm(MPI_COMM_WORLD));
-                    Teuchos::RCP<Epetra_CrsMatrix> epertaMat = ConvertToEpetra(*tmpCoarseMatrix, epetraMpiComm);
-                    EpetraExt::RowMatrixToMatlabFile("CoarseMat.dat",*epertaMat);
-                    FROSCH_ASSERT(false,"Coarse matrix was saved and fillComplete was called. We cant contiune with the fillCompete matrix.");
-                    
-                }
+//                if (this->ParameterList_->get("Write Coarse matrix",false)) {
+//                    tmpCoarseMatrix->fillComplete();
+//                    Teuchos::RCP<Epetra_MpiComm> epetraMpiComm(new Epetra_MpiComm(MPI_COMM_WORLD));
+//                    Teuchos::RCP<Epetra_CrsMatrix> epertaMat = ConvertToEpetra(*tmpCoarseMatrix, epetraMpiComm);
+//                    EpetraExt::RowMatrixToMatlabFile("CoarseMat.dat",*epertaMat);
+//                    FROSCH_ASSERT(false,"Coarse matrix was saved and fillComplete was called. We cant contiune with the fillCompete matrix.");
+//                    
+//                }
                 if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
                     tmpCoarseMatrix->fillComplete();
                     k0 = tmpCoarseMatrix;
@@ -419,6 +427,20 @@ namespace FROSch {
                     }
                     
                     CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_);
+                    
+                    if (this->ParameterList_->get("Write Coarse matrix",false)) {
+                        typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
+                        typedef Teuchos::RCP<TpetraCrsMatrix> TpetraCrsMatrixPtr;
+
+                        Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*CoarseMatrix_);
+                        Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
+                        TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+                        Tpetra::MatrixMarket::Writer< TpetraCrsMatrix > tpetraWriter;
+                        
+                        tpetraWriter.writeSparseFile("coarsemat.mm", tpetraMat, "matrix", "");
+
+                    }
+                    
                     //                    Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));    CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
 #ifdef FROSCH_TIMER
                     GatheringTM.~TimeMonitor();

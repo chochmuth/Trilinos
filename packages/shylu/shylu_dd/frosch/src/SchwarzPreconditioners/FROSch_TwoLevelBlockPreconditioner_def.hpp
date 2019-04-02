@@ -58,7 +58,7 @@ namespace FROSch {
     InitializeFirstLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Init 1st")),
     InitializeSecondLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Init 2nd Level")),
     ComputeFirstLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Compute 1st Level")),
-    ComputeSecondLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Compute 2ns Level"))
+    ComputeSecondLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Compute 2nd Level"))
 #endif
     {
         if (this->ParameterList_->get("TwoLevel",true)) {            
@@ -66,14 +66,17 @@ namespace FROSch {
 //                FROSCH_ASSERT(false,"not implemented for block.");
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("InterfacePartitionOfUnity").set("Test Unconnected Interface",false);
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Recycling",parameterList->get("Recycling","none"));
                 CoarseOperator_ = IPOUHarmonicCoarseOperatorPtr(new IPOUHarmonicCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"IPOUHarmonicCoarseOperator")));
             } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("GDSWCoarseOperator")) {
                 this->ParameterList_->sublist("GDSWCoarseOperator").set("Test Unconnected Interface",false);
                 this->ParameterList_->sublist("GDSWCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Recycling",parameterList->get("Recycling","none"));
                 CoarseOperator_ = GDSWCoarseOperatorPtr(new GDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"GDSWCoarseOperator")));
             } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("RGDSWCoarseOperator")) {
                 this->ParameterList_->sublist("RGDSWCoarseOperator").set("Test Unconnected Interface",false);
                 this->ParameterList_->sublist("RGDSWCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Recycling",parameterList->get("Recycling","none"));
                 CoarseOperator_ = RGDSWCoarseOperatorPtr(new RGDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"RGDSWCoarseOperator")));
             } else {
                 FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
@@ -94,7 +97,7 @@ namespace FROSch {
                                                              MapPtrVecPtr2D dofsMapsVec,
                                                              GOVecPtr2D dirichletBoundaryDofsVec)
     {
-//        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
+        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
         
         ////////////
         // Checks //
@@ -125,6 +128,7 @@ namespace FROSch {
             repeatedNodesMapVec = BuildNodeMapsFromDofMaps( dofsMapsVec, dofsPerNodeVec, dofOrderingVec );
         }
         
+        
         //////////////////////////
         // Communicate nodeList //
         //////////////////////////
@@ -152,6 +156,8 @@ namespace FROSch {
         else
             repeatedMap = MergeMaps( repeatedMapVec );
         
+//        repeatedMap->describe(*fancy,Teuchos::VERB_EXTREME);
+        
         if (dirichletBoundaryDofsVec.is_null()) {
             dirichletBoundaryDofsVec.resize(repeatedMapVec.size());
             LOVecPtr counterSub(repeatedMapVec.size(),0);
@@ -159,6 +165,7 @@ namespace FROSch {
                 dirichletBoundaryDofsVec[j] = GOVecPtr(repeatedMapVec[j]->getNodeNumElements());
             }
             GOVecPtr dirichletBoundaryDofs = FindOneEntryOnlyRowsGlobal(this->K_,repeatedMap);
+            
             for (UN i=0; i<dirichletBoundaryDofs.size(); i++) {
                 LO subNumber = -1;
                 for (UN j = dofsMapsVec.size(); j > 0 ; j--) {
@@ -171,10 +178,10 @@ namespace FROSch {
                 dirichletBoundaryDofsVec[subNumber][counterSub[subNumber]] = dirichletBoundaryDofs[i];
                 counterSub[subNumber]++;
             }
-            //dirichletBoundaryDofsVec = GOVecPtr2D(repeatedMapVec.size());
             for (UN i=0; i<dirichletBoundaryDofsVec.size(); i++) {
                 dirichletBoundaryDofsVec[i].resize(counterSub[i]);
             }
+            //dirichletBoundaryDofsVec = GOVecPtr2D(repeatedMapVec.size());
             
         }
         
