@@ -483,6 +483,7 @@ namespace Amesos2
         mumps_par.n =  this->globalNumCols_;
         mumps_par.nz = this->globalNumNonZeros_;
         mumps_par.a = (magnitude_type*)malloc(mumps_par.nz * sizeof(magnitude_type));
+        std::cout << "sizeof(MUMPS_INT):" <<  sizeof(MUMPS_INT) << std::endl;
         mumps_par.irn = (MUMPS_INT*)malloc(mumps_par.nz *sizeof(MUMPS_INT));
         mumps_par.jcn = (MUMPS_INT*)malloc(mumps_par.nz * sizeof(MUMPS_INT));
     }
