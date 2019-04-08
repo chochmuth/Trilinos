@@ -478,13 +478,14 @@ namespace Amesos2
   int
   MUMPS<Matrix,Vector>::ConvertToTriplet()
   {
-    MUMPS_STRUCT = true;
-    mumps_par.n =  this->globalNumCols_;
-    mumps_par.nz = this->globalNumNonZeros_;
-    mumps_par.a = (magnitude_type*)malloc(mumps_par.nz * sizeof(magnitude_type));
-    mumps_par.irn = (MUMPS_INT*)malloc(mumps_par.nz *sizeof(MUMPS_INT));
-    mumps_par.jcn = (MUMPS_INT*)malloc(mumps_par.nz * sizeof(MUMPS_INT));
-
+    if ( !MUMPS_STRUCT ) {
+        MUMPS_STRUCT = true;
+        mumps_par.n =  this->globalNumCols_;
+        mumps_par.nz = this->globalNumNonZeros_;
+        mumps_par.a = (magnitude_type*)malloc(mumps_par.nz * sizeof(magnitude_type));
+        mumps_par.irn = (MUMPS_INT*)malloc(mumps_par.nz *sizeof(MUMPS_INT));
+        mumps_par.jcn = (MUMPS_INT*)malloc(mumps_par.nz * sizeof(MUMPS_INT));
+    }
     if((mumps_par.a == NULL) || (mumps_par.irn == NULL) 
        || (mumps_par.jcn == NULL))
       {
