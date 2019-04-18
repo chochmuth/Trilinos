@@ -276,7 +276,7 @@ namespace FROSch {
         if (this->IsComputed_) {
             if (this->Verbose_)
                 std::cout << "\t### Overlapping Operator(" << LevelID_ << ") does use overlapping maps of previous compute." << std::endl;
-            if (this->ParameterList_->get("Reuse Symbolic Factorization",false)==false) {
+            if (this->ParameterList_->sublist("Solver").get("Reuse Symbolic Factorization",false)==false) {
                 if (this->Verbose_)
                     std::cout << "\t### Overlapping Operator(" << LevelID_ << ") is not reusing symbolic factorization." << std::endl;
                 if (OnFirstLevelComm_) {
