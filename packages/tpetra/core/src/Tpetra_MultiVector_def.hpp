@@ -4094,6 +4094,13 @@ namespace Tpetra {
     const bool Case3 = ! C_is_local && ! A_is_local && B_is_local &&
       transA == NO_TRANS;
 
+      using STLO = Teuchos::ScalarTraits<LocalOrdinal>;
+      if (Case2) {
+          if (A.getMap()->getNodeNumElements() == STLO::zero()  && B.getMap()->getNodeNumElements() == STLO::zero()) {
+              this->getDataNonConst(0)[0] = STS::zero();
+          }
+      }
+      
     // Test that we are considering a meaningful case
     TEUCHOS_TEST_FOR_EXCEPTION_CLASS_FUNC
       (! Case1 && ! Case2 && ! Case3, std::runtime_error,

@@ -106,6 +106,9 @@ namespace FROSch {
                                                  SC alpha,
                                                  SC beta) const
     {
+        
+        Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
+        
         FROSCH_ASSERT(this->IsComputed_,"ERROR: OverlappingOperator has to be computed before calling apply()");
 
 #ifdef FROSCH_TIMER
@@ -126,16 +129,22 @@ namespace FROSch {
         MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
 
         extend(xTmp,xOverlap);
-        yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
+        
+//        std::cout <<" xOverlapping " << std::endl;
+//        xOverlap->describe(*fancy,Teuchos::VERB_EXTREME);
 
         if (OnFirstLevelComm_) {
+            yOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
             SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
         }
+
         yOverlap->replaceMap(OverlappingMap_);
-        
         xTmp->putScalar(0.0);
         
         combine(yOverlap,xTmp);
+        
+//        std::cout <<" yOverlapping " << std::endl;
+//        xTmp->describe(*fancy,Teuchos::VERB_EXTREME);
         
         if (!usePreconditionerOnly && mode != Teuchos::NO_TRANS) {
             this->K_->apply(*xTmp,*xTmp,mode,1.0,0.0);
