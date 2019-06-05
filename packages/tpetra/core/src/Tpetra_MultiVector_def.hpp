@@ -4094,9 +4094,9 @@ namespace Tpetra {
     const bool Case3 = ! C_is_local && ! A_is_local && B_is_local &&
       transA == NO_TRANS;
 
-      using STLO = Teuchos::ScalarTraits<LocalOrdinal>;
+      using STs_t = Teuchos::ScalarTraits<size_t>;
       if (Case2) {
-          if (A.getMap()->getNodeNumElements() == STLO::zero()  && B.getMap()->getNodeNumElements() == STLO::zero()) {
+          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
               this->getDataNonConst(0)[0] = STS::zero();
           }
       }
@@ -4188,10 +4188,22 @@ namespace Tpetra {
     A_tmp = Teuchos::null;
     B_tmp = Teuchos::null;
 
+      if (Case2) {
+          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
+              for (auto i=0; i<this->getNumVectors(); i++) {
+                  Teuchos::ArrayRCP<Scalar> values = this->getDataNonConst(i);
+                  for (auto j=0; j<values.size(); j++)
+                      values[j] = STS::zero();
+              }
+          }
+      }
+
+      
     // If Case 2 then sum up *this and distribute it to all processes.
     if (Case2) {
       this->reduce ();
     }
+
   }
 
   template <class Scalar, class LocalOrdinal, class GlobalOrdinal, class Node>

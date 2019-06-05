@@ -44,6 +44,7 @@
 #include <EpetraExt_RowMatrixOut.h>
 #include <FROSch_CoarseOperator_decl.hpp>
 #include <MatrixMarket_Tpetra.hpp>
+#include <Epetra_MpiComm.h>
 namespace FROSch {
     
     template<class SC,class LO,class GO,class NO>
