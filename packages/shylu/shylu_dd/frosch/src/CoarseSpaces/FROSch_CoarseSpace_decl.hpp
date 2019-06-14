@@ -58,6 +58,7 @@ namespace FROSch {
     class CoarseSpace {
         
     public:
+        typedef Teuchos::RCP<const Teuchos::Comm<int> > CommPtr;
         
         typedef Xpetra::Map<LO,GO,NO> Map;
         typedef Teuchos::RCP<Map> MapPtr;
@@ -88,7 +89,7 @@ namespace FROSch {
         int addSubspace(MapPtr subspaceBasisMap,
                         MultiVectorPtr subspaceBasis = Teuchos::null);
         
-        int assembleCoarseSpace(bool notOnCoarseSolveComm=true);
+        int assembleCoarseSpace(bool notOnCoarseSolveComm=true, Xpetra::UnderlyingLib lib=Xpetra::UseTpetra, CommPtr mpiComm=Teuchos::null);
         
         int buildGlobalBasisMatrix(ConstMapPtr rowMap,
                                    ConstMapPtr repeatedMap,

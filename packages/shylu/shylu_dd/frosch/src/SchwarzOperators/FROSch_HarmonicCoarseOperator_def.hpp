@@ -236,7 +236,8 @@ namespace FROSch {
                                                                     UN dimension,
                                                                     MapPtr nodesMap,
                                                                     MultiVectorPtr nodeList,
-                                                                    EntitySetPtr interior)
+                                                                    EntitySetPtr interior,
+                                                                    bool notOnCoarseSolveComm)
     {
         // Process the parameter list
         std::stringstream blockIdStringstream;
@@ -275,8 +276,8 @@ namespace FROSch {
                 }
             }
             
-            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->NotOnCoarseSolveComm_);
-            
+            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->NotOnCoarseSolveComm_, nodesMap->lib(), this->MpiComm_);
+
             // Count entities
             GO numEntitiesGlobal = interior->getEntityMap()->getMaxAllGlobalIndex();
             if (interior->getEntityMap()->lib()==Xpetra::UseEpetra || interior->getEntityMap()->getGlobalNumElements()>0) {

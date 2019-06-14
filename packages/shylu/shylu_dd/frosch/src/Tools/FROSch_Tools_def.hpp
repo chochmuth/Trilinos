@@ -312,9 +312,14 @@ namespace FROSch {
     
     template <class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Map<LO,GO,NO> > AssembleMaps(Teuchos::ArrayView<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapVector,
-                                                      Teuchos::ArrayRCP<Teuchos::ArrayRCP<LO> > &partMappings)
+                                                      Teuchos::ArrayRCP<Teuchos::ArrayRCP<LO> > &partMappings,
+                                                      bool notOnCoarseSolveComm,
+                                                      Xpetra::UnderlyingLib lib,
+                                                      Teuchos::RCP< const Teuchos::Comm< int > > mpiComm)
     {
-        FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
+        if (notOnCoarseSolveComm)
+            FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
+
         LO i = 0;
         LO localstart = 0;
         LO sizetmp = 0;
@@ -350,7 +355,10 @@ namespace FROSch {
             
             //if (mapVector[j]->getComm()->getRank() == 0) std::cout << std::endl << globalstart << std::endl;
         }
-        return Xpetra::MapFactory<LO,GO,NO>::Build(mapVector[0]->lib(),-1,assembledMapTmp(),0,mapVector[0]->getComm());
+        if (!mpiComm.is_null())
+            return Xpetra::MapFactory<LO,GO,NO>::Build(lib,-1,assembledMapTmp(),0,mpiComm);
+        else
+            return Xpetra::MapFactory<LO,GO,NO>::Build(mapVector[0]->lib(),-1,assembledMapTmp(),0,mapVector[0]->getComm());
     }
     
     template <class LO,class GO,class NO>

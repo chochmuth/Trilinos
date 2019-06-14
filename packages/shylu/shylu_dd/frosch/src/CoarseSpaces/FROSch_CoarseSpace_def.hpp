@@ -80,14 +80,17 @@ namespace FROSch {
     }
     
     template <class SC,class LO,class GO,class NO>
-    int CoarseSpace<SC,LO,GO,NO>::assembleCoarseSpace(bool notOnCoarseSolveComm)
+    int CoarseSpace<SC,LO,GO,NO>::assembleCoarseSpace(bool notOnCoarseSolveComm, Xpetra::UnderlyingLib lib, CommPtr mpiComm )
     {
-        FROSCH_ASSERT(UnassembledBasesMaps_.size()>0,"UnassembledBasesMaps_.size()==0");
-        FROSCH_ASSERT(UnassembledSubspaceBases_.size()>0,"UnassembledSubspaceBases_.size()==0");
+        
+        if (notOnCoarseSolveComm) {
+            FROSCH_ASSERT(UnassembledBasesMaps_.size()>0,"UnassembledBasesMaps_.size()==0");
+            FROSCH_ASSERT(UnassembledSubspaceBases_.size()>0,"UnassembledSubspaceBases_.size()==0");
+        }
         
         UN itmp = 0;
         LOVecPtr2D partMappings;
-        AssembledBasisMap_ = AssembleMaps(UnassembledBasesMaps_(),partMappings);
+        AssembledBasisMap_ = AssembleMaps( UnassembledBasesMaps_(), partMappings, notOnCoarseSolveComm, lib ,mpiComm);
         if (!AssembledBasisMap_.is_null()&&!SerialRowMap_.is_null()) {
             if (AssembledBasisMap_->getGlobalNumElements()>0) { // AH 02/12/2019: Is this the right condition? Seems to work for now...
                 if (notOnCoarseSolveComm) {

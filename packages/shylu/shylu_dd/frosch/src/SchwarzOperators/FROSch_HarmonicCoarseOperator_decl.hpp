@@ -108,7 +108,8 @@ namespace FROSch {
                                    UN dimension,
                                    MapPtr nodesMap,
                                    MultiVectorPtr nodeList,
-                                   EntitySetPtr interior);
+                                   EntitySetPtr interior,
+                                   bool notOnCoarseSolveComm=true);
         
         virtual MultiVectorPtrVecPtr computeTranslations(UN blockId,
                                                          EntitySetPtr entitySet);

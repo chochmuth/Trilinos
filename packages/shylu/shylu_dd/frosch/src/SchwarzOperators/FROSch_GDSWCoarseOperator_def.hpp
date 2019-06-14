@@ -355,10 +355,19 @@ namespace FROSch {
 //        FullTM.setStackedTimer(Teuchos::null);
 //#endif
         // Check for interface
+//
+        
+        //CH 06/13/19: We need to check if "Mpi Ranks Coarse" > 0. If this is the case we need to only determine for all ranks, which are not coarse solve ranks if we have no interface. Coarse solve ranks will always have no interface as the global problem does not have any entries on these ranks.
+        // We assume that computeVolumeFunctions() will be called on all subdomains with NotOnCoarseSolveComm_==true
+        UN numNodes = interface->getEntity(0)->getNumNodes();
+        UN numNodesSum = 0;
+        Teuchos::reduceAll ( *this->MpiComm_,  Teuchos::REDUCE_SUM, 1, &numNodes, &numNodesSum );
 
-        if (this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes()==0 && this->NotOnCoarseSolveComm_) {
-            //CH 04/11/19: We need to test the behaviour for parallel coarse solven and volume functions
-            this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior);
+//
+        if (this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes()==0  && numNodesSum==0) {
+            //CH 04/11/19: We need to test the behaviour for parallel coarse solves and volume functions
+            //CH 06/13/19: This will only work if computeVolumeFunctions(...) is called on all subdomains
+            this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior,this->NotOnCoarseSolveComm_);
         } else {
             this->GammaDofs_[blockId] = LOVecPtr(this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes());
             this->IDofs_[blockId] = LOVecPtr(this->DofsPerNode_[blockId]*interior->getEntity(0)->getNumNodes());

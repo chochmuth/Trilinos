@@ -90,7 +90,7 @@ namespace FROSch {
         
         int addEntitySet(EntitySetPtr entitySet);
         
-        int buildEntityMap(ConstMapPtr localToGlobalNodesMap);
+        int buildEntityMap(ConstMapPtr localToGlobalNodesMap, bool notOnCoarseSolveComm=true);
         
         int findAncestorsInSet(EntitySetPtr entitySet);
         

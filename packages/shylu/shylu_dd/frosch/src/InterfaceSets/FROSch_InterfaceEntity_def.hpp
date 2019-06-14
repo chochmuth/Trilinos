@@ -201,7 +201,9 @@ namespace FROSch {
     template <class SC,class LO,class GO,class NO>
     int InterfaceEntity<SC,LO,GO,NO>::setUniqueIDToFirstGlobalID()
     {
-        UniqueID_ = NodeVector_[0].NodeIDGlobal_;
+        if (NodeVector_.size()>0)
+            UniqueID_ = NodeVector_[0].NodeIDGlobal_;
+
         return 0;
     }
     

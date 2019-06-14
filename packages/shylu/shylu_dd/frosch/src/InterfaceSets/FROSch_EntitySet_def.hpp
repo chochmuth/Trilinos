@@ -93,7 +93,7 @@ namespace FROSch {
     }
     
     template<class SC,class LO,class GO,class NO>
-    int EntitySet<SC,LO,GO,NO>::buildEntityMap(ConstMapPtr localToGlobalNodesMap)
+    int EntitySet<SC,LO,GO,NO>::buildEntityMap(ConstMapPtr localToGlobalNodesMap, bool notOnCoarseSolveComm)
     {
         if (!EntityMapIsUpToDate_) {
             LO localNumberEntities = getNumEntities();
@@ -117,12 +117,18 @@ namespace FROSch {
                 GOVec allEntities(maxLocalNumberEntities*localToGlobalNodesMap->getComm()->getSize(),0);
                 //localToGlobalNodesMap->getComm().GatherAll(&(entities->at(0)),&(allEntities->at(0)),maxLocalNumberEntities);
                 gatherAll(*localToGlobalNodesMap->getComm(),maxLocalNumberEntities,entities.getRawPtr(),maxLocalNumberEntities*localToGlobalNodesMap->getComm()->getSize(),allEntities.getRawPtr());
-                
+
                 allEntities.push_back(0); // Um sicherzugehen, dass der erste Eintrag nach sort_unique eine 0 ist.
-                
+            
                 sortunique(allEntities);
                 
                 localToGlobalVector.resize(localNumberEntities);
+
+                if (!notOnCoarseSolveComm){
+                    allEntities.resize(0);
+                    localToGlobalVector.resize(0);
+                }
+
                 int LocalID;
                 for (UN i=1; i<allEntities.size(); i++) { // Wir fangen bei 1 an, weil wir am Anfang 1 auf die ID addiert haben
                     LocalID = entityMapping->getLocalElement(allEntities[i]);
@@ -132,7 +138,11 @@ namespace FROSch {
                 }
                 
             }
+            std::cout << localToGlobalNodesMap->getComm()->getRank() << "build map!"<<std::endl;
             EntityMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(localToGlobalNodesMap->lib(),-1,localToGlobalVector(),0,localToGlobalNodesMap->getComm());
+            std::cout << localToGlobalNodesMap->getComm()->getRank() << "map was built!"<<std::endl;
+            Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(cout));
+            EntityMap_->describe(*fancy,Teuchos::VERB_EXTREME);
             EntityMapIsUpToDate_ = true;
         }
         return 0;
