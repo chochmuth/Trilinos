@@ -50,7 +50,9 @@
 #include "BelosOperatorTraits.hpp"
 #include "Teuchos_ParameterList.hpp"
 #include "Teuchos_TimeMonitor.hpp"
-
+#include "Thyra_DefaultProductMultiVector_decl.hpp"
+#include <Tpetra_MultiVector_decl.hpp>
+#include <Teuchos_VerboseObject.hpp>
 namespace Belos {
 
   //! @name LinearProblem Exceptions
@@ -857,7 +859,10 @@ namespace Belos {
       X_ = newX;
     if (newB != Teuchos::null)
       B_ = newB;
+      
 
+  Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
+  typedef Thyra::MultiVectorBase<double> thyraPMV;
     // Invalidate the current linear system indices and multivectors.
     rhsIndex_.resize(0);
     curX_ = Teuchos::null;
@@ -880,8 +885,9 @@ namespace Belos {
       if (R0_==Teuchos::null || MVT::GetNumberVecs( *R0_ )!=MVT::GetNumberVecs( *B_ )) {
         R0_ = MVT::Clone( *B_, MVT::GetNumberVecs( *B_ ) );
       }
-      computeCurrResVec( &*R0_, &*X_, &*B_ );
 
+      computeCurrResVec( &*R0_, &*X_, &*B_ );
+        
       if (LP_!=Teuchos::null) {
         if (PR0_==Teuchos::null || (PR0_==R0_) || (MVT::GetNumberVecs(*PR0_)!=MVT::GetNumberVecs(*B_))) {
           PR0_ = MVT::Clone( *B_, MVT::GetNumberVecs( *B_ ) );
@@ -994,12 +1000,21 @@ namespace Belos {
     const bool leftPrec = LP_ != null;
     const bool rightPrec = RP_ != null;
 
+      Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
+      typedef Thyra::MultiVectorBase<double> thyraPMV;
+
     // We only need a temporary vector for intermediate results if
     // there is a left or right preconditioner.  We really should just
     // keep this temporary vector around instead of allocating it each
     // time.
     RCP<MV> ytemp = (leftPrec || rightPrec) ? MVT::Clone (y, MVT::GetNumberVecs (y)) : null;
 
+      std::cout << "Y:" << std::endl;
+        Teuchos::RCP<MV> yPtr = Teuchos::rcpFromRef(y);
+      Teuchos::RCP<thyraPMV> thyraYY = Teuchos::rcp_dynamic_cast<thyraPMV> (yPtr);
+      thyraYY->describe(*out,Teuchos::VERB_EXTREME);
+
+      
     //
     // No preconditioning.
     // 
@@ -1060,6 +1075,19 @@ namespace Belos {
 #ifdef BELOS_TEUCHOS_TIME_MONITOR
           Teuchos::TimeMonitor PrecTimer(*timerPrec_);
 #endif
+            std::cout << "X:" << std::endl;
+            Teuchos::RCP<const MV> xPtr = Teuchos::rcpFromRef(x);
+            Teuchos::RCP<const thyraPMV> thyraX = Teuchos::rcp_dynamic_cast<const thyraPMV> (xPtr);
+            
+            thyraX->describe(*out,Teuchos::VERB_EXTREME);
+
+            std::cout << "Ytmp:" << std::endl;
+            Teuchos::RCP<thyraPMV> thyraY = Teuchos::rcp_dynamic_cast<thyraPMV> (ytemp);
+            thyraY->describe(*out,Teuchos::VERB_EXTREME);
+
+
+            
+
 	  OPT::Apply( *RP_, x, *ytemp );
         }
         {
