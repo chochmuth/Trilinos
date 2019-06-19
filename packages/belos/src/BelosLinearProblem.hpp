@@ -1009,7 +1009,7 @@ namespace Belos {
     // time.
     RCP<MV> ytemp = (leftPrec || rightPrec) ? MVT::Clone (y, MVT::GetNumberVecs (y)) : null;
 
-      std::cout << "Y:" << std::endl;
+      std::cout << "Y Belos apply:" << std::endl;
         Teuchos::RCP<MV> yPtr = Teuchos::rcpFromRef(y);
       Teuchos::RCP<thyraPMV> thyraYY = Teuchos::rcp_dynamic_cast<thyraPMV> (yPtr);
       thyraYY->describe(*out,Teuchos::VERB_EXTREME);
@@ -1075,15 +1075,15 @@ namespace Belos {
 #ifdef BELOS_TEUCHOS_TIME_MONITOR
           Teuchos::TimeMonitor PrecTimer(*timerPrec_);
 #endif
-            std::cout << "X:" << std::endl;
-            Teuchos::RCP<const MV> xPtr = Teuchos::rcpFromRef(x);
-            Teuchos::RCP<const thyraPMV> thyraX = Teuchos::rcp_dynamic_cast<const thyraPMV> (xPtr);
-            
-            thyraX->describe(*out,Teuchos::VERB_EXTREME);
-
-            std::cout << "Ytmp:" << std::endl;
-            Teuchos::RCP<thyraPMV> thyraY = Teuchos::rcp_dynamic_cast<thyraPMV> (ytemp);
-            thyraY->describe(*out,Teuchos::VERB_EXTREME);
+//            std::cout << "X:" << std::endl;
+//            Teuchos::RCP<const MV> xPtr = Teuchos::rcpFromRef(x);
+//            Teuchos::RCP<const thyraPMV> thyraX = Teuchos::rcp_dynamic_cast<const thyraPMV> (xPtr);
+//            
+//            thyraX->describe(*out,Teuchos::VERB_EXTREME);
+//
+//            std::cout << "Ytmp:" << std::endl;
+//            Teuchos::RCP<thyraPMV> thyraY = Teuchos::rcp_dynamic_cast<thyraPMV> (ytemp);
+//            thyraY->describe(*out,Teuchos::VERB_EXTREME);
 
 
             
