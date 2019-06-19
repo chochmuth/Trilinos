@@ -1009,10 +1009,10 @@ namespace Belos {
     // time.
     RCP<MV> ytemp = (leftPrec || rightPrec) ? MVT::Clone (y, MVT::GetNumberVecs (y)) : null;
 
-      std::cout << "Y Belos apply:" << std::endl;
-        Teuchos::RCP<MV> yPtr = Teuchos::rcpFromRef(y);
-      Teuchos::RCP<thyraPMV> thyraYY = Teuchos::rcp_dynamic_cast<thyraPMV> (yPtr);
-      thyraYY->describe(*out,Teuchos::VERB_EXTREME);
+//      std::cout << "Y Belos apply:" << std::endl;
+//        Teuchos::RCP<MV> yPtr = Teuchos::rcpFromRef(y);
+//      Teuchos::RCP<thyraPMV> thyraYY = Teuchos::rcp_dynamic_cast<thyraPMV> (yPtr);
+//      thyraYY->describe(*out,Teuchos::VERB_EXTREME);
 
       
     //
