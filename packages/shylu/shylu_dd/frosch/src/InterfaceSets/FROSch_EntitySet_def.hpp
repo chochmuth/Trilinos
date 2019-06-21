@@ -138,11 +138,8 @@ namespace FROSch {
                 }
                 
             }
-            std::cout << localToGlobalNodesMap->getComm()->getRank() << "build map!"<<std::endl;
+
             EntityMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(localToGlobalNodesMap->lib(),-1,localToGlobalVector(),0,localToGlobalNodesMap->getComm());
-            std::cout << localToGlobalNodesMap->getComm()->getRank() << "map was built!"<<std::endl;
-            Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(cout));
-            EntityMap_->describe(*fancy,Teuchos::VERB_EXTREME);
             EntityMapIsUpToDate_ = true;
         }
         return 0;
