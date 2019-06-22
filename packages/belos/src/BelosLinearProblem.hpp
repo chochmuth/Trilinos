@@ -859,8 +859,6 @@ namespace Belos {
       B_ = newB;
       
 
-  Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
-  typedef Thyra::MultiVectorBase<double> thyraPMV;
     // Invalidate the current linear system indices and multivectors.
     rhsIndex_.resize(0);
     curX_ = Teuchos::null;
