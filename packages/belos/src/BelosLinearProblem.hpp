@@ -50,9 +50,7 @@
 #include "BelosOperatorTraits.hpp"
 #include "Teuchos_ParameterList.hpp"
 #include "Teuchos_TimeMonitor.hpp"
-#include "Thyra_DefaultProductMultiVector_decl.hpp"
-#include <Tpetra_MultiVector_decl.hpp>
-#include <Teuchos_VerboseObject.hpp>
+
 namespace Belos {
 
   //! @name LinearProblem Exceptions
