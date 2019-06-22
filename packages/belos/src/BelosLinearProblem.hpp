@@ -998,9 +998,6 @@ namespace Belos {
     const bool leftPrec = LP_ != null;
     const bool rightPrec = RP_ != null;
 
-      Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
-      typedef Thyra::MultiVectorBase<double> thyraPMV;
-
     // We only need a temporary vector for intermediate results if
     // there is a left or right preconditioner.  We really should just
     // keep this temporary vector around instead of allocating it each
