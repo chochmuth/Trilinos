@@ -87,7 +87,8 @@ namespace FROSch {
         CoarseSpace();
         
         int addSubspace(MapPtr subspaceBasisMap,
-                        MultiVectorPtr subspaceBasis = Teuchos::null);
+                        MultiVectorPtr subspaceBasis = Teuchos::null,
+                        bool notOnCoarseSolveComm=true);
         
         int assembleCoarseSpace(bool notOnCoarseSolveComm=true, Xpetra::UnderlyingLib lib=Xpetra::UseTpetra, CommPtr mpiComm=Teuchos::null);
         

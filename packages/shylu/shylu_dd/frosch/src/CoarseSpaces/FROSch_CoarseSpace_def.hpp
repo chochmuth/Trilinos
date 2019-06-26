@@ -61,9 +61,12 @@ namespace FROSch {
     // Will man Informationen über die Subspaces als strings reingeben?
     template <class SC,class LO,class GO,class NO>
     int CoarseSpace<SC,LO,GO,NO>::addSubspace(MapPtr subspaceBasisMap,
-                                              MultiVectorPtr localSubspaceBasis)
+                                              MultiVectorPtr localSubspaceBasis,
+                                              bool notOnCoarseSolveComm)
     {
-        FROSCH_ASSERT(!subspaceBasisMap.is_null(),"subspaceBasisMap.is_null()");
+        if (notOnCoarseSolveComm)
+            FROSCH_ASSERT(!subspaceBasisMap.is_null(),"subspaceBasisMap.is_null()");
+
         if (!localSubspaceBasis.is_null()) {
             FROSCH_ASSERT(localSubspaceBasis->getNumVectors()==subspaceBasisMap->getNodeNumElements(),"localSubspaceBasis->getNumVectors()!=subspaceBasisMap->getNodeNumElements()");
             if (!SerialRowMap_.is_null()) {
@@ -95,11 +98,11 @@ namespace FROSch {
             if (AssembledBasisMap_->getGlobalNumElements()>0) { // AH 02/12/2019: Is this the right condition? Seems to work for now...
                 if (notOnCoarseSolveComm) {
                     AssembledBasis_ = Xpetra::MultiVectorFactory<SC,LO,GO,NO >::Build(SerialRowMap_,AssembledBasisMap_->getNodeNumElements());
-                }
-                for (UN i=0; i<UnassembledBasesMaps_.size(); i++) {
-                    for (UN j=0; j<UnassembledBasesMaps_[i]->getNodeNumElements(); j++) {
-                        AssembledBasis_->getDataNonConst(itmp).deepCopy(UnassembledSubspaceBases_[i]->getData(j)()); // Here, we copy data. Do we need to do this?
-                        itmp++;
+                    for (UN i=0; i<UnassembledBasesMaps_.size(); i++) {
+                        for (UN j=0; j<UnassembledBasesMaps_[i]->getNodeNumElements(); j++) {
+                            AssembledBasis_->getDataNonConst(itmp).deepCopy(UnassembledSubspaceBases_[i]->getData(j)()); // Here, we copy data. Do we need to do this?
+                            itmp++;
+                        }
                     }
                 }
             }

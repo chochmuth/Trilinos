@@ -126,7 +126,7 @@ namespace FROSch {
         // Build the saddle point harmonic extensions
         MultiVectorPtr localCoarseSpaceBasis = computeExtensions(repeatedMatrix->getRowMap(),coarseMap,indicesGammaDofsAll(),indicesIDofsAll(),kII,kIGamma);
         
-        coarseSpace->addSubspace(coarseMap,localCoarseSpaceBasis);
+        coarseSpace->addSubspace(coarseMap,localCoarseSpaceBasis, this->NotOnCoarseSolveComm_);
 
         return repeatedMap;
     }
@@ -136,13 +136,15 @@ namespace FROSch {
     {
         GOVec mapVector(0);
         GO tmp = 0;
-        for (UN i=0; i<NumberOfBlocks_; i++) {
-            if (InterfaceCoarseSpaces_[i]->hasBasisMap()) {
-                for (UN j=0; j<InterfaceCoarseSpaces_[i]->getBasisMap()->getNodeNumElements(); j++) {
-                    mapVector.push_back(InterfaceCoarseSpaces_[i]->getBasisMap()->getGlobalElement(j)+tmp);
-                }
-                if (InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()>=0) {
-                    tmp += InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()+1;
+        if (this->NotOnCoarseSolveComm_) {
+            for (UN i=0; i<NumberOfBlocks_; i++) {
+                if (InterfaceCoarseSpaces_[i]->hasBasisMap()) {
+                    for (UN j=0; j<InterfaceCoarseSpaces_[i]->getBasisMap()->getNodeNumElements(); j++) {
+                        mapVector.push_back(InterfaceCoarseSpaces_[i]->getBasisMap()->getGlobalElement(j)+tmp);
+                    }
+                    if (InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()>=0) {
+                        tmp += InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()+1;
+                    }
                 }
             }
         }
