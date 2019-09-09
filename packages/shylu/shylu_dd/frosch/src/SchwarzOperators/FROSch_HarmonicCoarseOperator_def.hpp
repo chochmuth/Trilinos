@@ -43,7 +43,7 @@
 #define _FROSCH_HARMONICCOARSEOPERATOR_DEF_HPP
 
 #include <FROSch_HarmonicCoarseOperator_decl.hpp>
-
+#include <MatrixMarket_Tpetra.hpp>
 namespace FROSch {
     
     template <class SC,class LO,class GO,class NO>
