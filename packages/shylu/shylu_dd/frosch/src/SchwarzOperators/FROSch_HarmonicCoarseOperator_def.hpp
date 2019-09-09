@@ -470,6 +470,13 @@ namespace FROSch {
                 if (sublist(this->ParameterList_,"ExtensionSolver")->get("Reuse Symbolic Factorization",false)==false || !this->IsComputed_) {
                     if (this->Verbose_)
                         std::cout << "\t### Harmonic extensions are not reusing symbolic factorizations." << std::endl;
+                    int rank = this->MpiComm_->getRank();
+                    Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
+
+                    if (rank==296) {
+                        kII->getRowMap()->describe(*fancy,Teuchos::VERB_EXTREME);
+                        kII->getColMap()->describe(*fancy,Teuchos::VERB_EXTREME);
+                    }
                     
                     if ( sublist(this->ParameterList_,"ExtensionSolver")->get("Export KII",false) ){
                         typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
@@ -479,7 +486,7 @@ namespace FROSch {
                         Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
                         TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
                         Tpetra::MatrixMarket::Writer< TpetraCrsMatrix > tpetraWriter;
-                        std::string kIIFileName = "KII_" + std::to_string(this->MpiComm_->getRank()) + ".mm";
+                        std::string kIIFileName = "KII_" + std::to_string(rank) + ".mm";
                         tpetraWriter.writeSparseFile(kIIFileName, tpetraMat, "matrix", "");
 
                     }
