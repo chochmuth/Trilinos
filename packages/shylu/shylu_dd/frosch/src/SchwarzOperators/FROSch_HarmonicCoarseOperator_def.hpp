@@ -479,7 +479,7 @@ namespace FROSch {
                         Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
                         TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
                         Tpetra::MatrixMarket::Writer< TpetraCrsMatrix > tpetraWriter;
-                        std::string kIIFileName = "KII_" + std::to_string(this->comm_->getRank()) + ".mm"
+                        std::string kIIFileName = "KII_" + std::to_string(this->comm_->getRank()) + ".mm";
                         tpetraWriter.writeSparseFile(kIIFileName, tpetraMat, "matrix", "");
 
                     }
