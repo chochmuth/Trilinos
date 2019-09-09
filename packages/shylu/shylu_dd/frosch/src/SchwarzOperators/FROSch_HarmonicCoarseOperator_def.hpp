@@ -471,6 +471,19 @@ namespace FROSch {
                     if (this->Verbose_)
                         std::cout << "\t### Harmonic extensions are not reusing symbolic factorizations." << std::endl;
                     
+                    if ( sublist(this->ParameterList_,"ExtensionSolver")->get("Export KII",false) ){
+                        typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
+                        typedef Teuchos::RCP<TpetraCrsMatrix> TpetraCrsMatrixPtr;
+                        
+                        Xpetra::CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO,NO>&>(*kII);
+                        Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
+                        TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+                        Tpetra::MatrixMarket::Writer< TpetraCrsMatrix > tpetraWriter;
+                        std::string kIIFileName = "KII_" + std::to_string(this->comm_->getRank()) + ".mm"
+                        tpetraWriter.writeSparseFile(kIIFileName, tpetraMat, "matrix", "");
+
+                    }
+                    
                     // Jetzt der solver für kII
                     ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));
                     // DAS MÜSSEN WIR NOCH ÄNDERN -> initialize, compute, apply...
