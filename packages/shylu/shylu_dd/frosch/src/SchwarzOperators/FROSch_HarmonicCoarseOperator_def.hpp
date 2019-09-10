@@ -122,7 +122,7 @@ namespace FROSch {
                 
             }
             
-            FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma , rank);
+            FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma , repeatedMap);
 #ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
 #endif
