@@ -162,9 +162,10 @@ namespace FROSch {
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kII,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kIJ,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJI,
-                         Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJJ)
+                         Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJJ,
+                         int rank)
     {
-        int rank=k->getRowMap()->getComm()->getRank();
+
         // We need four Maps
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mapI = Xpetra::MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indI(),0,k->getRowMap()->getComm());
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mapILocal = Xpetra::MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indI.size(),0,k->getRowMap()->getComm());
