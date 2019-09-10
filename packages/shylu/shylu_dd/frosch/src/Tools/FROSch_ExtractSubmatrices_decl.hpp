@@ -73,7 +73,7 @@ namespace FROSch {
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kIJ,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJI,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJJ,
-                         int rank=-1);
+                         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > repeatedMap=Teuchos::null);
     
     template <class SC,class LO,class GO,class NO>
     int BuildSubmatrix(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > k,

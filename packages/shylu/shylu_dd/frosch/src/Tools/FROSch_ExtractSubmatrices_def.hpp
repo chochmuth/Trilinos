@@ -163,7 +163,7 @@ namespace FROSch {
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kIJ,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJI,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJJ,
-                         int rank)
+                         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > repeatedMap)
     {
 
         // We need four Maps
@@ -176,6 +176,8 @@ namespace FROSch {
                 indJ.push_back(i);
             }
         }
+        
+        int rank = repeatedMap->getComm()->getRank();
         
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mapJ = Xpetra::MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indJ(),0,k->getRowMap()->getComm());
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mapJLocal = Xpetra::MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indJ.size(),0,k->getRowMap()->getComm());
@@ -199,7 +201,7 @@ namespace FROSch {
             LO tmp2=0;
             if (tmp1>=0) {
                 if (rank==296) {
-                    std::cout << "i:"<<i <<" globID inner:" << k->getRowMap()->getGlobalElement(i) << std::endl;
+                    std::cout << "i:"<<i <<" globID inner:" << repeatedMap->getGlobalElement(i) << std::endl;
                 }
                 
                 
