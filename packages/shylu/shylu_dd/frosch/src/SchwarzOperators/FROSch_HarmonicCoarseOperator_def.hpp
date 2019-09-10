@@ -115,7 +115,7 @@ namespace FROSch {
             TimeMonitor_Type SubMatKTM(*SubMatKTimer_);
 #endif
             int rank = this->MpiComm_->getRank();
-            if ( rank = 296 ) {
+            if ( rank == 296 ) {
                 for (int i=0; i<indicesIDofsAll.size(); i++) {
                     std::cout << "i:" << i << " Idof:" << indicesIDofsAll[i] << std::endl;
                 }
