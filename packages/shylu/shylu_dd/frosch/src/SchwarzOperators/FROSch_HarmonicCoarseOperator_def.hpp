@@ -114,6 +114,14 @@ namespace FROSch {
             this->MpiComm_->barrier();
             TimeMonitor_Type SubMatKTM(*SubMatKTimer_);
 #endif
+            int rank = this->MpiComm_->getRank();
+            if ( rank = 296 ) {
+                for (int i=0; i<indicesIDofsAll.size(); i++) {
+                    std::cout << "i:" << i << " Idof:" << indicesIDofsAll[i] << std::endl;
+                }
+                
+            }
+            
             FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma);
 #ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
@@ -473,10 +481,10 @@ namespace FROSch {
                     int rank = this->MpiComm_->getRank();
                     Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
 
-                    if (rank==296) {
-                        kII->getRowMap()->describe(*fancy,Teuchos::VERB_EXTREME);
-                        kII->getColMap()->describe(*fancy,Teuchos::VERB_EXTREME);
-                    }
+//                    if (rank==296) {
+//                        kII->getRowMap()->describe(*fancy,Teuchos::VERB_EXTREME);
+//                        kII->getColMap()->describe(*fancy,Teuchos::VERB_EXTREME);
+//                    }
                     
                     if ( sublist(this->ParameterList_,"ExtensionSolver")->get("Export KII",false) ){
                         typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
