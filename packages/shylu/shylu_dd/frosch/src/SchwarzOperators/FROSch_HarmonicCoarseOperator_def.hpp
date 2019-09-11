@@ -114,15 +114,8 @@ namespace FROSch {
             this->MpiComm_->barrier();
             TimeMonitor_Type SubMatKTM(*SubMatKTimer_);
 #endif
-            int rank = this->MpiComm_->getRank();
-            if ( rank == 296 ) {
-                for (int i=0; i<indicesIDofsAll.size(); i++) {
-                    std::cout << "i:" << i << " Idof:" << indicesIDofsAll[i] << std::endl;
-                }
-                
-            }
             bool checkEmptyCols = sublist(this->ParameterList_,"ExtensionSolver")->get("Check for empty columns",false);
-            FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma , repeatedMap,  checkEmptyCols);
+            FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma,  checkEmptyCols);
 #ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
 #endif

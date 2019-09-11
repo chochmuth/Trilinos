@@ -163,7 +163,6 @@ namespace FROSch {
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kIJ,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJI,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJJ,
-                         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > repeatedMap,
                          bool checkEmptyCols)
     {
 
@@ -177,8 +176,6 @@ namespace FROSch {
                 indJ.push_back(i);
             }
         }
-        
-        int rank = repeatedMap->getComm()->getRank();
         
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mapJ = Xpetra::MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indJ(),0,k->getRowMap()->getComm());
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mapJLocal = Xpetra::MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indJ.size(),0,k->getRowMap()->getComm());
@@ -206,10 +203,6 @@ namespace FROSch {
             LO tmp1=mapI->getLocalElement(i);
             LO tmp2=0;
             if (tmp1>=0) {
-                if (rank==296) {
-                    std::cout << "i:"<<i <<" globID inner:" << repeatedMap->getGlobalElement(i) << std::endl;
-                }
-                
                 
                 for (LO j=0; j<indices.size(); j++) {
                     tmp2 = mapI->getLocalElement(colMap->getGlobalElement(indices[j]));
@@ -265,7 +258,6 @@ namespace FROSch {
                        Teuchos::ArrayView<GO> indI,
                        Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kII)
     {
-                Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
      
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mapI = Xpetra::MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indI(),0,k->getRowMap()->getComm());
         
@@ -293,7 +285,7 @@ namespace FROSch {
                         valuesI.push_back(values[j]);
                     }
                 }
-                //cout << k->getRowMap().Comm().getRank() << " " << tmp1 << " numEntries " << numEntries << " indicesI.size() " << indicesI.size() << " indicesJ.size() " << indicesJ.size() << std::endl;
+
                 kII->insertGlobalValues(mapI->getGlobalElement(tmp1),indicesI(),valuesI());
             }
         }
