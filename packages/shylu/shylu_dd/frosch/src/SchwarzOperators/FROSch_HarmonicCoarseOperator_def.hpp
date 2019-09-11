@@ -121,8 +121,8 @@ namespace FROSch {
                 }
                 
             }
-            
-            FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma , repeatedMap);
+            bool checkEmptyCols = sublist(this->ParameterList_,"ExtensionSolver")->get("Check for empty columns",false);
+            FROSch::BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma , repeatedMap,  checkEmptyCols);
 #ifdef FROSCH_DETAIL_TIMER
             this->MpiComm_->barrier();
 #endif

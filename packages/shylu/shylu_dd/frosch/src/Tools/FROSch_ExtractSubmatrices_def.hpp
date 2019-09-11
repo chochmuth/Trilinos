@@ -163,7 +163,8 @@ namespace FROSch {
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kIJ,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJI,
                          Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &kJJ,
-                         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > repeatedMap)
+                         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > repeatedMap,
+                         bool checkEmptyCols)
     {
 
         // We need four Maps
@@ -186,6 +187,11 @@ namespace FROSch {
         kIJ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(mapILocal,std::min((LO) k->getGlobalMaxNumRowEntries(),(LO) indJ.size()));
         kJI = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(mapJLocal,std::min((LO) k->getGlobalMaxNumRowEntries(),(LO) indI.size()));
         kJJ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(mapJLocal,std::min((LO) k->getGlobalMaxNumRowEntries(),(LO) indJ.size()));
+        
+        Teuchos::Array<SC> colSums;
+        if (checkEmptyCols)
+            colSums.resize(indI.size(), 0.);
+        
         
         for (unsigned i=0; i<k->getNodeNumRows(); i++) {
             Teuchos::ArrayView<const LO> indices;
@@ -210,6 +216,8 @@ namespace FROSch {
                     if (tmp2>=0) {
                         indicesI.push_back(tmp2);
                         valuesI.push_back(values[j]);
+                        if (checkEmptyCols)
+                            colSums[tmp2] += std::fabs(values[j]);
                     } else {
                         indicesJ.push_back(mapJ->getLocalElement(colMap->getGlobalElement(indices[j])));
                         valuesJ.push_back(values[j]);
@@ -232,6 +240,16 @@ namespace FROSch {
                 }
                 kJI->insertGlobalValues(tmp1,indicesI(),valuesI());
                 kJJ->insertGlobalValues(tmp1,indicesJ(),valuesJ());
+            }
+        }
+        
+        if (checkEmptyCols) {
+            Teuchos::Array<SC> additinalValueI(1, Teuchos::ScalarTraits<SC>::one());
+            for (unsigned j=0; j<colSums.size(); j++) {
+                if (colSums[j] - Teuchos::ScalarTraits<SC>::eps() < Teuchos::ScalarTraits<SC>::zero()) {
+                    Teuchos::Array<GO> indexI(1,j);
+                    kII->insertGlobalValues(j,indexI(),additinalValueI());
+                }
             }
         }
         
