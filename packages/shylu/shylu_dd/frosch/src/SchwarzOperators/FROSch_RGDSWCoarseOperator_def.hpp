@@ -114,7 +114,7 @@ namespace FROSch {
         interior = this->DDInterface_->getInterior();
 
         // Check for interface
-        if (this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes()==0 && this->NotOnCoarseSolveComm_) {
+        if (this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes()==0 && this->OnLocalSolveComm_) {
             //CH 04/11/19: We need to test the behaviour for parallel coarse solves and volume functions
             this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior);
         } else {
@@ -155,7 +155,7 @@ namespace FROSch {
                     }
                 }
                 
-                this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->NotOnCoarseSolveComm_);
+                this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->OnLocalSolveComm_);
                 
                 // Count entities
                 GO numCoarseNodesGlobal;

@@ -64,9 +64,11 @@ namespace FROSch {
     CoarseSolver_ (),
     DistributionList_ (sublist(parameterList,"Distribution")),
     CoarseSolveExporters_ (0),
-    NotOnCoarseSolveComm_(false),
+    //NotOnCoarseSolveComm_(false),
+    OnLocalSolveComm_(false),
     SwapMap_(),
-    SwapExporter_()
+    SwapExporter_(),
+    CoarseRankRange_(2,0)
 #ifdef FROSCH_TIMER
     ,InterfaceTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Build Interface")),
     ComputePhiTimer_(TimeMonitor_Type::getNewCounter("FROSch: Coarse Operator: Compute Basis")),
@@ -83,9 +85,14 @@ namespace FROSch {
 #endif
 
     {
-        if (this->MpiComm_->getRank() < this->MpiComm_->getSize() - this->ParameterList_->get("Mpi Ranks Coarse",0)) {
-            NotOnCoarseSolveComm_ = true;
-        }
+        CoarseRankRange_[0] = this->getParameterList()->get("Coarse problem ranks lower bound",0);
+        CoarseRankRange_[1] = this->getParameterList()->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1);
+        if ( this->MpiComm_->getRank() >= this->RankRange_[0] && this->MpiComm_->getRank() <= this->RankRange_[0] )
+            OnLocalSolveComm_ = true;
+
+//        if (this->MpiComm_->getRank() < this->MpiComm_->getSize() - this->ParameterList_->get("Mpi Ranks Coarse",0)) {
+//            NotOnCoarseSolveComm_ = true;
+//        }
     }
     
     template<class SC,class LO,class GO,class NO>
@@ -119,9 +126,10 @@ namespace FROSch {
                 subdomainMap = this->computeCoarseSpace(CoarseSpace_); // AH 12/11/2018: This map could be overlapping, repeated, or unique. This depends on the specific coarse operator
             }
 
-            CoarseSpace_->assembleCoarseSpace(NotOnCoarseSolveComm_);
-
-            CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8),NotOnCoarseSolveComm_);
+//            CoarseSpace_->assembleCoarseSpace( NotOnCoarseSolveComm_ );
+            CoarseSpace_->assembleCoarseSpace( OnLocalSolveComm_ );
+//            CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8),NotOnCoarseSolveComm_);
+            CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8),OnLocalSolveComm_);
             Phi_ = CoarseSpace_->getGlobalBasisMatrix();
 
             this->setUpCoarseOperator();
@@ -160,15 +168,17 @@ namespace FROSch {
                 this->K_->apply(x,*xTmp,mode,1.0,0.0);
             }
             
+            int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+            
             MultiVectorPtr xCoarseSolve;
-            if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0)
+            if (coarseRankRangeDiff < this->MpiComm_->getSize()-1)
                 xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(SwapMap_,y.getNumVectors());
             else
                 xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],y.getNumVectors());
 
             
             MultiVectorPtr yCoarseSolve;
-            if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0)
+            if (coarseRankRangeDiff < this->MpiComm_->getSize()-1)
                 yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(SwapMap_,y.getNumVectors());
             else
                 yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],y.getNumVectors());
@@ -234,7 +244,8 @@ namespace FROSch {
             xCoarseSolveTmp->doExport(*xCoarse,*CoarseSolveExporters_[j],Xpetra::ADD);
             xCoarse = xCoarseSolveTmp;
         }
-        if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
+        int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+        if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
             xCoarseSolveTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(SwapMap_,x.getNumVectors());
             xCoarseSolveTmp->doImport(*xCoarse,*SwapExporter_,Xpetra::ADD);
         }
@@ -281,8 +292,8 @@ namespace FROSch {
                 yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
             }
         }
-        
-        if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
+        int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+        if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
             yTmp->replaceMap(SwapMap_);
         }
         else {
@@ -316,7 +327,8 @@ namespace FROSch {
 
         MultiVectorPtr yCoarse;
 
-        if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
+        int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+        if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
             yCoarse = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],x.getNumVectors());
             yCoarse->doExport(*yCoarseSolveTmp,*SwapExporter_,Xpetra::INSERT);
             yCoarseSolveTmp = yCoarse;
@@ -398,7 +410,8 @@ namespace FROSch {
 //                    FROSCH_ASSERT(false,"Coarse matrix was saved and fillComplete was called. We cant contiune with the fillCompete matrix.");
 //                    
 //                }
-                if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
+                int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+                if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
                     tmpCoarseMatrix->fillComplete();
                     k0 = tmpCoarseMatrix;
                     SwapExporter_ = Xpetra::ExportFactory<LO,GO,NO>::Build(SwapMap_,GatheringMaps_[GatheringMaps_.size()-1]);
@@ -572,8 +585,10 @@ namespace FROSch {
     int CoarseOperator<SC,LO,GO,NO>::buildCoarseSolveMap(CrsMatrixPtr &k0)
     {
         
-        if (this->ParameterList_->get("Mpi Ranks Coarse",0)>0) {
-            NumProcsCoarseSolve_ = this->ParameterList_->get("Mpi Ranks Coarse",0);
+        int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+        if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
+            
+            NumProcsCoarseSolve_ = coarseRankRangeDiff + 1;
             
             if (!DistributionList_->get("Type","linear").compare("linear")) {
                 

@@ -86,7 +86,7 @@ namespace FROSch {
     template <class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Map<LO,GO,NO> > AssembleMaps(Teuchos::ArrayView<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > >             mapVector,
                                                       Teuchos::ArrayRCP<Teuchos::ArrayRCP<LO> > &partMappings,
-                                                      bool notOnCoarseSolveComm=true,
+                                                      bool OnLocalSolveComm=true,
                                                       Xpetra::UnderlyingLib lib=Xpetra::UseTpetra,
                                                       Teuchos::RCP< const Teuchos::Comm< int > > mpiComm=Teuchos::null);
     

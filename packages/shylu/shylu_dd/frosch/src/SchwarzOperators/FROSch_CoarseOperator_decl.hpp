@@ -78,6 +78,8 @@ namespace FROSch {
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::UN UN;
         
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::IntVec IntVec;
+        
         typedef typename SchwarzOperator<SC,LO,GO,NO>::GOVec GOVec;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::GOVecPtr GOVecPtr;
         
@@ -167,11 +169,14 @@ namespace FROSch {
         
         ExporterPtrVecPtr CoarseSolveExporters_;
         
-        bool NotOnCoarseSolveComm_;
+//        bool NotOnCoarseSolveComm_;
+        bool OnLocalSolveComm_;
         
         MapPtr SwapMap_;
         
         ExporterPtr SwapExporter_;
+        
+        IntVec CoarseRankRange_;
         
 #ifdef FROSCH_TIMER
         TimePtr_Type InterfaceTimer_;

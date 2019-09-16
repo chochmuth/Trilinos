@@ -86,8 +86,12 @@ namespace FROSch {
         TimeMonitor_Type ApplyTM(*ApplySumTimer_);
 #endif
         if (this->OperatorVector_.size()>0) {
-            if (this->OperatorVector_.size()==2 && this->OperatorVector_[this->OperatorVector_.size()-1]->getParameterList()->get("Mpi Ranks Coarse",0)>0) {
-                
+
+            int rankRangeCoarseOpDiff = this->OperatorVector_[this->OperatorVector_.size()-1]->getParameterList()->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1) -
+                    this->OperatorVector_[this->OperatorVector_.size()-1]->getParameterList()->get("Coarse problem ranks lower bound",0);
+            if (this->OperatorVector_.size()==2 && rankRangeCoarseOpDiff < (this->MpiComm_->getSize()-1) ) {
+//            if (this->OperatorVector_.size()==2 && this->OperatorVector_[this->OperatorVector_.size()-1]->getParameterList()->get("Mpi Ranks Coarse",0)>0) {
+            
 
                 FROSCH_ASSERT(usePreconditionerOnly,"Parallel SumOperator is only implemented as a Preconditioner.");
                 

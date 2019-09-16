@@ -313,11 +313,11 @@ namespace FROSch {
     template <class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Map<LO,GO,NO> > AssembleMaps(Teuchos::ArrayView<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapVector,
                                                       Teuchos::ArrayRCP<Teuchos::ArrayRCP<LO> > &partMappings,
-                                                      bool notOnCoarseSolveComm,
+                                                      bool OnLocalSolveComm,
                                                       Xpetra::UnderlyingLib lib,
                                                       Teuchos::RCP< const Teuchos::Comm< int > > mpiComm)
     {
-        if (notOnCoarseSolveComm)
+        if (OnLocalSolveComm)
             FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
 
         LO i = 0;

@@ -93,7 +93,7 @@ namespace FROSch {
     }
     
     template<class SC,class LO,class GO,class NO>
-    int EntitySet<SC,LO,GO,NO>::buildEntityMap(ConstMapPtr localToGlobalNodesMap, bool notOnCoarseSolveComm)
+    int EntitySet<SC,LO,GO,NO>::buildEntityMap(ConstMapPtr localToGlobalNodesMap, bool OnLocalSolveComm)
     {
         if (!EntityMapIsUpToDate_) {
             LO localNumberEntities = getNumEntities();
@@ -124,7 +124,7 @@ namespace FROSch {
                 
                 localToGlobalVector.resize(localNumberEntities);
 
-                if (!notOnCoarseSolveComm){
+                if (!OnLocalSolveComm){
                     allEntities.resize(0);
                     localToGlobalVector.resize(0);
                 }

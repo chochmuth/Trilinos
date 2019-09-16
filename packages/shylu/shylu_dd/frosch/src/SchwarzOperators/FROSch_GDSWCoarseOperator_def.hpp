@@ -367,7 +367,7 @@ namespace FROSch {
         if (this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes()==0  && numNodesSum==0) {
             //CH 04/11/19: We need to test the behaviour for parallel coarse solves and volume functions
             //CH 06/13/19: This will only work if computeVolumeFunctions(...) is called on all subdomains
-            this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior,this->NotOnCoarseSolveComm_);
+            this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior,this->OnLocalSolveComm_);
         } else {
             this->GammaDofs_[blockId] = LOVecPtr(this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes());
             this->IDofs_[blockId] = LOVecPtr(this->DofsPerNode_[blockId]*interior->getEntity(0)->getNumNodes());
@@ -470,7 +470,7 @@ namespace FROSch {
                     }
                 }
                 
-                this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->NotOnCoarseSolveComm_);
+                this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->OnLocalSolveComm_);
                 
                 // Count entities
                 GOVec numEntitiesGlobal(5);

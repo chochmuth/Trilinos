@@ -62,9 +62,9 @@ namespace FROSch {
     template <class SC,class LO,class GO,class NO>
     int CoarseSpace<SC,LO,GO,NO>::addSubspace(MapPtr subspaceBasisMap,
                                               MultiVectorPtr localSubspaceBasis,
-                                              bool notOnCoarseSolveComm)
+                                              bool OnLocalSolveComm)
     {
-        if (notOnCoarseSolveComm)
+        if (OnLocalSolveComm)
             FROSCH_ASSERT(!subspaceBasisMap.is_null(),"subspaceBasisMap.is_null()");
 
         if (!localSubspaceBasis.is_null()) {
@@ -83,20 +83,20 @@ namespace FROSch {
     }
     
     template <class SC,class LO,class GO,class NO>
-    int CoarseSpace<SC,LO,GO,NO>::assembleCoarseSpace(bool notOnCoarseSolveComm, Xpetra::UnderlyingLib lib, CommPtr mpiComm )
+    int CoarseSpace<SC,LO,GO,NO>::assembleCoarseSpace(bool OnLocalSolveComm, Xpetra::UnderlyingLib lib, CommPtr mpiComm )
     {
         
-        if (notOnCoarseSolveComm) {
+        if (OnLocalSolveComm) {
             FROSCH_ASSERT(UnassembledBasesMaps_.size()>0,"UnassembledBasesMaps_.size()==0");
             FROSCH_ASSERT(UnassembledSubspaceBases_.size()>0,"UnassembledSubspaceBases_.size()==0");
         }
         
         UN itmp = 0;
         LOVecPtr2D partMappings;
-        AssembledBasisMap_ = AssembleMaps( UnassembledBasesMaps_(), partMappings, notOnCoarseSolveComm, lib ,mpiComm);
+        AssembledBasisMap_ = AssembleMaps( UnassembledBasesMaps_(), partMappings, OnLocalSolveComm, lib ,mpiComm);
         if (!AssembledBasisMap_.is_null()&&!SerialRowMap_.is_null()) {
             if (AssembledBasisMap_->getGlobalNumElements()>0) { // AH 02/12/2019: Is this the right condition? Seems to work for now...
-                if (notOnCoarseSolveComm) {
+                if (OnLocalSolveComm) {
                     AssembledBasis_ = Xpetra::MultiVectorFactory<SC,LO,GO,NO >::Build(SerialRowMap_,AssembledBasisMap_->getNodeNumElements());
                     for (UN i=0; i<UnassembledBasesMaps_.size(); i++) {
                         for (UN j=0; j<UnassembledBasesMaps_[i]->getNodeNumElements(); j++) {
@@ -121,10 +121,10 @@ namespace FROSch {
     int CoarseSpace<SC,LO,GO,NO>::buildGlobalBasisMatrix(ConstMapPtr rowMap,
                                                          ConstMapPtr repeatedMap,
                                                          SC treshold,
-                                                         bool notOnCoarseSolveComm)
+                                                         bool OnLocalSolveComm)
     {
         FROSCH_ASSERT(!AssembledBasisMap_.is_null(),"AssembledBasisMap_.is_null().");
-        if (notOnCoarseSolveComm) {
+        if (OnLocalSolveComm) {
             FROSCH_ASSERT(!AssembledBasis_.is_null(),"AssembledBasis_.is_null().");
         }
         
@@ -133,7 +133,7 @@ namespace FROSch {
         SC valueTmp;
         GOVec indices;
         SCVec values;
-        if (notOnCoarseSolveComm) {
+        if (OnLocalSolveComm) {
             for (UN i=0; i<AssembledBasis_->getLocalLength(); i++) {
                 indices.resize(0);
                 values.resize(0);

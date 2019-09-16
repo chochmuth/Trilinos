@@ -88,14 +88,14 @@ namespace FROSch {
         
         int addSubspace(MapPtr subspaceBasisMap,
                         MultiVectorPtr subspaceBasis = Teuchos::null,
-                        bool notOnCoarseSolveComm=true);
+                        bool OnLocalSolveComm=true);
         
-        int assembleCoarseSpace(bool notOnCoarseSolveComm=true, Xpetra::UnderlyingLib lib=Xpetra::UseTpetra, CommPtr mpiComm=Teuchos::null);
+        int assembleCoarseSpace(bool OnLocalSolveComm=true, Xpetra::UnderlyingLib lib=Xpetra::UseTpetra, CommPtr mpiComm=Teuchos::null);
         
         int buildGlobalBasisMatrix(ConstMapPtr rowMap,
                                    ConstMapPtr repeatedMap,
                                    SC treshold,
-                                   bool notOnCoarseSolveComm=true);
+                                   bool OnLocalSolveComm=true);
         
         int clearCoarseSpace();
         

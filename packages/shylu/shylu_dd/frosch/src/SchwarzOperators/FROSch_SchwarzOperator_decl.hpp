@@ -124,6 +124,8 @@ namespace FROSch {
         typedef Teuchos::ArrayRCP<SchwarzOperatorPtr> SchwarzOperatorPtrVecPtr;
         
         typedef Teuchos::RCP<SubdomainSolver<SC,LO,GO,NO> > SubdomainSolverPtr;
+
+        typedef Teuchos::Array<int> IntVec;
         
         typedef unsigned UN;
         typedef Teuchos::Array<UN> UNVec;
@@ -208,6 +210,8 @@ namespace FROSch {
         
         bool IsInitialized_;
         bool IsComputed_;
+        
+        IntVec RankRange_;
         
     };
     

@@ -127,7 +127,7 @@ namespace FROSch {
         // Build the saddle point harmonic extensions
         MultiVectorPtr localCoarseSpaceBasis = computeExtensions(repeatedMatrix->getRowMap(),coarseMap,indicesGammaDofsAll(),indicesIDofsAll(),kII,kIGamma);
         
-        coarseSpace->addSubspace(coarseMap,localCoarseSpaceBasis, this->NotOnCoarseSolveComm_);
+        coarseSpace->addSubspace(coarseMap,localCoarseSpaceBasis, this->OnLocalSolveComm_);
 
         return repeatedMap;
     }
@@ -137,7 +137,7 @@ namespace FROSch {
     {
         GOVec mapVector(0);
         GO tmp = 0;
-        if (this->NotOnCoarseSolveComm_) {
+        if (this->OnLocalSolveComm_) {
             for (UN i=0; i<NumberOfBlocks_; i++) {
                 if (InterfaceCoarseSpaces_[i]->hasBasisMap()) {
                     for (UN j=0; j<InterfaceCoarseSpaces_[i]->getBasisMap()->getNodeNumElements(); j++) {
@@ -223,7 +223,7 @@ namespace FROSch {
             blockCoarseMap = Xpetra::MapFactory<LO,GO,NO>::Build(dofsMap->lib(),-1,GammaDofs_[blockId](),0,this->MpiComm_);
             
             InterfaceCoarseSpaces_[blockId]->addSubspace(blockCoarseMap,mVPhiGamma);
-            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->NotOnCoarseSolveComm_);
+            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->OnLocalSolveComm_);
         }
 
         DofsMaps_[blockId] = MapPtrVecPtr(0);
@@ -240,7 +240,7 @@ namespace FROSch {
                                                                     MapPtr nodesMap,
                                                                     MultiVectorPtr nodeList,
                                                                     EntitySetPtr interior,
-                                                                    bool notOnCoarseSolveComm)
+                                                                    bool OnLocalSolveComm)
     {
         // Process the parameter list
         std::stringstream blockIdStringstream;
@@ -279,7 +279,7 @@ namespace FROSch {
                 }
             }
             
-            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->NotOnCoarseSolveComm_, nodesMap->lib(), this->MpiComm_);
+            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->OnLocalSolveComm_, nodesMap->lib(), this->MpiComm_);
 
             // Count entities
             GO numEntitiesGlobal = interior->getEntityMap()->getMaxAllGlobalIndex();
@@ -409,7 +409,7 @@ namespace FROSch {
     {
         //this->Phi_ = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(this->K_->getRangeMap(),coarseMap,coarseMap->getNodeNumElements()); // Nonzeroes abhängig von dim/dofs!!!
         MultiVectorPtr mVPhi;
-        if (this->NotOnCoarseSolveComm_) {
+        if (this->OnLocalSolveComm_) {
             mVPhi = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(localMap,coarseMap->getNodeNumElements());
             MultiVectorPtr mVtmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(kII->getRowMap(),coarseMap->getNodeNumElements());
             MultiVectorPtr mVPhiI = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(kII->getRowMap(),coarseMap->getNodeNumElements());

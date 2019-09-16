@@ -54,8 +54,10 @@ namespace FROSch {
     ParameterList_ (),
     Verbose_ (comm->getRank()==0),
     IsInitialized_ (false),
-    IsComputed_ (false)
+    IsComputed_ (false),
+    RankRange_(2,0)
     {
+        RankRange_[1]=comm->getSize()-1;
         SerialComm_ = Teuchos::createSerialComm<int>();
     }
     
@@ -68,8 +70,11 @@ namespace FROSch {
     ParameterList_ (parameterList),
     Verbose_ (MpiComm_->getRank()==0),
     IsInitialized_ (false),
-    IsComputed_ (false)
+    IsComputed_ (false),
+    RankRange_(2,0)
     {
+        RankRange_[0] = parameterList->get("Local problem ranks lower bound",0);
+        RankRange_[1] = parameterList->get("Local problem ranks upper bound",MpiComm_->getSize()-1);
         FROSCH_ASSERT(getDomainMap()->isSameAs(*getRangeMap()),"SchwarzOperator assumes DomainMap==RangeMap");
         SerialComm_ = Teuchos::createSerialComm<int>();
     }
