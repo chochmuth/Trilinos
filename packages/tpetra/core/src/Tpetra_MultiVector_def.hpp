@@ -4095,11 +4095,11 @@ namespace Tpetra {
       transA == NO_TRANS;
 
       using STs_t = Teuchos::ScalarTraits<size_t>;
-      if (Case2) {
-          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
-              this->getDataNonConst(0)[0] = STS::zero();
-          }
-      }
+//      if (Case2) {
+//          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
+//              this->getDataNonConst(0)[0] = STS::zero();
+//          }
+//      }
       
     // Test that we are considering a meaningful case
     TEUCHOS_TEST_FOR_EXCEPTION_CLASS_FUNC
@@ -4188,15 +4188,15 @@ namespace Tpetra {
     A_tmp = Teuchos::null;
     B_tmp = Teuchos::null;
 
-      if (Case2) {
-          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
-              for (auto i=0; i<this->getNumVectors(); i++) {
-                  Teuchos::ArrayRCP<Scalar> values = this->getDataNonConst(i);
-                  for (auto j=0; j<values.size(); j++)
-                      values[j] = STS::zero();
-              }
-          }
-      }
+//      if (Case2) {
+//          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
+//              for (auto i=0; i<this->getNumVectors(); i++) {
+//                  Teuchos::ArrayRCP<Scalar> values = this->getDataNonConst(i);
+//                  for (auto j=0; j<values.size(); j++)
+//                      values[j] = STS::zero();
+//              }
+//          }
+//      }
 
       
     // If Case 2 then sum up *this and distribute it to all processes.
