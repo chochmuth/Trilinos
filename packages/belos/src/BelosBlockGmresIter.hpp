@@ -64,6 +64,12 @@
 #include "Teuchos_ParameterList.hpp"
 #include "Teuchos_TimeMonitor.hpp"
 
+
+#include "Thyra_DefaultProductMultiVector_decl.hpp"
+#include <Thyra_TpetraMultiVector_decl.hpp>
+#include <Tpetra_MultiVector_decl.hpp>
+#include <Teuchos_VerboseObject.hpp>
+#include <unistd.h>
 /*!
   \class Belos::BlockGmresIter
 
@@ -355,6 +361,9 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
     curDim_(0),
     iter_(0)
   {
+      std::cout << "#### Constructor BlockGmresIter :" << std::endl;
+      stest_->print(std::cout);
+      
     // Find out whether we are saving the Hessenberg matrix.
     keepHessenberg_ = params.get("Keep Hessenberg", false);
 
@@ -453,11 +462,13 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
           R_ = Teuchos::rcp( new Teuchos::SerialDenseMatrix<int,ScalarType>() );
         }
         if (initHessenberg_) {
+            std::cout << "initHessenberg_ newsd:" << newsd << " newsd-blockSize_:" << newsd-blockSize_ << std::endl;
           R_->shape( newsd, newsd-blockSize_ );
         }
         else {
           if (R_->numRows() < newsd || R_->numCols() < newsd-blockSize_) {
             R_->shapeUninitialized( newsd, newsd-blockSize_ );
+            std::cout << "shapeUninitialized newsd:" << newsd << " newsd-blockSize_:" << newsd-blockSize_ << std::endl;
           }
         }
 
@@ -518,6 +529,15 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
       //
       //  Solve the least squares problem.
       //
+        
+//        usleep (2.e6);
+//        std::cout << "### SerialDense y pre solve" << std::endl;
+//        y.print(std::cout);
+//                usleep (2.e6);
+//        usleep (2.e6);
+//        std::cout << "### SerialDense R_ stride():"<<R_->stride() << " curDim_:"<<curDim_ << " blockSize_:" << blockSize_ << std::endl;
+//        R_->print(std::cout);
+//        usleep (2.e6);
       blas.TRSM( Teuchos::LEFT_SIDE, Teuchos::UPPER_TRI, Teuchos::NO_TRANS,
                  Teuchos::NON_UNIT_DIAG, curDim_, blockSize_, one,
                  R_->values(), R_->stride(), y.values(), y.stride() );
@@ -529,7 +549,23 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
         index[i] = i;
       }
       Teuchos::RCP<const MV> Vjp1 = MVT::CloneView( *V_, index );
+        
+        typedef Thyra::ProductMultiVectorBase<double> thyraProdMV;
+        typedef KokkosClassic::DefaultNode::DefaultNodeType NO;
+        
+        Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
+        
+//        Teuchos::RCP< const thyraProdMV> thyra = Teuchos::rcp_dynamic_cast< const thyraProdMV> (Vjp1);
+//        std::cout << "### Vjp1" << std::endl;
+//        usleep (2.e6);
+//        thyra->describe(*out,Teuchos::VERB_EXTREME);
+//        usleep (2.e6);
+//        std::cout << "### SerialDense with curDim_:"<<curDim_ << " and " << blockSize_ << std::endl;
+        y.print(std::cout);
+
+//        usleep (2.e6);
       MVT::MvTimesMatAddMv( one, *Vjp1, y, zero, *currentUpdate );
+
     }
     return currentUpdate;
   }
@@ -673,6 +709,11 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
     //
     // also break if our basis is full
     //
+      
+      Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
+      typedef Thyra::MultiVectorBase<double> thyraPMV;
+      typedef Thyra::ProductMultiVectorBase<double> thyraProdMV;
+      typedef KokkosClassic::DefaultNode::DefaultNodeType NO;
     while (stest_->checkStatus(this) != Passed && curDim_+blockSize_ <= searchDim) {
 
       iter_++;
@@ -690,24 +731,89 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
       for (int i=0; i<blockSize_; i++) { curind[i] = curDim_ + i; }
       Teuchos::RCP<const MV> Vprev = MVT::CloneView(*V_,curind);
 
+        std::cout << "Vprev:" << std::endl;
+
+//        Teuchos::RCP<const thyraProdMV> thyraVprev = Teuchos::rcp_dynamic_cast<const thyraProdMV> (Vprev);
+////        thyraVprev->describe(*out,Teuchos::VERB_EXTREME);
+//
+//        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_fv = thyraVprev->getMultiVectorBlock(0);
+//        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_fp = thyraVprev->getMultiVectorBlock(1);
+//        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_s = thyraVprev->getMultiVectorBlock(2);
+//        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_l = thyraVprev->getMultiVectorBlock(3);
+//
+//        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_fvT =
+//            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_fv );
+//        
+//        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_fpT =
+//            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_fp );
+//        
+//        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_sT =
+//            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_s );
+//        
+//        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_lT =
+//            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_l );
+        
+        
+//        vp_fvT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vp_fpT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vp_sT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vp_lT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+
+        
+        
       // Compute the next std::vector in the Krylov basis:  Vnext = Op*Vprev
       lp_->apply(*Vprev,*Vnext);
       Vprev = Teuchos::null;
 
+        
+        std::cout << "Vnext:" << std::endl;
+
+//        Teuchos::RCP<thyraProdMV> thyraVnext = Teuchos::rcp_dynamic_cast<thyraProdMV> (Vnext);
+////        thyraVnext->describe(*out,Teuchos::VERB_EXTREME);
+//        
+//        
+//        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fv = thyraVnext->getNonconstMultiVectorBlock(0);
+//        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fp = thyraVnext->getNonconstMultiVectorBlock(1);
+//        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_s = thyraVnext->getNonconstMultiVectorBlock(2);
+//        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_l = thyraVnext->getNonconstMultiVectorBlock(3);
+//        
+//        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fvT =
+//        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fv );
+//        
+//        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fpT =
+//        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fp );
+//        
+//        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_sT =
+//        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_s );
+//        
+//        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_lT =
+//        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_l );
+        
+        
+//        vn_fvT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vn_fpT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vn_sT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vn_lT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+        
+        
+        
+        
       // Remove all previous Krylov basis vectors from Vnext
       // Get a view of all the previous vectors
       std::vector<int> prevind(lclDim);
       for (int i=0; i<lclDim; i++) { prevind[i] = i; }
       Vprev = MVT::CloneView(*V_,prevind);
       Teuchos::Array<Teuchos::RCP<const MV> > AVprev(1, Vprev);
-
+    
+        
       // Get a view of the part of the Hessenberg matrix needed to hold the ortho coeffs.
       Teuchos::RCP<Teuchos::SerialDenseMatrix<int,ScalarType> >
         subH = Teuchos::rcp( new Teuchos::SerialDenseMatrix<int,ScalarType>
                              ( Teuchos::View,*H_,lclDim,blockSize_,0,curDim_ ) );
       Teuchos::Array<Teuchos::RCP<Teuchos::SerialDenseMatrix<int,ScalarType> > > AsubH;
       AsubH.append( subH );
-
+        
+        
       // Get a view of the part of the Hessenberg matrix needed to hold the norm coeffs.
       Teuchos::RCP<Teuchos::SerialDenseMatrix<int,ScalarType> >
         subH2 = Teuchos::rcp( new Teuchos::SerialDenseMatrix<int,ScalarType>
@@ -781,6 +887,9 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
       curDim = dim;
     }
 
+      std::cout << " curDim:" << curDim << std::endl;
+//      std::cout << " R_:" << std::endl;
+//      R_->print(std::cout);
     Teuchos::BLAS<int, ScalarType> blas;
     //
     // Apply previous transformations and compute new transformation to reduce upper-Hessenberg
@@ -796,15 +905,29 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
         //
         blas.ROT( 1, &(*R_)(i,curDim), 1, &(*R_)(i+1, curDim), 1, &cs[i], &sn[i] );
       }
+//        std::cout << "Apply previous Givens blockSize_==1 " << std::endl;
+//        usleep(2.e6);
+//        R_->print(std::cout);
+//        usleep(2.e6);
       //
       // Calculate new Givens rotation
       //
       blas.ROTG( &(*R_)(curDim,curDim), &(*R_)(curDim+1,curDim), &cs[curDim], &sn[curDim] );
       (*R_)(curDim+1,curDim) = zero;
+        
+//        std::cout << "Calculate new Givens rotation blockSize_==1 " << std::endl;
+//        usleep(2.e6);
+//        R_->print(std::cout);
+//        usleep(2.e6);
       //
       // Update RHS w/ new transformation
       //
       blas.ROT( 1, &(*z_)(curDim,0), 1, &(*z_)(curDim+1,0), 1, &cs[curDim], &sn[curDim] );
+        
+//        std::cout << "Update RHS w/ new transformation blockSize_==1 " << std::endl;
+//        usleep(2.e6);
+//        R_->print(std::cout);
+//        usleep(2.e6);
     }
     else {
       //
@@ -821,6 +944,11 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
           blas.AXPY(blockSize_, ScalarType(-sigma), &(*R_)(i+1,i), 1, &(*R_)(i+1,curDim+j), 1);
           (*R_)(i,curDim+j) -= sigma;
         }
+          
+//          std::cout << "Apply previous Householder block j:"<<j << std::endl;
+//          usleep(2.e6);
+//          R_->print(std::cout);
+//          usleep(2.e6);
         //
         // Compute new Householder reflector
         //
@@ -830,6 +958,11 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
           (*R_)(curDim+j+i,curDim+j) /= maxelem;
         sigma = blas.DOT( blockSize_, &(*R_)(curDim+j+1,curDim+j), 1,
                           &(*R_)(curDim+j+1,curDim+j), 1 );
+          
+//          std::cout << "Compute new Householder reflector block j:"<<j << std::endl;
+//          usleep(2.e6);
+//          R_->print(std::cout);
+//          usleep(2.e6);
         if (sigma == zero) {
           beta[curDim + j] = zero;
         } else {
@@ -857,6 +990,11 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
                     1, &(*z_)(curDim+j+1,i), 1);
           (*z_)(curDim+j,i) -= sigma;
         }
+          
+//          std::cout << "Apply new Householder reflector to rhs block j:"<<j << std::endl;
+//          usleep(2.e6);
+//          R_->print(std::cout);
+//          usleep(2.e6);
       }
     } // end if (blockSize_ == 1)
 
@@ -864,7 +1002,9 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
     if (dim >= curDim_ && dim < getMaxSubspaceDim()) {
       curDim_ = dim + blockSize_;
     }
-
+//      usleep(2.e6);
+//      std::cout << " R_ after update:" << std::endl;
+//      R_->print(std::cout);
   } // end updateLSQR()
 
 } // end Belos namespace

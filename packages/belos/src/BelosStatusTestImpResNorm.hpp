@@ -51,6 +51,7 @@
 #include "BelosLinearProblem.hpp"
 #include "BelosMultiVecTraits.hpp"
 #include "Teuchos_as.hpp"
+#include <unistd.h>
 
 /*!
   \class Belos::StatusTestImpResNorm
@@ -437,6 +438,8 @@ StatusTestImpResNorm (MagnitudeType Tolerance, int quorum, bool showMaxResNormOn
     firstcallDefineScaleForm_(true),
     lossDetected_(false)
 {
+    
+    std::cout << "#### Constructor: tolerance_" << tolerance_ << " currTolerance_:"<< currTolerance_ << std::endl;
   // This constructor will compute the residual ||r_i||/||r0_i|| <= tolerance using the 2-norm of
   // the implicit residual vector.
 }
@@ -458,6 +461,8 @@ void StatusTestImpResNorm<ScalarType,MV,OP>::reset()
   firstcallCheckStatus_ = true;
   lossDetected_ = false;
   curSoln_ = Teuchos::null;
+    
+        std::cout << "#### reset: tolerance_" << tolerance_ << " currTolerance_:"<< currTolerance_ << std::endl;
 }
 
 template <class ScalarType, class MV, class OP>
@@ -513,6 +518,8 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
     //
     // We have moved on to the next rhs block
     //
+      
+      std::cout << "########### curLSNum_ != lp.getLSNumber (); set curLSIdx_" << std::endl;
     curLSNum_ = lp.getLSNumber();
     curLSIdx_ = lp.getLSIndex();
     curBlksz_ = (int)curLSIdx_.size();
@@ -586,8 +593,12 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
         if ( scalevector_[ *p ] != zero ) {
           // Don't intentionally divide by zero.
           testvector_[ *p ] = resvector_[ *p ] / scalevector_[ *p ] / scalevalue_;
+            std::cout << "#####Scale the vector  *p:" <<*p<< " resvector_[ *p ]:" << resvector_[ *p ] <<" scalevector_[*p]:"<< scalevector_[ *p ] << " scalevalue_:" << scalevalue_ << " testvector_[ *p ]:" << testvector_[ *p ]<< std::endl;
+            
         } else {
           testvector_[ *p ] = resvector_[ *p ] / scalevalue_;
+            std::cout << "#####Scale the vector dont div 0  *p:" <<*p<< " resvector_[ *p ]:" << resvector_[ *p ] << " scalevalue_:" << scalevalue_ << std::endl;
+            
         }
       }
     }
@@ -598,6 +609,7 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
       // Check if this index is valid
       if (*p != -1) {
         testvector_[ *p ] = resvector_[ *p ] / scalevalue_;
+          std::cout << "#####no per-vector scaling *p:" <<*p<< " resvector_[ *p ]:" << resvector_[ *p ] << " scalevalue_:" << scalevalue_ << std::endl;
       }
     }
   }
@@ -609,11 +621,15 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
   //
   // We also check here whether any of the scaled residual norms is
   // NaN, and throw an exception in that case.
+    
+    std::cout << "testvector_[ 0 ]:" << testvector_[ 0 ] << std::endl;
+    
   int have = 0;
   ind_.resize( curLSIdx_.size() );
   std::vector<int> lclInd( curLSIdx_.size() );
   typename std::vector<int>::iterator p = curLSIdx_.begin();
   for (int i=0; p<curLSIdx_.end(); ++p, ++i) {
+      std::cout << "############ checkstatus() i:" << i << " curLSIdx_:" << *p <<  " testvector_[ *p ]:" << testvector_[ *p ] << " currTolerance_:" << currTolerance_ << std::endl;
     // Check if this index is valid
     if (*p != -1) {
       if (testvector_[ *p ] > currTolerance_) {
@@ -639,13 +655,48 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
   // "have" is the number of residual norms that passed.
   ind_.resize(have);
   lclInd.resize(have);
-
+    std::cout << "#### have:" << have << std::endl;
   // Now check the exact residuals
   if (have) { // At least one residual norm has converged.
     //
     // Compute the explicit residual norm(s) from the current solution update.
     //
+      
+      typedef Thyra::ProductMultiVectorBase<double> thyraProdMV;
+      typedef KokkosClassic::DefaultNode::DefaultNodeType NO;
+      Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
+
     RCP<MV> cur_update = iSolver->getCurrentUpdate ();
+//          Teuchos::RCP<thyraProdMV> thyraCurUp = Teuchos::rcp_dynamic_cast<thyraProdMV> (cur_update);
+//      if (!thyraCurUp.is_null()) {
+//            usleep (2.e6);
+//          std::cout << "##### current update" << std::endl;
+//          Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fv = thyraCurUp->getNonconstMultiVectorBlock(0);
+//          Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fp = thyraCurUp->getNonconstMultiVectorBlock(1);
+//          Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_s = thyraCurUp->getNonconstMultiVectorBlock(2);
+//          Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_l = thyraCurUp->getNonconstMultiVectorBlock(3);
+//          
+//          Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fvT =
+//          Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fv );
+//          
+//          Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fpT =
+//          Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fp );
+//          
+//          Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_sT =
+//          Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_s );
+//          
+//          Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_lT =
+//          Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_l );
+//          usleep (2.e6);
+//          vn_fvT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//          usleep (2.e6);
+//          vn_fpT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//          usleep (2.e6);
+//          vn_sT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//          usleep (2.e6);
+//          vn_lT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//      }
+      
     curSoln_ = lp.updateSolution (cur_update);
     RCP<MV> cur_res = MVT::Clone (*curSoln_, MVT::GetNumberVecs (*curSoln_));
     lp.computeCurrResVec (&*cur_res, &*curSoln_);
@@ -653,6 +704,75 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
     std::vector<MagnitudeType> tmp_testvector (have);
     MVT::MvNorm (*cur_res, tmp_resvector, resnormtype_);
 
+
+      
+      {
+//          usleep (2.e6);
+//
+//          Teuchos::RCP<thyraProdMV> thyraCurSol = Teuchos::rcp_dynamic_cast<thyraProdMV> (curSoln_);
+//          std::cout << "thyraCurSol.is_null():"<< thyraCurSol.is_null() << std::endl;
+//          if (!thyraCurSol.is_null()) {
+////              thyraCurSol->describe(*out,Teuchos::VERB_EXTREME);
+//              Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fv = thyraCurSol->getNonconstMultiVectorBlock(0);
+//              Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fp = thyraCurSol->getNonconstMultiVectorBlock(1);
+//              Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_s = thyraCurSol->getNonconstMultiVectorBlock(2);
+//              Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_l = thyraCurSol->getNonconstMultiVectorBlock(3);
+//              
+//              Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fvT =
+//              Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fv );
+//              
+//              Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fpT =
+//              Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fp );
+//              
+//              Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_sT =
+//              Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_s );
+//              
+//              Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_lT =
+//              Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_l );
+////                        usleep (2.e6);
+////              vn_fvT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+////                        usleep (2.e6);
+////              vn_fpT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+////                        usleep (2.e6);
+////              vn_sT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+////                        usleep (2.e6);
+////              vn_lT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//            }
+      }
+//        usleep (2.e6);
+      {
+//          Teuchos::RCP<thyraProdMV> thyraCurSol = Teuchos::rcp_dynamic_cast<thyraProdMV> (cur_res);
+//          std::cout << "thyraCurRes.is_null():"<< thyraCurSol.is_null() << std::endl;
+//          if (!thyraCurSol.is_null()) {
+//              thyraCurSol->describe(*out,Teuchos::VERB_EXTREME);
+////              Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fv = thyraCurSol->getNonconstMultiVectorBlock(0);
+////              Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fp = thyraCurSol->getNonconstMultiVectorBlock(1);
+////              Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_s = thyraCurSol->getNonconstMultiVectorBlock(2);
+////              Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_l = thyraCurSol->getNonconstMultiVectorBlock(3);
+////              
+////              Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fvT =
+////              Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fv );
+////              
+////              Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fpT =
+////              Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fp );
+////              
+////              Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_sT =
+////              Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_s );
+////              
+////              Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_lT =
+////              Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_l );
+////              vn_fvT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+////              vn_fpT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+////              vn_sT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+////              vn_lT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//          }
+      }
+
+      for (int i=0; i<tmp_resvector.size(); i++) {
+          std::cout << i << " tmp_resvector:" << tmp_resvector[i]<< std::endl;
+      }
+      
+      
     // Scale the explicit residual norm(s), just like the implicit norm(s).
     if ( scalevector_.size() > 0 ) {
       for (int i=0; i<have; ++i) {
@@ -695,7 +815,11 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
       else {
         // Absolute difference between the current explicit and
         // implicit residual norm.
+
         const MagnitudeType diff = STM::magnitude (testvector_[ind_[i]] - tmp_testvector[i]);
+        
+          std::cout << "### diff calc testvector_[ind_[i]]:" <<testvector_[ind_[i]] << " tmp_testvector[i]:" << tmp_testvector[i] << " diff:" << diff << " i:"<<i << " ind_[i]:"<< ind_[i] << std::endl;
+          
         if (diff > currTolerance_) {
           // If the above difference is bigger than the current
           // convergence tolerance, report a loss of accuracy, but
@@ -729,8 +853,11 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
           const MagnitudeType oneTenth = STM::one () / as<MagnitudeType> (10);
 
           currTolerance_ = currTolerance_ - onePointFive * diff;
+            std::cout << "### currTolerance_ update onePointFive:" << onePointFive << " diff:" << diff << " currTolerance_:"<< currTolerance_<< std::endl;
           while (currTolerance_ < STM::zero ()) {
             currTolerance_ += oneTenth * diff;
+              std::cout << "### currTolerance_ <0 oneTenth:"<<oneTenth << " currTolerance_:" << currTolerance_ << std::endl;
+
           }
         }
       }
