@@ -69,6 +69,8 @@
 #include <memory>
 #include <sstream>
 
+#include <Teuchos_VerboseObject.hpp>
+
 #ifdef HAVE_TPETRA_INST_FLOAT128
 namespace Kokkos {
   // FIXME (mfh 04 Sep 2015) Just a stub for now!
@@ -4096,9 +4098,9 @@ namespace Tpetra {
 
       using STs_t = Teuchos::ScalarTraits<size_t>;
       if (Case2) {
-          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
-              this->getDataNonConst(0)[0] = STS::zero();
-          }
+//          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
+//              this->getDataNonConst(0)[0] = STS::zero();
+//          }
       }
       
     // Test that we are considering a meaningful case
@@ -4189,16 +4191,23 @@ namespace Tpetra {
     B_tmp = Teuchos::null;
 
       if (Case2) {
-          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
-              for (auto i=0; i<this->getNumVectors(); i++) {
-                  Teuchos::ArrayRCP<Scalar> values = this->getDataNonConst(i);
-                  for (auto j=0; j<values.size(); j++)
-                      values[j] = STS::zero();
-              }
-          }
+//          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
+//              for (auto i=0; i<this->getNumVectors(); i++) {
+//                  Teuchos::ArrayRCP<Scalar> values = this->getDataNonConst(i);
+//                  for (auto j=0; j<values.size(); j++)
+//                      values[j] = STS::zero();
+//              }
+//          }
       }
-
       
+//      std::cout << "######## case1: "<< Case1 <<  " case2:" << Case2 << " case3:" << Case3 << std::endl;
+//      Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
+//      std::cout << "this C:" << std::endl;
+//      this->describe(*out,Teuchos::VERB_EXTREME);
+//      std::cout << " A:" << std::endl;
+//      A.describe(*out,Teuchos::VERB_EXTREME);
+//      std::cout << " B:" << std::endl;
+//      B.describe(*out,Teuchos::VERB_EXTREME);
     // If Case 2 then sum up *this and distribute it to all processes.
     if (Case2) {
       this->reduce ();
