@@ -123,7 +123,13 @@ namespace FROSch {
 
             CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8),NotOnCoarseSolveComm_);
             Phi_ = CoarseSpace_->getGlobalBasisMatrix();
+            
+            if ( this->ParameterList_->get("Set Phi to PList", false ) ){
+                if (this->Verbose_)
+                    std::cout << "\t### Setting Phi (Xpetra::Matrix) to ParameterList.\n";
 
+                this->ParameterList_->set("Phi Pointer", Phi_);
+            }
             this->setUpCoarseOperator();
             
             this->IsComputed_ = true;
