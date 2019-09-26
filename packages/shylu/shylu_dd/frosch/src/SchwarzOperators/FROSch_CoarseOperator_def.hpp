@@ -87,7 +87,7 @@ namespace FROSch {
     {
         CoarseRankRange_[0] = this->getParameterList()->get("Coarse problem ranks lower bound",0);
         CoarseRankRange_[1] = this->getParameterList()->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1);
-        if ( this->MpiComm_->getRank() >= this->RankRange_[0] && this->MpiComm_->getRank() <= this->RankRange_[0] )
+        if ( this->MpiComm_->getRank() >= this->RankRange_[0] && this->MpiComm_->getRank() <= this->RankRange_[1] )
             OnLocalSolveComm_ = true;
 
 //        if (this->MpiComm_->getRank() < this->MpiComm_->getSize() - this->ParameterList_->get("Mpi Ranks Coarse",0)) {
