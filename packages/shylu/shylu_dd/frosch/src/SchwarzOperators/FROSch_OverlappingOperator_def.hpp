@@ -92,7 +92,7 @@ namespace FROSch {
             OnFirstLevelComm_ = true;
 
         
-        std::cout << this->MpiComm_->getRank() << " OnFirstLevelComm_:" << OnFirstLevelComm_ << " this->RankRange_[0]:"<<this->RankRange_[0] << " this->RankRange_[1]:" << this->RankRange_[1] << std::endl;
+//        std::cout << this->MpiComm_->getRank() << " OnFirstLevelComm_:" << OnFirstLevelComm_ << " this->RankRange_[0]:"<<this->RankRange_[0] << " this->RankRange_[1]:" << this->RankRange_[1] << std::endl;
         FirstLevelSolveComm_ = this->MpiComm_->split(!OnFirstLevelComm_,this->MpiComm_->getRank());
     }
     
