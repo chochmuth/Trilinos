@@ -69,7 +69,7 @@
 #include <Thyra_TpetraMultiVector_decl.hpp>
 #include <Tpetra_MultiVector_decl.hpp>
 #include <Teuchos_VerboseObject.hpp>
-#include <unistd.h>
+
 /*!
   \class Belos::BlockGmresIter
 
@@ -1002,9 +1002,9 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
     if (dim >= curDim_ && dim < getMaxSubspaceDim()) {
       curDim_ = dim + blockSize_;
     }
-      usleep(1.e6);
-      std::cout << " R_ after update:" << std::endl;
-      R_->print(std::cout);
+//      usleep(1.e6);
+//      std::cout << " R_ after update:" << std::endl;
+//      R_->print(std::cout);
   } // end updateLSQR()
 
 } // end Belos namespace

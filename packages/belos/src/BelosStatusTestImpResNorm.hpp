@@ -51,7 +51,7 @@
 #include "BelosLinearProblem.hpp"
 #include "BelosMultiVecTraits.hpp"
 #include "Teuchos_as.hpp"
-#include <unistd.h>
+
 
 /*!
   \class Belos::StatusTestImpResNorm
