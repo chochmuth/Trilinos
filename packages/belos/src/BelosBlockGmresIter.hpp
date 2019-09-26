@@ -361,8 +361,8 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
     curDim_(0),
     iter_(0)
   {
-      std::cout << "#### Constructor BlockGmresIter :" << std::endl;
-      stest_->print(std::cout);
+//      std::cout << "#### Constructor BlockGmresIter :" << std::endl;
+//      stest_->print(std::cout);
       
     // Find out whether we are saving the Hessenberg matrix.
     keepHessenberg_ = params.get("Keep Hessenberg", false);
@@ -462,13 +462,13 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
           R_ = Teuchos::rcp( new Teuchos::SerialDenseMatrix<int,ScalarType>() );
         }
         if (initHessenberg_) {
-            std::cout << "initHessenberg_ newsd:" << newsd << " newsd-blockSize_:" << newsd-blockSize_ << std::endl;
+//            std::cout << "initHessenberg_ newsd:" << newsd << " newsd-blockSize_:" << newsd-blockSize_ << std::endl;
           R_->shape( newsd, newsd-blockSize_ );
         }
         else {
           if (R_->numRows() < newsd || R_->numCols() < newsd-blockSize_) {
             R_->shapeUninitialized( newsd, newsd-blockSize_ );
-            std::cout << "shapeUninitialized newsd:" << newsd << " newsd-blockSize_:" << newsd-blockSize_ << std::endl;
+//            std::cout << "shapeUninitialized newsd:" << newsd << " newsd-blockSize_:" << newsd-blockSize_ << std::endl;
           }
         }
 
@@ -731,33 +731,33 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
       for (int i=0; i<blockSize_; i++) { curind[i] = curDim_ + i; }
       Teuchos::RCP<const MV> Vprev = MVT::CloneView(*V_,curind);
 
-        std::cout << "Vprev:" << std::endl;
-        usleep(1.e6);
-        Teuchos::RCP<const thyraProdMV> thyraVprev = Teuchos::rcp_dynamic_cast<const thyraProdMV> (Vprev);
-//        thyraVprev->describe(*out,Teuchos::VERB_EXTREME);
-
-        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_fv = thyraVprev->getMultiVectorBlock(0);
-        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_fp = thyraVprev->getMultiVectorBlock(1);
-        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_s = thyraVprev->getMultiVectorBlock(2);
-        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_l = thyraVprev->getMultiVectorBlock(3);
-
-        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_fvT =
-            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_fv );
-        
-        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_fpT =
-            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_fp );
-        
-        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_sT =
-            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_s );
-        
-        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_lT =
-            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_l );
-        
-        
-        vp_fvT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
-        vp_fpT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
-        vp_sT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
-        vp_lT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        std::cout << "Vprev:" << std::endl;
+//        usleep(1.e6);
+//        Teuchos::RCP<const thyraProdMV> thyraVprev = Teuchos::rcp_dynamic_cast<const thyraProdMV> (Vprev);
+////        thyraVprev->describe(*out,Teuchos::VERB_EXTREME);
+//
+//        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_fv = thyraVprev->getMultiVectorBlock(0);
+//        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_fp = thyraVprev->getMultiVectorBlock(1);
+//        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_s = thyraVprev->getMultiVectorBlock(2);
+//        Teuchos::RCP< const Thyra::MultiVectorBase< double > > vp_l = thyraVprev->getMultiVectorBlock(3);
+//
+//        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_fvT =
+//            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_fv );
+//        
+//        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_fpT =
+//            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_fp );
+//        
+//        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_sT =
+//            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_s );
+//        
+//        Teuchos::RCP< const Thyra::TpetraMultiVector< double, int, long long, NO > > vp_lT =
+//            Teuchos::rcp_dynamic_cast< const Thyra::TpetraMultiVector< double, int, long long, NO > > ( vp_l );
+//        
+//        
+//        vp_fvT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vp_fpT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vp_sT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vp_lT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
 
         
         
@@ -766,35 +766,35 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
       Vprev = Teuchos::null;
 
         
-        std::cout << "Vnext:" << std::endl;
-        usleep(1.e6);
-        Teuchos::RCP<thyraProdMV> thyraVnext = Teuchos::rcp_dynamic_cast<thyraProdMV> (Vnext);
-//        thyraVnext->describe(*out,Teuchos::VERB_EXTREME);
-        
-        
-        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fv = thyraVnext->getNonconstMultiVectorBlock(0);
-        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fp = thyraVnext->getNonconstMultiVectorBlock(1);
-        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_s = thyraVnext->getNonconstMultiVectorBlock(2);
-        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_l = thyraVnext->getNonconstMultiVectorBlock(3);
-        
-        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fvT =
-        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fv );
-        
-        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fpT =
-        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fp );
-        
-        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_sT =
-        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_s );
-        
-        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_lT =
-        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_l );
-        
-        
-        vn_fvT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
-        vn_fpT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
-        vn_sT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
-        vn_lT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
-        
+//        std::cout << "Vnext:" << std::endl;
+//        usleep(1.e6);
+//        Teuchos::RCP<thyraProdMV> thyraVnext = Teuchos::rcp_dynamic_cast<thyraProdMV> (Vnext);
+////        thyraVnext->describe(*out,Teuchos::VERB_EXTREME);
+//        
+//        
+//        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fv = thyraVnext->getNonconstMultiVectorBlock(0);
+//        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_fp = thyraVnext->getNonconstMultiVectorBlock(1);
+//        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_s = thyraVnext->getNonconstMultiVectorBlock(2);
+//        Teuchos::RCP<  Thyra::MultiVectorBase< double > > vn_l = thyraVnext->getNonconstMultiVectorBlock(3);
+//        
+//        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fvT =
+//        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fv );
+//        
+//        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_fpT =
+//        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_fp );
+//        
+//        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_sT =
+//        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_s );
+//        
+//        Teuchos::RCP<  Thyra::TpetraMultiVector< double, int, long long, NO > > vn_lT =
+//        Teuchos::rcp_dynamic_cast<  Thyra::TpetraMultiVector< double, int, long long, NO > > ( vn_l );
+//        
+//        
+//        vn_fvT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vn_fpT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vn_sT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        vn_lT->getConstTpetraMultiVector()->describe(*out,Teuchos::VERB_EXTREME);
+//        
         
         
         
@@ -887,7 +887,7 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
       curDim = dim;
     }
 
-      std::cout << " curDim:" << curDim << std::endl;
+//      std::cout << " curDim:" << curDim << std::endl;
 //      std::cout << " R_:" << std::endl;
 //      R_->print(std::cout);
     Teuchos::BLAS<int, ScalarType> blas;
@@ -1002,9 +1002,9 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
     if (dim >= curDim_ && dim < getMaxSubspaceDim()) {
       curDim_ = dim + blockSize_;
     }
-//      usleep(2.e6);
-//      std::cout << " R_ after update:" << std::endl;
-//      R_->print(std::cout);
+      usleep(1.e6);
+      std::cout << " R_ after update:" << std::endl;
+      R_->print(std::cout);
   } // end updateLSQR()
 
 } // end Belos namespace

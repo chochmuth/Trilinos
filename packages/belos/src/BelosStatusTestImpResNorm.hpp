@@ -439,7 +439,7 @@ StatusTestImpResNorm (MagnitudeType Tolerance, int quorum, bool showMaxResNormOn
     lossDetected_(false)
 {
     
-    std::cout << "#### Constructor: tolerance_" << tolerance_ << " currTolerance_:"<< currTolerance_ << std::endl;
+//    std::cout << "#### Constructor: tolerance_" << tolerance_ << " currTolerance_:"<< currTolerance_ << std::endl;
   // This constructor will compute the residual ||r_i||/||r0_i|| <= tolerance using the 2-norm of
   // the implicit residual vector.
 }
@@ -593,11 +593,11 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
         if ( scalevector_[ *p ] != zero ) {
           // Don't intentionally divide by zero.
           testvector_[ *p ] = resvector_[ *p ] / scalevector_[ *p ] / scalevalue_;
-            std::cout << "#####Scale the vector  *p:" <<*p<< " resvector_[ *p ]:" << resvector_[ *p ] <<" scalevector_[*p]:"<< scalevector_[ *p ] << " scalevalue_:" << scalevalue_ << " testvector_[ *p ]:" << testvector_[ *p ]<< std::endl;
+//            std::cout << "#####Scale the vector  *p:" <<*p<< " resvector_[ *p ]:" << resvector_[ *p ] <<" scalevector_[*p]:"<< scalevector_[ *p ] << " scalevalue_:" << scalevalue_ << " testvector_[ *p ]:" << testvector_[ *p ]<< std::endl;
             
         } else {
           testvector_[ *p ] = resvector_[ *p ] / scalevalue_;
-            std::cout << "#####Scale the vector dont div 0  *p:" <<*p<< " resvector_[ *p ]:" << resvector_[ *p ] << " scalevalue_:" << scalevalue_ << std::endl;
+//            std::cout << "#####Scale the vector dont div 0  *p:" <<*p<< " resvector_[ *p ]:" << resvector_[ *p ] << " scalevalue_:" << scalevalue_ << std::endl;
             
         }
       }
@@ -609,7 +609,7 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
       // Check if this index is valid
       if (*p != -1) {
         testvector_[ *p ] = resvector_[ *p ] / scalevalue_;
-          std::cout << "#####no per-vector scaling *p:" <<*p<< " resvector_[ *p ]:" << resvector_[ *p ] << " scalevalue_:" << scalevalue_ << std::endl;
+//          std::cout << "#####no per-vector scaling *p:" <<*p<< " resvector_[ *p ]:" << resvector_[ *p ] << " scalevalue_:" << scalevalue_ << std::endl;
       }
     }
   }
@@ -622,14 +622,14 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
   // We also check here whether any of the scaled residual norms is
   // NaN, and throw an exception in that case.
     
-    std::cout << "testvector_[ 0 ]:" << testvector_[ 0 ] << std::endl;
+//    std::cout << "testvector_[ 0 ]:" << testvector_[ 0 ] << std::endl;
     
   int have = 0;
   ind_.resize( curLSIdx_.size() );
   std::vector<int> lclInd( curLSIdx_.size() );
   typename std::vector<int>::iterator p = curLSIdx_.begin();
   for (int i=0; p<curLSIdx_.end(); ++p, ++i) {
-      std::cout << "############ checkstatus() i:" << i << " curLSIdx_:" << *p <<  " testvector_[ *p ]:" << testvector_[ *p ] << " currTolerance_:" << currTolerance_ << std::endl;
+//      std::cout << "############ checkstatus() i:" << i << " curLSIdx_:" << *p <<  " testvector_[ *p ]:" << testvector_[ *p ] << " currTolerance_:" << currTolerance_ << std::endl;
     // Check if this index is valid
     if (*p != -1) {
       if (testvector_[ *p ] > currTolerance_) {
@@ -655,7 +655,7 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
   // "have" is the number of residual norms that passed.
   ind_.resize(have);
   lclInd.resize(have);
-    std::cout << "#### have:" << have << std::endl;
+//    std::cout << "#### have:" << have << std::endl;
   // Now check the exact residuals
   if (have) { // At least one residual norm has converged.
     //
@@ -768,9 +768,9 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
 //          }
       }
 
-      for (int i=0; i<tmp_resvector.size(); i++) {
-          std::cout << i << " tmp_resvector:" << tmp_resvector[i]<< std::endl;
-      }
+//      for (int i=0; i<tmp_resvector.size(); i++) {
+//          std::cout << i << " tmp_resvector:" << tmp_resvector[i]<< std::endl;
+//      }
       
       
     // Scale the explicit residual norm(s), just like the implicit norm(s).
@@ -818,7 +818,7 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
 
         const MagnitudeType diff = STM::magnitude (testvector_[ind_[i]] - tmp_testvector[i]);
         
-          std::cout << "### diff calc testvector_[ind_[i]]:" <<testvector_[ind_[i]] << " tmp_testvector[i]:" << tmp_testvector[i] << " diff:" << diff << " i:"<<i << " ind_[i]:"<< ind_[i] << std::endl;
+//          std::cout << "### diff calc testvector_[ind_[i]]:" <<testvector_[ind_[i]] << " tmp_testvector[i]:" << tmp_testvector[i] << " diff:" << diff << " i:"<<i << " ind_[i]:"<< ind_[i] << std::endl;
           
         if (diff > currTolerance_) {
           // If the above difference is bigger than the current
@@ -853,10 +853,10 @@ checkStatus (Iteration<ScalarType,MV,OP>* iSolver)
           const MagnitudeType oneTenth = STM::one () / as<MagnitudeType> (10);
 
           currTolerance_ = currTolerance_ - onePointFive * diff;
-            std::cout << "### currTolerance_ update onePointFive:" << onePointFive << " diff:" << diff << " currTolerance_:"<< currTolerance_<< std::endl;
+//            std::cout << "### currTolerance_ update onePointFive:" << onePointFive << " diff:" << diff << " currTolerance_:"<< currTolerance_<< std::endl;
           while (currTolerance_ < STM::zero ()) {
             currTolerance_ += oneTenth * diff;
-              std::cout << "### currTolerance_ <0 oneTenth:"<<oneTenth << " currTolerance_:" << currTolerance_ << std::endl;
+//              std::cout << "### currTolerance_ <0 oneTenth:"<<oneTenth << " currTolerance_:" << currTolerance_ << std::endl;
 
           }
         }
