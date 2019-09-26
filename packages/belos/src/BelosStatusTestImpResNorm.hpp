@@ -462,7 +462,7 @@ void StatusTestImpResNorm<ScalarType,MV,OP>::reset()
   lossDetected_ = false;
   curSoln_ = Teuchos::null;
     
-        std::cout << "#### reset: tolerance_" << tolerance_ << " currTolerance_:"<< currTolerance_ << std::endl;
+//        std::cout << "#### reset: tolerance_" << tolerance_ << " currTolerance_:"<< currTolerance_ << std::endl;
 }
 
 template <class ScalarType, class MV, class OP>
