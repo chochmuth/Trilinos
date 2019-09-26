@@ -70,7 +70,7 @@
 #include <sstream>
 
 #include <Teuchos_VerboseObject.hpp>
-
+#include <unistd.h>
 #ifdef HAVE_TPETRA_INST_FLOAT128
 namespace Kokkos {
   // FIXME (mfh 04 Sep 2015) Just a stub for now!
@@ -4102,6 +4102,14 @@ namespace Tpetra {
 //              this->getDataNonConst(0)[0] = STS::zero();
 //          }
       }
+
+      
+      usleep(1.e6);
+      std::cout << "out multiply pre:" << std::endl;
+      Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
+      this->describe(*out,Teuchos::VERB_EXTREME);
+      usleep(1.e6);
+      
       
     // Test that we are considering a meaningful case
     TEUCHOS_TEST_FOR_EXCEPTION_CLASS_FUNC
@@ -4199,6 +4207,22 @@ namespace Tpetra {
 //              }
 //          }
       }
+    
+      
+      usleep(1.e6);
+      std::cout << "A multiply :" << std::endl;
+      A.describe(*out,Teuchos::VERB_EXTREME);
+      usleep(1.e6);
+      
+      usleep(1.e6);
+      std::cout << "B multiply :" << std::endl;
+      B.describe(*out,Teuchos::VERB_EXTREME);
+      usleep(1.e6);
+      
+      usleep(1.e6);
+      std::cout << "out multiply after:" << std::endl;
+      this->describe(*out,Teuchos::VERB_EXTREME);
+      usleep(1.e6);
       
 //      std::cout << "######## case1: "<< Case1 <<  " case2:" << Case2 << " case3:" << Case3 << std::endl;
 //      Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
