@@ -550,10 +550,10 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
       }
       Teuchos::RCP<const MV> Vjp1 = MVT::CloneView( *V_, index );
         
-        typedef Thyra::ProductMultiVectorBase<double> thyraProdMV;
-        typedef KokkosClassic::DefaultNode::DefaultNodeType NO;
+//        typedef Thyra::ProductMultiVectorBase<double> thyraProdMV;
+//        typedef KokkosClassic::DefaultNode::DefaultNodeType NO;
         
-        Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
+//        Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
         
 //        Teuchos::RCP< const thyraProdMV> thyra = Teuchos::rcp_dynamic_cast< const thyraProdMV> (Vjp1);
 //        std::cout << "### Vjp1" << std::endl;
@@ -561,7 +561,7 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
 //        thyra->describe(*out,Teuchos::VERB_EXTREME);
 //        usleep (2.e6);
 //        std::cout << "### SerialDense with curDim_:"<<curDim_ << " and " << blockSize_ << std::endl;
-        y.print(std::cout);
+//        y.print(std::cout);
 
 //        usleep (2.e6);
       MVT::MvTimesMatAddMv( one, *Vjp1, y, zero, *currentUpdate );
@@ -710,10 +710,10 @@ class BlockGmresIter : virtual public GmresIteration<ScalarType,MV,OP> {
     // also break if our basis is full
     //
       
-      Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
-      typedef Thyra::MultiVectorBase<double> thyraPMV;
-      typedef Thyra::ProductMultiVectorBase<double> thyraProdMV;
-      typedef KokkosClassic::DefaultNode::DefaultNodeType NO;
+//      Teuchos::RCP<Teuchos::FancyOStream> out = Teuchos::VerboseObjectBase::getDefaultOStream();
+//      typedef Thyra::MultiVectorBase<double> thyraPMV;
+//      typedef Thyra::ProductMultiVectorBase<double> thyraProdMV;
+//      typedef KokkosClassic::DefaultNode::DefaultNodeType NO;
     while (stest_->checkStatus(this) != Passed && curDim_+blockSize_ <= searchDim) {
 
       iter_++;
