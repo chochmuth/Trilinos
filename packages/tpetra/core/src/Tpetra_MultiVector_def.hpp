@@ -4114,9 +4114,22 @@ namespace Tpetra {
       // only want to accumulate this once, so set beta == 0 on all
       // processes except Process 0.
       const int myRank = this->getMap ()->getComm ()->getRank ();
-      if (myRank != 0) {
-        beta_local = ATS::zero ();
-      }
+//      if (myRank != 0) {
+//        beta_local = ATS::zero ();
+//      }
+        //CH 19/09/25: Fixing dot-product for mv, which has no entries on atleast one rank
+        Teuchos::Array< size_t > numGathered(this->getMap ()->getComm ()->getSize ());
+        size_t numLocal = A.getMap ()->getNodeNumElements ();
+        Teuchos::gatherAll<int, size_t>( *this->getMap ()->getComm (), 1, &numLocal, numGathered.size(), &numGathered[0] );
+        int rankForSum = -1;
+        for (int i=0; i<numGathered.size() && rankForSum == -1; i++){
+            if (numGathered[i] > STs_t::zero())
+                rankForSum = i;
+        }
+        
+        if (myRank != rankForSum) {
+            beta_local = ATS::zero ();
+        }
     }
 
     // We only know how to do matrix-matrix multiplies if all the
@@ -4187,7 +4200,18 @@ namespace Tpetra {
     // Dispose of (possibly) extra copies of A and B.
     A_tmp = Teuchos::null;
     B_tmp = Teuchos::null;
+      if (Case2) {
+          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
+              for (auto i=0; i<this->getNumVectors(); i++) {
+                  Teuchos::ArrayRCP<Scalar> values = this->getDataNonConst(i);
+                  for (auto j=0; j<values.size(); j++)
+                      values[j] = STS::zero();
+              }
+          }          
+      }
 
+      
+      
 //      if (Case2) {
 //          if (A.getMap()->getNodeNumElements() == STs_t::zero()  && B.getMap()->getNodeNumElements() == STs_t::zero()) {
 //              for (auto i=0; i<this->getNumVectors(); i++) {
