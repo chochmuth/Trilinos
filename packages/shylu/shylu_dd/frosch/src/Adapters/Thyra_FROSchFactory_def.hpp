@@ -270,6 +270,7 @@ namespace Thyra {
                 SchwarzPreconditioner = TLP;            
             } else if (!paramList_->get("FROSch Preconditioner Type","TwoLevelPreconditioner").compare("TwoLevelBlockPreconditioner")) {
                 ArrayRCP<RCP<Map<LO,GO,NO> > > RepeatedMaps = Teuchos::null;
+                ArrayRCP<RCP<MultiVector<SC,LO,GO,NO> > > CoordinatesLists = Teuchos::null;
                 UNVecPtr dofsPerNodeVector;
                 DofOrderingVecPtr dofOrderings;
                 
@@ -282,12 +283,20 @@ namespace Thyra {
                 } else {
                     FROSCH_ASSERT(false,"Currently, TwoLevelBlockPreconditioner cannot be constructed without Repeated Maps.");
                 }
+                if(paramList_->isParameter("Coordinates List Vector")){
+                    CoordinatesLists = ExtractVectorFromParameterList<RCP<MultiVector<SC,LO,GO,NO> > >(*paramList_,"Coordinates List Vector");
+                }
+
                 
                 FROSCH_ASSERT(RepeatedMaps.size()==dofsPerNodeVector.size(),"RepeatedMaps.size()!=dofsPerNodeVector.size()");
                 FROSCH_ASSERT(RepeatedMaps.size()==dofOrderings.size(),"RepeatedMaps.size()!=dofOrderings.size()");
                 
                 RCP<TwoLevelBlockPreconditioner<SC,LO,GO,NO> > TLBP(new TwoLevelBlockPreconditioner<SC,LO,GO,NO>(A,paramList_));
-                TLBP->initialize(paramList_->get("Dimension",3),dofsPerNodeVector,dofOrderings,paramList_->get("Overlap",1),RepeatedMaps);
+                
+                ArrayRCP<RCP<MultiVector<SC,LO,GO,NO> > > nullSpaceBasisVec = Teuchos::null;
+                TLBP->initialize(paramList_->get("Dimension",3),dofsPerNodeVector,dofOrderings,paramList_->get("Overlap",1),RepeatedMaps,nullSpaceBasisVec,CoordinatesLists);
+                
+                
                 SchwarzPreconditioner = TLBP;
             } else {
                 FROSCH_ASSERT(false,"FROSch Preconditioner Type is unknown.");

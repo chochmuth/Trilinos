@@ -257,17 +257,7 @@ namespace FROSch {
     {
         MultiVectorPtrVecPtr translations(this->DofsPerNode_[blockId]);
         MapPtr serialGammaMap = Xpetra::MapFactory<LO,GO,NO>::Build(this->K_->getRangeMap()->lib(),this->GammaDofs_[blockId].size(),0,this->SerialComm_);
-//<<<<<<< HEAD
-//        MultiVectorPtr basisfunctions;
-//        if (this->NotOnCoarseSolveComm_) {
-//            basisfunctions = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(serialGammaMap,blockMap->getNodeNumElements());
-//        }
-//        
-//        LO itmp=0;
-//        SC x,y,z,rx,ry,rz;
-//        SC edgeValue;
-//        SC faceValue;
-//=======
+
         for (UN i=0; i<this->DofsPerNode_[blockId]; i++) {
             if (coarseNodes->getNumEntities()>0) {
                 // maybe if (this->NotOnCoarseSolveComm_) { needed here
@@ -364,7 +354,9 @@ namespace FROSch {
                         LO index = tmpCoarseNode->getCoarseNodeID();
                         // Offspring: loop over nodes
                         for (UN l=0; l<tmpEntity->getNumNodes(); l++) {
-                            SC value = tmpCoarseNode->getDistanceToCoarseNode(l,m)/tmpCoarseNode->getDistanceToCoarseNode(l,numCoarseNodes);
+                            SC value = tmpEntity->getDistanceToCoarseNode(l,m)/tmpEntity->getDistanceToCoarseNode(l,numCoarseNodes);
+
+//                            SC value = tmpCoarseNode->getDistanceToCoarseNode(l,m)/tmpCoarseNode->getDistanceToCoarseNode(l,numCoarseNodes);
                             
                             // Rotations
                             x = nodeList->getData(0)[tmpEntity->getLocalNodeID(j)];
@@ -403,8 +395,8 @@ namespace FROSch {
                     // Coarse node: loop over nodes
                     for (UN l=0; l<entitySetVector[i]->getEntity(j)->getNumNodes(); l++) {
                         // Rotations
-                        x = nodeList->getData(0)[tmpEntity->getLocalNodeID(j)];
-                        y = nodeList->getData(1)[tmpEntity->getLocalNodeID(j)];
+                        x = nodeList->getData(0)[tmpEntity->getLocalNodeID(l)];
+                        y = nodeList->getData(1)[tmpEntity->getLocalNodeID(l)];
                         
                         // Rotation 1
                         rx = y;
@@ -413,7 +405,7 @@ namespace FROSch {
                         rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,0),coarseNodeID,rx);
                         rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,1),coarseNodeID,ry);
                         if (dimension == 3) {
-                            z = nodeList->getData(2)[tmpEntity->getLocalNodeID(j)];
+                            z = nodeList->getData(2)[tmpEntity->getLocalNodeID(l)];
                             
                             rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,2),coarseNodeID,rz);
                             
@@ -434,6 +426,40 @@ namespace FROSch {
                             rotations[2]->replaceLocalValue(tmpEntity->getGammaDofID(l,2),coarseNodeID,rz);
                         }
                     }
+//                    for (UN l=0; l<entitySetVector[i]->getEntity(j)->getNumNodes(); l++) {
+//                        // Rotations
+//                        std::cout << this->MpiComm_->getRank() << " getNumNodes():" << entitySetVector[i]->getEntity(j)->getNumNodes() << " i:" << i << " j:" << j << std::endl;
+//                        x = nodeList->getData(0)[tmpEntity->getLocalNodeID(j)];
+//                        y = nodeList->getData(1)[tmpEntity->getLocalNodeID(j)];
+//                        
+//                        // Rotation 1
+//                        rx = y;
+//                        ry = -x;
+//                        rz = 0;
+//                        rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,0),coarseNodeID,rx);
+//                        rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,1),coarseNodeID,ry);
+//                        if (dimension == 3) {
+//                            z = nodeList->getData(2)[tmpEntity->getLocalNodeID(j)];
+//                            
+//                            rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,2),coarseNodeID,rz);
+//                            
+//                            // Rotation 2
+//                            rx = -z;
+//                            ry = 0;
+//                            rz = x;
+//                            rotations[1]->replaceLocalValue(tmpEntity->getGammaDofID(l,0),coarseNodeID,rx);
+//                            rotations[1]->replaceLocalValue(tmpEntity->getGammaDofID(l,1),coarseNodeID,ry);
+//                            rotations[1]->replaceLocalValue(tmpEntity->getGammaDofID(l,2),coarseNodeID,rz);
+//                            
+//                            // Rotation 3
+//                            rx = 0;
+//                            ry = z;
+//                            rz = -y;
+//                            rotations[2]->replaceLocalValue(tmpEntity->getGammaDofID(l,0),coarseNodeID,rx);
+//                            rotations[2]->replaceLocalValue(tmpEntity->getGammaDofID(l,1),coarseNodeID,ry);
+//                            rotations[2]->replaceLocalValue(tmpEntity->getGammaDofID(l,2),coarseNodeID,rz);
+//                        }
+//                    }
                 }
             }
         }
