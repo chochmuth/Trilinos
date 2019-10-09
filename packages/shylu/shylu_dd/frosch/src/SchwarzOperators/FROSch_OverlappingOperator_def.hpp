@@ -85,14 +85,10 @@ namespace FROSch {
         } else if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Restricted")) {
             Combine_ = Restricted;
         }
-//        if ( this->MpiComm_->getRank() < this->MpiComm_->getSize() - this->ParameterList_->get("Mpi Ranks Coarse",0)) {
-//            OnFirstLevelComm_ = true;
-//        }
+
         if ( this->MpiComm_->getRank() >= this->RankRange_[0] && this->MpiComm_->getRank() <= this->RankRange_[1] )
             OnFirstLevelComm_ = true;
-
-        
-//        std::cout << this->MpiComm_->getRank() << " OnFirstLevelComm_:" << OnFirstLevelComm_ << " this->RankRange_[0]:"<<this->RankRange_[0] << " this->RankRange_[1]:" << this->RankRange_[1] << std::endl;
+    
         FirstLevelSolveComm_ = this->MpiComm_->split(!OnFirstLevelComm_,this->MpiComm_->getRank());
     }
     

@@ -57,8 +57,8 @@ namespace FROSch {
     {
         if (!this->ParameterList_->get("OverlappingOperator Type","AlgebraicOverlappingOperator").compare("AlgebraicOverlappingOperator")) {
             parameterList->sublist("AlgebraicOverlappingOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
-            parameterList->sublist("AlgebraicOverlappingOperator").set("Local problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
-            parameterList->sublist("AlgebraicOverlappingOperator").set("Local problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
+            parameterList->sublist("AlgebraicOverlappingOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
+            parameterList->sublist("AlgebraicOverlappingOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
             OverlappingOperator_ = AlgebraicOverlappingOperatorPtr(new AlgebraicOverlappingOperator<SC,LO,GO,NO>(k,sublist(parameterList,"AlgebraicOverlappingOperator")));
             
         } else {

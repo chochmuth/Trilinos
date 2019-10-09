@@ -61,13 +61,14 @@ namespace FROSch {
     ComputeSecondLevel_(TimeMonitor_Type::getNewCounter("FROSch: TwoLevelBockPrec: Compute 2nd Level"))
 #endif
     {
+
         if (this->ParameterList_->get("TwoLevel",true)) {            
             if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
 //                FROSCH_ASSERT(false,"not implemented for block.");
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("InterfacePartitionOfUnity").set("Test Unconnected Interface",false);
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
-                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
-                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Coarse problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Coarse problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Recycling",parameterList->get("Recycling","none"));
@@ -75,8 +76,8 @@ namespace FROSch {
             } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("GDSWCoarseOperator")) {
                 this->ParameterList_->sublist("GDSWCoarseOperator").set("Test Unconnected Interface",false);
                 this->ParameterList_->sublist("GDSWCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
-                this->ParameterList_->sublist("GDSWCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
-                this->ParameterList_->sublist("GDSWCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
                 this->ParameterList_->sublist("GDSWCoarseOperator").set("Coarse problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
                 this->ParameterList_->sublist("GDSWCoarseOperator").set("Coarse problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
                 this->ParameterList_->sublist("GDSWCoarseOperator").set("Recycling",parameterList->get("Recycling","none"));
@@ -84,8 +85,8 @@ namespace FROSch {
             } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("RGDSWCoarseOperator")) {
                 this->ParameterList_->sublist("RGDSWCoarseOperator").set("Test Unconnected Interface",false);
                 this->ParameterList_->sublist("RGDSWCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
-                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
-                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
                 this->ParameterList_->sublist("RGDSWCoarseOperator").set("Coarse problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
                 this->ParameterList_->sublist("RGDSWCoarseOperator").set("Coarse problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
                 this->ParameterList_->sublist("RGDSWCoarseOperator").set("Recycling",parameterList->get("Recycling","none"));
