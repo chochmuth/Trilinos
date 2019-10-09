@@ -269,21 +269,11 @@ namespace Thyra {
                     FROSCH_ASSERT(false,"Currently, TwoLevelBlockPreconditioner cannot be constructed without Repeated Maps.");
                 }
                 if(paramList_->isParameter("Coordinates List Vector")){
-                    std::cout << "using coordinaces" << std::endl;
                     XMultiVectorPtrVecPtr coordinatesListsTmp = ExtractVectorFromParameterList<XMultiVectorPtr>(*paramList_,"Coordinates List Vector");
-                    std::cout << "coordinates is null:"<< coordinatesLists.is_null() << std::endl;
                     if (!coordinatesListsTmp.is_null()) {
                         coordinatesLists.resize(coordinatesListsTmp.size());
                         for (int i=0; i<coordinatesListsTmp.size(); i++)
                             coordinatesLists[i] = coordinatesListsTmp[i].getConst();
-                    }
-                }
-
-                
-                RCP<FancyOStream> out = VerboseObjectBase::getDefaultOStream();
-                if (!coordinatesLists.is_null()) {
-                    for (int i=0; i<coordinatesLists.size(); i++) {
-                        coordinatesLists[i]->describe(*out,Teuchos::VERB_EXTREME);
                     }
                 }
                 
