@@ -115,6 +115,15 @@ namespace FROSch {
                 Phi_ = CoarseSpace_->getGlobalBasisMatrix();
             }
         }
+        
+        if ( this->ParameterList_->get("Set Phi to PList", false ) ){
+            if (this->Verbose_)
+                std::cout << "\t### Setting Phi (Xpetra::Matrix) to ParameterList.\n";
+            
+            this->ParameterList_->set("Phi Pointer", Phi_);
+        }
+
+        
         if (!reuseCoarseMatrix) {
             if (this->IsComputed_ && this->Verbose_) std::cout << "FROSch::CoarseOperator : Recomputing the Coarse Matrix" << std::endl;
             this->setUpCoarseOperator();
