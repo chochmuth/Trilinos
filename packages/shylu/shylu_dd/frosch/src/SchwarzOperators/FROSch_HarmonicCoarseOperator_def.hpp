@@ -320,8 +320,9 @@ namespace FROSch {
         }
 
         SC x,y,z,rx,ry,rz;
-        SCVec rx0(3,0.0),ry0(3,0.0),rz0(3,0.0),errx(3,0.0),erry(3,0.0),errz(3,0.0);
+        SCVec rx0(3,0.0),ry0(3,0.0),rz0(3,0.0);
         for (UN i=0; i<entitySet->getNumEntities(); i++) {
+            SCVec errx(3,0.0),erry(3,0.0),errz(3,0.0);
             // Compute values for the first node to check if rotation is constant
             x = nodeList->getData(0)[entitySet->getEntity(i)->getLocalNodeID(0)];
             y = nodeList->getData(1)[entitySet->getEntity(i)->getLocalNodeID(0)];
