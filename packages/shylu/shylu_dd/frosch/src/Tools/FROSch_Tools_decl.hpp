@@ -202,10 +202,10 @@ namespace FROSch {
                                                               ArrayRCP<const RCP<Map<LO,GO,NO> > > subMaps);
 
     template <class SC,class LO,class GO,class NO>
-    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const Matrix<SC,LO,GO,NO> > matrix);
+    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const Matrix<SC,LO,GO,NO> > matrix, bool reduceMap = true);
 
     template <class SC,class LO,class GO,class NO>
-    RCP<const Map<LO,GO,NO> > BuildRepeatedMap(RCP<const Matrix<SC,LO,GO,NO> > matrix);
+    RCP<const Map<LO,GO,NO> > BuildRepeatedMap(RCP<const Matrix<SC,LO,GO,NO> > matrix, bool reduceMap = true);
 
     template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const CrsGraph<LO,GO,NO> > graph);

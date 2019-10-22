@@ -107,15 +107,16 @@ namespace FROSch {
             FROSCH_ASSERT(dofOrdering == NodeWise || dofOrdering == DimensionWise || dofOrdering == Custom,"ERROR: Specify a valid DofOrdering.");
         }
         int ret = 0;
-//        //////////
-//        // Maps //
-//        //////////
-//        if (repeatedMapVec.is_null()) {
-//            ConstXMapPtr tmpMap =  this->K_->getRowMap();
-//            XMapPtrVecPtr subMapVec = BuildSubMaps(tmpMap,blockMaxGIDVec);// Todo: Achtung, die UniqueMap könnte unsinnig verteilt sein. Falls es eine repeatedMap gibt, sollte dann die uniqueMap neu gebaut werden können. In diesem Fall, sollte man das aber basierend auf der repeatedNodesMap tun
-//            repeatedMapVec = BuildRepeatedSubMaps(this->K_,subMapVec);
-//
-//        }
+        //////////
+        // Maps //
+        //////////
+        FROSCH_ASSERT(!repeatedMapVec.is_null(),"repeatedMapVec.is_null() = true. Please provide the repeated maps vector. The maps itself can be null and will be constructed.");
+        for (UN i = 0; i < repeatedMapVec.size(); i++) {
+            if (repeatedMapVec[i].is_null()) {
+                FROSCH_ASSERT( i==0, "We can only construct a repeated map for a non block system");
+                repeatedMapVec[i] = BuildRepeatedMap(this->K_, this->ParameterList_->get("Reduce approx repeated map",true) ); // Todo: Achtung, die UniqueMap könnte unsinnig verteilt sein. Falls es eine repeatedMap gibt, sollte dann die uniqueMap neu gebaut werden können. In diesem Fall, sollte man das aber basierend auf der repeatedNodesMap tun
+            }
+        }
 
         // Build dofsMaps and repeatedNodesMap
         ConstXMapPtrVecPtr repeatedNodesMapVec;
