@@ -289,7 +289,7 @@ namespace FROSch {
     }
 
     template <class SC,class LO,class GO,class NO>
-    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const Matrix<SC,LO,GO,NO> > matrix, , bool reduceMap)
+    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const Matrix<SC,LO,GO,NO> > matrix, bool reduceMap)
     {
         FROSCH_TIMER_START(buildRepeatedMapNonConstTime,"BuildRepeatedMapNonConst");
         RCP<Map<LO,GO,NO> > uniqueMap = MapFactory<LO,GO,NO>::Build(matrix->getRowMap(),1);
