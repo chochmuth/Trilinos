@@ -83,14 +83,14 @@
 #endif
 
 //FROSch
-#include <FROSch_AlgebraicOverlappingPreconditioner_def.hpp>
-#include <FROSch_GDSWPreconditioner_def.hpp>
-#include <FROSch_RGDSWPreconditioner_def.hpp>
-#include <FROSch_OneLevelPreconditioner_def.hpp>
-#include <FROSch_TwoLevelPreconditioner_def.hpp>
-#include <FROSch_TwoLevelBlockPreconditioner_def.hpp>
-#include <Thyra_FROSchLinearOp_def.hpp>
-#include <FROSch_Tools_def.hpp>
+#include <FROSch_AlgebraicOverlappingPreconditioner_decl.hpp>
+#include <FROSch_GDSWPreconditioner_decl.hpp>
+#include <FROSch_RGDSWPreconditioner_decl.hpp>
+#include <FROSch_OneLevelPreconditioner_decl.hpp>
+#include <FROSch_TwoLevelPreconditioner_decl.hpp>
+#include <FROSch_TwoLevelBlockPreconditioner_decl.hpp>
+#include <Thyra_FROSchLinearOp_decl.hpp>
+#include <FROSch_Tools_decl.hpp>
 
 
 namespace Thyra {

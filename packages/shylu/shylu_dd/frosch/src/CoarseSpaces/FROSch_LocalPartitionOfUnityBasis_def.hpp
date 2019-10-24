@@ -160,6 +160,9 @@ namespace FROSch {
             }
         }
 
+        //ch 19/01/17: we need to modify the below function call to address parallel coarse solves. Atm the variable CoarseOperator::NotOnCoarseSolveComm_ is not known here.
+        //ch 19/09/16: OnLocalSolveComm_ replaces NonOnCoarseSolveComm_
+
         LocalPartitionOfUnitySpace_->assembleCoarseSpace();
 
         return 0;

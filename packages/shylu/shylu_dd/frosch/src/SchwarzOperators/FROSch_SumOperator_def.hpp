@@ -56,6 +56,7 @@ namespace FROSch {
     OperatorVector_ (0),
     XTmp_ (),
     EnableOperators_ (0)
+    //levelCombinationOperator
     {
         FROSCH_TIMER_START_LEVELID(sumOperatorTime,"SumOperator::SumOperator");
     }
@@ -73,7 +74,7 @@ namespace FROSch {
         for (unsigned i=1; i<operators.size(); i++) {
             FROSCH_ASSERT(operators[i]->OperatorDomainMap().SameAs(OperatorVector_[0]->OperatorDomainMap()),"The DomainMaps of the operators are not identical.");
             FROSCH_ASSERT(operators[i]->OperatorRangeMap().SameAs(OperatorVector_[0]->OperatorRangeMap()),"The RangeMaps of the operators are not identical.");
-
+            
             OperatorVector_.push_back(operators[i]);
             EnableOperators_.push_back(true);
         }
@@ -123,33 +124,113 @@ namespace FROSch {
     {
         FROSCH_TIMER_START_LEVELID(applyTime,"SumOperator::apply");
         if (OperatorVector_.size()>0) {
-            if (XTmp_.is_null()) XTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
-            *XTmp_ = x; // Das brauche ich für den Fall das x=y
-            UN itmp = 0;
-            for (UN i=0; i<OperatorVector_.size(); i++) {
-                if (EnableOperators_[i]) {
-                    OperatorVector_[i]->apply(*XTmp_,y,usePreconditionerOnly,mode,alpha,beta);
-                    if (itmp==0) beta = ScalarTraits<SC>::one();
-                    itmp++;
+            
+            int rankRangeCoarseOpDiff = this->OperatorVector_[this->OperatorVector_.size()-1]->getParameterList()->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1) -
+            this->OperatorVector_[this->OperatorVector_.size()-1]->getParameterList()->get("Coarse problem ranks lower bound",0);
+            //parallel coarse solves
+            if (this->OperatorVector_.size()==2 && rankRangeCoarseOpDiff < (this->MpiComm_->getSize()-1) ) {
+                
+                FROSCH_ASSERT(usePreconditionerOnly,"Parallel SumOperator is only implemented as a Preconditioner.");
+                
+                Teuchos::RCP<OverlappingOperator<SC,LO,GO,NO> > overlappingOp =
+                Teuchos::rcp_dynamic_cast<OverlappingOperator<SC,LO,GO,NO> >(this->OperatorVector_[0]);
+                
+                Teuchos::RCP<CoarseOperator<SC,LO,GO,NO> > coarseOp =
+                Teuchos::rcp_dynamic_cast<CoarseOperator<SC,LO,GO,NO> >(this->OperatorVector_[1]);
+                
+                FROSCH_ASSERT(overlappingOp->isComputed(),"Overlapping Operator is not computed.");
+                FROSCH_ASSERT(coarseOp->isComputed(),"Coarse Operator is not computed.");
+                
+                MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
+                *xTmp = x;
+                
+                MapPtr swapMap = coarseOp->getSwapMap();
+                MapPtr overlappingMap = overlappingOp->getOverlappingMap();
+                CrsMatrixPtr overlappingMatrix = overlappingOp->getOverlappingMatrix();
+                SubdomainSolverPtr subdomainSolver = overlappingOp->getSubdomainSolver();
+                ImporterPtr scatter = overlappingOp->getScatter();
+                bool onFristLevelComm = overlappingOp->getOnLevelComm();
+
+                MultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(swapMap,x.getNumVectors());
+                MultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(swapMap,y.getNumVectors());
+                coarseOp->applyPhiT(*xTmp,*xCoarseSolve);
+                
+                MultiVectorPtr xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(overlappingMap,x.getNumVectors());
+                MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(overlappingMap,x.getNumVectors());
+                
+                xOverlap->doImport(*xTmp,*scatter,Xpetra::INSERT);
+                if (onFristLevelComm) {
+                    yOverlap->replaceMap(overlappingMatrix->getRangeMap());
+                    xOverlap->replaceMap(overlappingMatrix->getDomainMap());
+                    subdomainSolver->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
+                }
+                coarseOp->applyCoarseSolve(*xCoarseSolve,*yCoarseSolve,mode);
+                
+                xTmp->putScalar(0.0);
+                yOverlap->replaceMap(overlappingMap);
+                
+                if (overlappingOp->getCombineMode() == Restricted){
+                    // change this to combine()
+                    GO globID = 0;
+                    LO localID = 0;
+                    for (unsigned i=0; i<y.getNumVectors(); i++) {
+                        for (unsigned j=0; j<y.getMap()->getNodeNumElements(); j++) {
+                            globID = y.getMap()->getGlobalElement(j);
+                            localID = yOverlap->getMap()->getLocalElement(globID);
+                            xTmp->getDataNonConst(i)[j] = yOverlap->getData(i)[localID];
+                        }
+                    }
+                }
+                else{
+                    xTmp->doExport(*yOverlap,*scatter,Xpetra::ADD);
+                }
+                if (overlappingOp->getCombineMode() == Averaging) {
+                    MultiVectorPtr multiplicity = overlappingOp->getMultiplicity();
+                    ConstSCVecPtr scaling = multiplicity->getData(0);
+                    for (unsigned j=0; j<xTmp->getNumVectors(); j++) {
+                        SCVecPtr values = xTmp->getDataNonConst(j);
+                        for (unsigned i=0; i<values.size(); i++) {
+                            values[i] = values[i] / scaling[i];
+                        }
+                    }
+                }
+                
+                y.update(alpha,*xTmp,beta);
+                
+                coarseOp->applyPhi(*yCoarseSolve,*xTmp);
+                
+                y.update(alpha,*xTmp,1.);
+                
+            }
+            else{
+                if (XTmp_.is_null()) XTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
+                *XTmp_ = x; // Das brauche ich für den Fall das x=y
+                UN itmp = 0;
+                for (UN i=0; i<OperatorVector_.size(); i++) {
+                    if (EnableOperators_[i]) {
+                        OperatorVector_[i]->apply(*XTmp_,y,usePreconditionerOnly,mode,alpha,beta);
+                        if (itmp==0) beta = ScalarTraits<SC>::one();
+                        itmp++;
+                    }
                 }
             }
         } else {
             y.update(alpha,x,beta);
         }
     }
-
+    
     template <class SC,class LO,class GO,class NO>
     typename SumOperator<SC,LO,GO,NO>::ConstXMapPtr SumOperator<SC,LO,GO,NO>::getDomainMap() const
     {
         return OperatorVector_[0]->getDomainMap();
     }
-
+    
     template <class SC,class LO,class GO,class NO>
     typename SumOperator<SC,LO,GO,NO>::ConstXMapPtr SumOperator<SC,LO,GO,NO>::getRangeMap() const
     {
         return OperatorVector_[0]->getRangeMap();
     }
-
+    
     template <class SC,class LO,class GO,class NO>
     void SumOperator<SC,LO,GO,NO>::describe(FancyOStream &out,
                                             const EVerbosityLevel verbLevel) const
@@ -161,7 +242,7 @@ namespace FROSch {
     std::string SumOperator<SC,LO,GO,NO>::description() const
     {
         std::string labelString = "Sum operator: ";
-
+        
         for (UN i=0; i<OperatorVector_.size(); i++) {
             labelString += OperatorVector_[i]->description();
             if (i<OperatorVector_.size()-1) {

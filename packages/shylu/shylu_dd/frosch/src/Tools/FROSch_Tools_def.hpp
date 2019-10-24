@@ -50,10 +50,10 @@
 
 
 namespace FROSch {
-
+    
     using namespace Teuchos;
     using namespace Xpetra;
-
+    
     template <typename LO,typename GO>
     OverlappingData<LO,GO>::OverlappingData(GO gid,
                                             int pid,
@@ -62,9 +62,9 @@ namespace FROSch {
     PIDs_ (1,pid),
     LIDs_ (1,lid)
     {
-
+        
     }
-
+    
     template <typename LO,typename GO>
     int OverlappingData<LO,GO>::Merge(const RCP<OverlappingData<LO,GO> > od) const
     {
@@ -99,14 +99,14 @@ namespace FROSch {
                                      }
                                  }
                                  ),odList.end());
-
+        
         typename Array<RCP<OverlappingData<LO,GO> > >::iterator tmpODPtrVecIt;
         for (tmpODPtrVecIt=odList.begin(); tmpODPtrVecIt!=odList.end(); tmpODPtrVecIt++) {
             numPackages += (*tmpODPtrVecIt)->PIDs_.size()*(*tmpODPtrVecIt)->PIDs_.size();
         }
         return numPackages;
     }
-
+    
     template <typename LO,typename GO,typename NO>
     LowerPIDTieBreak<LO,GO,NO>::LowerPIDTieBreak(CommPtr comm,
                                                  ConstXMapPtr originalMap,
@@ -121,20 +121,20 @@ namespace FROSch {
     {
         FROSCH_TIMER_START_LEVELID(lowerPIDTieBreakTime,"LowerPIDTieBreak::LowerPIDTieBreak");
     }
-
+    
     template <typename LO,typename GO,typename NO>
     int LowerPIDTieBreak<LO,GO,NO>::sendDataToOriginalMap()
     {
         FROSCH_TIMER_START_LEVELID(sendDataToOriginalMapTime,"LowerPIDTieBreak::sendDataToOriginalMap");
         // This is done analogously to  DistributedNoncontiguousDirectory<LO, GO, NT>::DistributedNoncontiguousDirectory(const map_type& map,const tie_break_type& tie_break)
         typedef typename ArrayView<const GO>::size_type size_type;
-
+        
         OverlappingDataList_.resize(ElementCounter_);
-
+        
         int numPackages = MergeList(OverlappingDataList_);
-
+        
         Tpetra::Distributor distor (MpiComm_);
-
+        
         const int packetSize = 2;
         IntVec sendImageIDs(numPackages);
         GOVec exportEntries(packetSize*numPackages); // data to send out
@@ -143,7 +143,7 @@ namespace FROSch {
             typename IntVec::iterator tmpIntVecIt;
             typename IntVec::iterator tmpIntVecIt2;
             typename LOVec::iterator tmpLOVecIt;
-
+            
             size_type exportIndex = 0;
             size_type exportIndex2 = 0;
             for (tmpODPtrVecIt = OverlappingDataList_.begin(); tmpODPtrVecIt!=OverlappingDataList_.end(); tmpODPtrVecIt++) {
@@ -159,19 +159,19 @@ namespace FROSch {
             }
         }
         distor.createFromSends(sendImageIDs);
-
+        
         GOVec importElements(packetSize*distor.getTotalReceiveLength());
-
+        
         distor.doPostsAndWaits(exportEntries().getConst(),packetSize,importElements());
-
+        
         LO length = importElements.size()/packetSize;
         for (LO i=0; i<length; i++) {
             ComponentsSubdomains_[OriginalMap_->getLocalElement(importElements[2*i])].push_back(importElements[2*i+1]);
         }
-
+        
         return 0;
     }
-
+    
     template <typename LO,typename GO,typename NO>
     std::size_t LowerPIDTieBreak<LO,GO,NO>::selectedIndex(GO GID,
                                                           const std::vector<std::pair<int,LO> > & pid_and_lid) const
@@ -181,7 +181,7 @@ namespace FROSch {
         std::size_t idx = 0;
         int minpid = pid_and_lid[0].first;
         std::size_t minidx = 0;
-
+        
         static int counter = 0;
         for (idx = 0; idx < numLids; ++idx) {
             // Organize the overlapping data to send it back to the original processes
@@ -205,7 +205,7 @@ namespace FROSch {
         }
         return minidx;
     }
-
+    
     template <class LO,class GO,class NO>
     RCP<const Map<LO,GO,NO> > BuildUniqueMap(const RCP<const Map<LO,GO,NO> > map,
                                              bool useCreateOneToOneMap,
@@ -647,26 +647,30 @@ namespace FROSch {
 
     template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > AssembleMaps(ArrayView<RCP<Map<LO,GO,NO> > > mapVector,
-                                     ArrayRCP<ArrayRCP<LO> > &partMappings)
+                                     ArrayRCP<ArrayRCP<LO> > &partMappings,
+                                     bool OnLocalSolveComm,
+                                     UnderlyingLib lib,
+                                     RCP< const Comm< int > > mpiComm)
     {
         FROSCH_TIMER_START(assembleMapsTime,"AssembleMaps");
-        FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
+        if (OnLocalSolveComm)
+            FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
         LO i = 0;
         LO localstart = 0;
         LO sizetmp = 0;
         LO size = 0;
         GO globalstart = 0;
-
+        
         partMappings = ArrayRCP<ArrayRCP<LO> >(mapVector.size());
-
+        
         ArrayRCP<GO> assembledMapTmp(0);
         for (unsigned j=0; j<mapVector.size(); j++) {
             sizetmp = mapVector[j]->getNodeNumElements();
             partMappings[j] = ArrayRCP<LO>(sizetmp);
-
+            
             size += sizetmp;
             assembledMapTmp.resize(size);
-
+            
             localstart = i;
             while (i<localstart+sizetmp) {
                 partMappings[j][i-localstart] = i;
@@ -675,18 +679,21 @@ namespace FROSch {
             }
             //std::cout << mapVector[j]->getMaxAllGlobalIndex() << std::endl;
             /*
-            globalstart += mapVector[j]->getMaxAllGlobalIndex();
-
-            if (mapVector[0]->lib()==UseEpetra || mapVector[j]->getGlobalNumElements()>0) {
-                globalstart += 1;
-            }
+             globalstart += mapVector[j]->getMaxAllGlobalIndex();
+             
+             if (mapVector[0]->lib()==UseEpetra || mapVector[j]->getGlobalNumElements()>0) {
+             globalstart += 1;
+             }
              */
-
+            
             globalstart += std::max(mapVector[j]->getMaxAllGlobalIndex(),(GO)-1)+1; // AH 04/05/2018: mapVector[j]->getMaxAllGlobalIndex() can result in -2147483648 if the map is empty on the process => introducing max(,)
-
+            
             //if (mapVector[j]->getComm()->getRank() == 0) std::cout << std::endl << globalstart << std::endl;
         }
-        return MapFactory<LO,GO,NO>::Build(mapVector[0]->lib(),-1,assembledMapTmp(),0,mapVector[0]->getComm());
+        if (!mpiComm.is_null())
+            return MapFactory<LO,GO,NO>::Build(lib,-1,assembledMapTmp(),0,mpiComm);
+        else
+            return MapFactory<LO,GO,NO>::Build(mapVector[0]->lib(),-1,assembledMapTmp(),0,mapVector[0]->getComm());
     }
     
     template <class LO,class GO,class NO>
@@ -723,18 +730,18 @@ namespace FROSch {
         FROSCH_TIMER_START(mergeMapsNonConstTime,"MergeMapsNonConst");
         FROSCH_ASSERT(!mapVector.is_null(),"mapVector is null!");
         FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
-
+        
         Array<GO> elementList(mapVector[0]->getNodeElementList());
         GO tmpOffset = 0;
         for (unsigned i=1; i<mapVector.size(); i++) {
             LO nodeNumElements = mapVector[i]->getNodeNumElements();
             tmpOffset += mapVector[i-1]->getMaxAllGlobalIndex()+1;
-
+            
             Array<GO> subElementList(nodeNumElements);
             for (LO j=0; j<nodeNumElements; j++) {
                 subElementList.at(j) = mapVector[i]->getGlobalElement(j)+tmpOffset;
             }
-
+            
             elementList.insert(elementList.end(),subElementList.begin(),subElementList.end());
         }
         return MapFactory<LO,GO,NO>::Build(mapVector[0]->lib(),-1,elementList(),0,mapVector[0]->getComm());
@@ -747,6 +754,32 @@ namespace FROSch {
     }
 
     template <class LO,class GO,class NO>
+    RCP<Map<LO,GO,NO> > MergeMapsContNonConst(ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVector)
+    {
+        FROSCH_ASSERT(!mapVector.is_null(),"mapVector is null!");
+        FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
+        // add more checks
+        
+        Array<GO> elementList(0);
+        for (unsigned i=0; i<mapVector.size(); i++) {
+            LO nodeNumElements = mapVector[i]->getNodeNumElements();
+            Array<GO> subElementList(nodeNumElements);
+            for (LO j=0; j<nodeNumElements; j++) {
+                subElementList[j] = mapVector[i]->getGlobalElement(j);
+            }
+            elementList.insert(elementList.end(),subElementList.begin(),subElementList.end());
+        }
+        return MapFactory<LO,GO,NO>::Build(mapVector[0]->lib(),-1,elementList(),0,mapVector[0]->getComm());
+    }
+
+    template <class LO,class GO,class NO>
+    RCP<const Map<LO,GO,NO> > MergeMapsCont(ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVector)
+    {
+        return MergeMapsContNonConst(mapVector).getConst();
+    }
+
+    
+    template <class LO,class GO,class NO>
     int BuildDofMapsVec(const ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVec,
                         ArrayRCP<unsigned> dofsPerNodeVec,
                         ArrayRCP<FROSch::DofOrdering> dofOrderingVec,
@@ -757,13 +790,13 @@ namespace FROSch {
         unsigned numberBlocks = mapVec.size();
         nodesMapVec = ArrayRCP<RCP<const Map<LO,GO,NO> > > (numberBlocks);
         dofMapsVec = ArrayRCP<ArrayRCP<RCP<const Map<LO,GO,NO> > > > (numberBlocks);
-
+        
         GO tmpOffset = 0;
         for (unsigned i = 0 ; i < numberBlocks; i++) {
             BuildDofMaps(mapVec[i],dofsPerNodeVec[i],dofOrderingVec[i],nodesMapVec[i],dofMapsVec[i],tmpOffset);
             tmpOffset += mapVec[i]->getMaxAllGlobalIndex()+1;
         }
-
+        
         return 0;
     }
 
@@ -875,12 +908,97 @@ namespace FROSch {
         return MapFactory<LO,GO,NO>::Build(nodesMap->lib(),-1,globalIDs(),0,nodesMap->getComm());
     }
 
-//    template <class LO,class GO,class NO>
-//    ArrayRCP<RCP<Map<LO,GO,NO> > > BuildSubMaps(RCP<const Map<LO,GO,NO> > &fullMap,
-//                                                                          ArrayRCP<GO> maxSubGIDVec){
-//
-//          RCP<Map<LO,GO,NO> > fullMapNonConst = rcp_dynamic_cast<Map<LO,GO,NO> >(fullMap);
-//    }
+
+    template <class LO,class GO,class NO>
+    ArrayRCP<RCP<Map<LO,GO,NO> > > BuildNodeMapsFromDofMaps(ArrayRCP<ArrayRCP<RCP<Map<LO,GO,NO> > > > dofsMapsVecVec,
+                                                            ArrayRCP<unsigned> dofsPerNodeVec,
+                                                            ArrayRCP<DofOrdering> dofOrderingVec)
+    {
+        
+        typedef Map<LO,GO,NO> Map;
+        typedef RCP<Map> MapPtr;
+        typedef ArrayRCP<MapPtr> MapPtrVecPtr;
+        
+        FROSCH_ASSERT(!dofsMapsVecVec.is_null(),"dofsMapsVecVec.is_null().");
+        FROSCH_ASSERT(dofsPerNodeVec.size()==dofOrderingVec.size() && dofsPerNodeVec.size()==dofsMapsVecVec.size(),"ERROR: Wrong number of maps, dof information and/or dof orderings");
+        unsigned nmbBlocks = dofsMapsVecVec.size();
+        for (unsigned i=0; i<nmbBlocks; i++){
+            FROSCH_ASSERT(dofOrderingVec[i]==NodeWise || dofOrderingVec[i]==DimensionWise,"ERROR: Specify a valid DofOrdering.");
+            FROSCH_ASSERT(dofsMapsVecVec[i].size() == dofsPerNodeVec[i] ,"ERROR: The number of dofsPerNode does not match the number of dofsMaps for a block.");
+        }
+        
+        RCP< const Comm< int > > 	comm = dofsMapsVecVec[0][0]->getComm();
+        
+        //Check if the current block is a real block, or if dof indicies are consecutive over more than one block.
+        Array<bool> isMergedPrior( nmbBlocks, false );
+        Array<bool> isMergedAfter( nmbBlocks, false );
+        
+        for (unsigned block=1; block<nmbBlocks; block++) {
+            if ( dofsMapsVecVec[block-1][0]->getMaxAllGlobalIndex() > dofsMapsVecVec[block][0]->getMinAllGlobalIndex()) {// It is enough to compare the first dofMaps of each block
+                isMergedPrior[block] = true;
+                isMergedAfter[block-1] = true;
+            }
+        }
+        
+        //Determine offset for each block based on isMergedPrior and isMergedAfter.
+        Array<GO> blockOffset( nmbBlocks, ScalarTraits<GO>::zero() ); //if blocks are real blocks, this entry here will give provide the correct offset.
+        Array<GO> consBlockOffset( nmbBlocks, ScalarTraits<GO>::zero() );
+        Array<GO> consThisBlockOffset( nmbBlocks, ScalarTraits<GO>::zero() );
+        for (unsigned block=0; block<nmbBlocks; block++) {
+            
+            consBlockOffset[block] += dofsPerNodeVec[block]; //add own dofs
+            
+            unsigned i = block;
+            while (isMergedAfter[i]) {
+                consBlockOffset[block] += dofsPerNodeVec[i+1];
+                i++;
+            }
+            i = block;
+            while (isMergedPrior[i]) {
+                consBlockOffset[block] += dofsPerNodeVec[i-1];
+                i--;
+            }
+            
+            if ( !isMergedPrior[block] && block>0 ) {
+                blockOffset[block] += dofsMapsVecVec[block-1][dofsMapsVecVec[block-1].size()-1]->getMaxAllGlobalIndex(); //It is assumed that the last dofMap of a block has the highest GID of all block dof maps.
+                unsigned j = block;
+                while (isMergedAfter[j]) {
+                    blockOffset[j] = blockOffset[block];
+                    j++;
+                }
+            }
+        }
+        
+        MapPtrVecPtr nodeMapsVec( nmbBlocks );
+        // Build node maps for all blocks
+        for (unsigned block=0; block<nmbBlocks; block++) {
+            
+            if (dofOrderingVec[block] == NodeWise) {
+                ArrayView< const GO > globalIndices = dofsMapsVecVec[block][0]->getNodeElementList();
+                Array<GO> globalIndicesNode( globalIndices );
+                GO offset = dofsMapsVecVec[block][0]->getMinAllGlobalIndex();
+                for (unsigned i=0; i<globalIndicesNode.size(); i++){
+                    // multiplier is not correct if isMergedPrior==true because we substract minAllGIDBlock. We have to adjust for this later
+                    // was ist wenn mergedPrior und blockOffset existiert, dann ist multiplier falsch.
+                    GO multiplier = (globalIndicesNode[i] - offset) / (consBlockOffset[block]);
+                    GO rest = (globalIndicesNode[i] - offset) % (consBlockOffset[block]);
+                    globalIndicesNode[i] = multiplier + rest;
+                    
+                }
+                nodeMapsVec[block] = MapFactory<LO,GO,NO>::Build( dofsMapsVecVec[block][0]->lib(), -1,globalIndicesNode(), 0, dofsMapsVecVec[block][0]->getComm() );
+            }
+            else{ //DimensionWise
+                GO minGID = dofsMapsVecVec[block][0]->getMinAllGlobalIndex();
+                ArrayView< const GO > globalIndices = dofsMapsVecVec[block][0]->getNodeElementList();
+                Array<GO> globalIndicesNode( globalIndices );
+                for (unsigned i=0; i<globalIndicesNode.size(); i++)
+                    globalIndicesNode[i] -= minGID;
+                
+                nodeMapsVec[block] = MapFactory<LO,GO,NO>::Build( dofsMapsVecVec[block][0]->lib(), -1,globalIndicesNode(), 0, dofsMapsVecVec[block][0]->getComm() );
+            }
+        }
+        return nodeMapsVec;
+    }
 
     template <class LO,class GO,class NO>
     ArrayRCP<RCP<Map<LO,GO,NO> > > BuildSubMaps(RCP<const Map<LO,GO,NO> > &fullMap,
@@ -1148,7 +1266,7 @@ namespace FROSch {
         FROSCH_ASSERT(false,"FROSch::ConvertToXpetra : ERROR: Needs specialization.");
         return null;
     }
-
+    
     template <class SC,class LO,class GO,class NO>
     RCP<Matrix<SC,LO,GO,NO> > ConvertToXpetra<SC,LO,GO,NO>::ConvertMatrix(UnderlyingLib lib,
                                                                           Epetra_CrsMatrix &matrix,
@@ -1157,7 +1275,7 @@ namespace FROSch {
         FROSCH_ASSERT(false,"FROSch::ConvertToXpetra : ERROR: Needs specialization.");
         return null;
     }
-
+    
     template <class SC,class LO,class GO,class NO>
     RCP<MultiVector<SC,LO,GO,NO> > ConvertToXpetra<SC,LO,GO,NO>::ConvertMultiVector(UnderlyingLib lib,
                                                                                     Epetra_MultiVector &vector,
@@ -1173,7 +1291,7 @@ namespace FROSch {
         }
         return xMultiVector;
     }
-
+    
     template <class SC,class LO,class NO>
     RCP<Map<LO,int,NO> > ConvertToXpetra<SC,LO,int,NO>::ConvertMap(UnderlyingLib lib,
                                                                    const Epetra_BlockMap &map,
@@ -1183,7 +1301,7 @@ namespace FROSch {
         ArrayView<int> mapArrayView(map.MyGlobalElements(),map.NumMyElements());
         return MapFactory<LO,int,NO>::Build(lib,-1,mapArrayView,0,comm);
     }
-
+    
     template <class SC,class LO,class NO>
     RCP<Matrix<SC,LO,int,NO> > ConvertToXpetra<SC,LO,int,NO>::ConvertMatrix(UnderlyingLib lib,
                                                                             Epetra_CrsMatrix &matrix,
@@ -1197,7 +1315,7 @@ namespace FROSch {
             LO* indices;
             SC* values;
             matrix.ExtractMyRowView(i,numEntries,values,indices);
-
+            
             Array<int> indicesArray(numEntries);
             ArrayView<SC> valuesArrayView(values,numEntries);
             for (LO j=0; j<numEntries; j++) {
@@ -1208,7 +1326,7 @@ namespace FROSch {
         xmatrix->fillComplete();
         return xmatrix;
     }
-
+    
     template <class SC,class LO,class NO>
     RCP<MultiVector<SC,LO,int,NO> > ConvertToXpetra<SC,LO,int,NO>::ConvertMultiVector(UnderlyingLib lib,
                                                                                       Epetra_MultiVector &vector,
@@ -1224,7 +1342,7 @@ namespace FROSch {
         }
         return xMultiVector;
     }
-
+    
     template <class SC,class LO,class NO>
     RCP<Map<LO,long long,NO> > ConvertToXpetra<SC,LO,long long,NO>::ConvertMap(UnderlyingLib lib,
                                                                                const Epetra_BlockMap &map,
@@ -1234,7 +1352,7 @@ namespace FROSch {
         ArrayView<long long> mapArrayView(map.MyGlobalElements64(),map.NumMyElements());
         return MapFactory<LO,long long,NO>::Build(lib,-1,mapArrayView,0,comm);
     }
-
+    
     template <class SC,class LO,class NO>
     RCP<Matrix<SC,LO,long long,NO> > ConvertToXpetra<SC,LO,long long,NO>::ConvertMatrix(UnderlyingLib lib,
                                                                                         Epetra_CrsMatrix &matrix,
@@ -1248,7 +1366,7 @@ namespace FROSch {
             LO* indices;
             SC* values;
             matrix.ExtractMyRowView(i,numEntries,values,indices);
-
+            
             Array<long long> indicesArray(numEntries);
             ArrayView<SC> valuesArrayView(values,numEntries);
             for (LO j=0; j<numEntries; j++) {
@@ -1259,7 +1377,7 @@ namespace FROSch {
         xmatrix->fillComplete();
         return xmatrix;
     }
-
+    
     template <class SC,class LO,class NO>
     RCP<MultiVector<SC,LO,long long,NO> > ConvertToXpetra<SC,LO,long long,NO>::ConvertMultiVector(UnderlyingLib lib,
                                                                                                   Epetra_MultiVector &vector,
@@ -1275,6 +1393,7 @@ namespace FROSch {
         }
         return xMultiVector;
     }
+
 #endif
 
     template <class Type>
@@ -1318,15 +1437,15 @@ namespace FROSch {
     {
         FROSCH_TIMER_START(convertToEpetraTime,"ConvertToEpetra");
         ArrayView<const GO> elementList = map.getNodeElementList();
-
+        
         GO numGlobalElements = map.getGlobalNumElements();
-
+        
         if(elementList.size()>0)
             return rcp(new Epetra_Map(numGlobalElements,elementList.size(),elementList.getRawPtr(),0,*epetraComm));
         else
             return rcp(new Epetra_Map(numGlobalElements,0,NULL,0,*epetraComm));
     }
-
+    
     template <class SC, class LO, class GO,class NO>
     RCP<Epetra_MultiVector> ConvertToEpetra(const MultiVector<SC,LO,GO,NO> &vector,
                                             RCP<Epetra_Comm> epetraComm)
@@ -1341,7 +1460,7 @@ namespace FROSch {
         }
         return multiVector;
     }
-
+    
     template <class SC, class LO,class GO, class NO>
     RCP<Epetra_CrsMatrix> ConvertToEpetra(const Matrix<SC,LO,GO,NO> &matrix,
                                           RCP<Epetra_Comm> epetraComm)
@@ -1351,7 +1470,7 @@ namespace FROSch {
         RCP<Epetra_CrsMatrix> matrixEpetra(new Epetra_CrsMatrix(::Copy,*map,matrix.getGlobalMaxNumRowEntries()));
         ArrayView<const SC> valuesArrayView;
         ArrayView<const LO> indicesArrayView;
-
+        
         for (LO i=0; i<(LO) matrix.getRowMap()->getNodeNumElements(); i++) {
             matrix.getLocalRowView(i, indicesArrayView, valuesArrayView);
             Array<GO> indicesGlobal(indicesArrayView.size());
@@ -1366,6 +1485,7 @@ namespace FROSch {
         return matrixEpetra;
     }
 #endif
+
 
     template <class LO>
     Array<LO> GetIndicesFromString(std::string string, LO dummy)
@@ -1384,21 +1504,21 @@ namespace FROSch {
     {
         FROSCH_TIMER_START(repartionMatrixZoltan2Time,"RepartionMatrixZoltan2");
         RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout));
-
+        
         using inputAdapter    = Zoltan2::XpetraCrsMatrixAdapter<CrsMatrix<SC,LO,GO,NO> >;
-
+        
         RCP<CrsMatrixWrap<SC,LO,GO,NO> > tmpCrsWrap = rcp_dynamic_cast<CrsMatrixWrap<SC,LO,GO,NO> >(crsMatrix);
         RCP<CrsMatrix<SC,LO,GO,NO> > tmpCrsMatrix = tmpCrsWrap->getCrsMatrix();
         inputAdapter adaptedMatrix(tmpCrsMatrix);
-
+        
         RCP<Zoltan2::PartitioningProblem<inputAdapter> > problem =
-             rcp(new Zoltan2::PartitioningProblem<inputAdapter>(&adaptedMatrix, parameterList.get()));
-
+        rcp(new Zoltan2::PartitioningProblem<inputAdapter>(&adaptedMatrix, parameterList.get()));
+        
         problem->solve();
-
+        
         RCP<CrsMatrix<SC,LO,GO,NO> > matrixRepartition;
         adaptedMatrix.applyPartitioningSolution(*tmpCrsMatrix,matrixRepartition,problem->getSolution());
-
+        
         RCP<CrsMatrixWrap<SC,LO,GO,NO> > tmpCrsWrap2 = rcp(new CrsMatrixWrap<SC,LO,GO,NO>(matrixRepartition));
         crsMatrix = rcp_dynamic_cast<Matrix<SC,LO,GO,NO> >(tmpCrsWrap2);
         return 0;

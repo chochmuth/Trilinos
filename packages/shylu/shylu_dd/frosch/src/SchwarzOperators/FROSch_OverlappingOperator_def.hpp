@@ -61,6 +61,7 @@ namespace FROSch {
     XOverlapTmp_ (),
     YOverlap_ (),
     Scatter_(),
+    GatherRestricted_(),
     SubdomainSolver_ (),
     Multiplicity_(),
     Combine_()
@@ -73,6 +74,11 @@ namespace FROSch {
         } else if (!this->ParameterList_->get("Combine Values in Overlap","Restricted").compare("Restricted")) {
             Combine_ = Restricted;
         }
+        if ( this->MpiComm_->getRank() >= this->RankRange_[0] && this->MpiComm_->getRank() <= this->RankRange_[1] )
+            OnFirstLevelComm_ = true;
+        
+        FirstLevelSolveComm_ = this->MpiComm_->split(!OnFirstLevelComm_,this->MpiComm_->getRank());
+
     }
 
     template <class SC,class LO,class GO,class NO>
@@ -92,74 +98,100 @@ namespace FROSch {
     {
         FROSCH_TIMER_START_LEVELID(applyTime,"OverlappingOperator::apply");
         FROSCH_ASSERT(this->IsComputed_,"FROSch::OverlappingOperator : ERROR: OverlappingOperator has to be computed before calling apply()");
-        if (XTmp_.is_null()) XTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
+        if (XTmp_.is_null())
+            XTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
         *XTmp_ = x;
         if (!usePreconditionerOnly && mode == NO_TRANS) {
             this->K_->apply(x,*XTmp_,mode,ScalarTraits<SC>::one(),ScalarTraits<SC>::zero());
         }
         // AH 11/28/2018: For Epetra, XOverlap_ will only have a view to the values of XOverlapTmp_. Therefore, xOverlapTmp should not be deleted before XOverlap_ is used.
-        if (YOverlap_.is_null()) {
+        if (YOverlap_.is_null())
             YOverlap_ = MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMatrix_->getDomainMap(),x.getNumVectors());
-        } else {
+        else
             YOverlap_->replaceMap(OverlappingMatrix_->getDomainMap());
+        
+        extend();
+        
+        if (OnFirstLevelComm_) {
+            YOverlap_->replaceMap(OverlappingMatrix_->getRangeMap());
+            SubdomainSolver_->apply(*XOverlap_,*YOverlap_,mode,ScalarTraits<SC>::one(),ScalarTraits<SC>::zero());
         }
-        // AH 11/28/2018: replaceMap does not update the GlobalNumRows. Therefore, we have to create a new MultiVector on the serial Communicator. In Epetra, we can prevent to copy the MultiVector.
+        
+        YOverlap_->replaceMap(OverlappingMap_);
+        
+        XTmp_->putScalar(ScalarTraits<SC>::zero());
+        combine();
+        
+        if (!usePreconditionerOnly && mode != NO_TRANS) {
+            this->K_->apply(*XTmp_,*XTmp_,mode,ScalarTraits<SC>::one(),ScalarTraits<SC>::zero());
+        }
+        y.update(alpha,*XTmp_,beta);
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    void OverlappingOperator<SC,LO,GO,NO>::extend() const
+    {
         if (XTmp_->getMap()->lib() == UseEpetra) {
 #ifdef HAVE_XPETRA_EPETRA
-            if (XOverlapTmp_.is_null()) XOverlapTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+            if (XOverlapTmp_.is_null())
+                XOverlapTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,XTmp_->getNumVectors());
             XOverlapTmp_->doImport(*XTmp_,*Scatter_,INSERT);
             const RCP<const EpetraMultiVectorT<GO,NO> > xEpetraMultiVectorXOverlapTmp = rcp_dynamic_cast<const EpetraMultiVectorT<GO,NO> >(XOverlapTmp_);
             RCP<Epetra_MultiVector> epetraMultiVectorXOverlapTmp = xEpetraMultiVectorXOverlapTmp->getEpetra_MultiVector();
-            const RCP<const EpetraMapT<GO,NO> >& xEpetraMap = rcp_dynamic_cast<const EpetraMapT<GO,NO> >(OverlappingMatrix_->getRangeMap());
-            Epetra_BlockMap epetraMap = xEpetraMap->getEpetra_BlockMap();
-            double *A;
-            int MyLDA;
-            epetraMultiVectorXOverlapTmp->ExtractView(&A,&MyLDA);
-            RCP<Epetra_MultiVector> epetraMultiVectorXOverlap(new Epetra_MultiVector(::View,epetraMap,A,MyLDA,x.getNumVectors()));
-            XOverlap_ = RCP<EpetraMultiVectorT<GO,NO> >(new EpetraMultiVectorT<GO,NO>(epetraMultiVectorXOverlap));
+            
+            if (OnFirstLevelComm_) {
+                const RCP<const EpetraMapT<GO,NO> >& xEpetraMap = rcp_dynamic_cast<const EpetraMapT<GO,NO> >(OverlappingMatrix_->getRangeMap());
+                Epetra_BlockMap epetraMap = xEpetraMap->getEpetra_BlockMap();
+                double *A;
+                int MyLDA;
+                epetraMultiVectorXOverlapTmp->ExtractView(&A,&MyLDA);
+                RCP<Epetra_MultiVector> epetraMultiVectorXOverlap(new Epetra_MultiVector(::View,epetraMap,A,MyLDA,XTmp_->getNumVectors()));
+                XOverlap_ = RCP<EpetraMultiVectorT<GO,NO> >(new EpetraMultiVectorT<GO,NO>(epetraMultiVectorXOverlap));
+            }
 #else
             FROSCH_ASSERT(false,"HAVE_XPETRA_EPETRA not defined.");
 #endif
         } else {
             if (XOverlap_.is_null()) {
-                XOverlap_ = MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
+                XOverlap_ = MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,XTmp_->getNumVectors());
             } else {
                 XOverlap_->replaceMap(OverlappingMap_);
             }
             XOverlap_->doImport(*XTmp_,*Scatter_,INSERT);
-            XOverlap_->replaceMap(OverlappingMatrix_->getRangeMap());
+            if (OnFirstLevelComm_)
+                XOverlap_->replaceMap(OverlappingMatrix_->getRangeMap());
         }
-        SubdomainSolver_->apply(*XOverlap_,*YOverlap_,mode,ScalarTraits<SC>::one(),ScalarTraits<SC>::zero());
-        YOverlap_->replaceMap(OverlappingMap_);
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    void OverlappingOperator<SC,LO,GO,NO>::combine() const
+    {
 
-        XTmp_->putScalar(ScalarTraits<SC>::zero());
         if (Combine_ == Restricted){
-            GO globID = 0;
-            LO localID = 0;
-            for (UN i=0; i<y.getNumVectors(); i++) {
-                for (UN j=0; j<y.getMap()->getNodeNumElements(); j++) {
-                    globID = y.getMap()->getGlobalElement(j);
-                    localID = YOverlap_->getMap()->getLocalElement(globID);
-                    XTmp_->getDataNonConst(i)[j] = YOverlap_->getData(i)[localID];
-                }
-            }
-        } else {
+            XTmp_->doImport(*YOverlap_,*GatherRestricted_,INSERT);
+//            GO globID = 0;
+//            LO localID = 0;
+//            for (UN i=0; i<y.getNumVectors(); i++) {
+//                for (UN j=0; j<y.getMap()->getNodeNumElements(); j++) {
+//                    globID = y.getMap()->getGlobalElement(j);
+//                    localID = YOverlap_->getMap()->getLocalElement(globID);
+//                    XTmp_->getDataNonConst(i)[j] = YOverlap_->getData(i)[localID];
+//                }
+//            }
+
+        }
+        else{
             XTmp_->doExport(*YOverlap_,*Scatter_,ADD);
         }
         if (Combine_ == Averaging) {
             ConstSCVecPtr scaling = Multiplicity_->getData(0);
-            for (UN j=0; j<XTmp_->getNumVectors(); j++) {
+            for (unsigned j=0; j<XTmp_->getNumVectors(); j++) {
                 SCVecPtr values = XTmp_->getDataNonConst(j);
-                for (UN i=0; i<values.size(); i++) {
+                for (unsigned i=0; i<values.size(); i++) {
                     values[i] = values[i] / scaling[i];
                 }
             }
         }
-
-        if (!usePreconditionerOnly && mode != NO_TRANS) {
-            this->K_->apply(*XTmp_,*XTmp_,mode,ScalarTraits<SC>::one(),ScalarTraits<SC>::zero());
-        }
-        y.update(alpha,*XTmp_,beta);
     }
 
     template <class SC,class LO,class GO,class NO>
@@ -175,7 +207,9 @@ namespace FROSch {
             XExportPtr multiplicityExporter = ExportFactory<LO,GO,NO>::Build(multiplicityRepeated->getMap(),this->getRangeMap());
             Multiplicity_->doExport(*multiplicityRepeated,*multiplicityExporter,ADD);
         }
-
+        else if(Combine_ == Restricted)
+            GatherRestricted_ = ExportFactory<LO,GO,NO>::Build(this->getDomainMap(),OverlappingMap_);
+        
         return 0; // RETURN VALUE
     }
 
@@ -184,24 +218,79 @@ namespace FROSch {
     {
         FROSCH_TIMER_START_LEVELID(computeOverlappingOperatorTime,"OverlappingOperator::computeOverlappingOperator");
         
-        updateLocalOverlappingMatrices();
-
+        updateLocalOverlappingMatrices(OnFirstLevelComm_);
+        
         bool reuseSymbolicFactorization = this->ParameterList_->get("Reuse: Symbolic Factorization",true);
         if (!this->IsComputed_) {
             reuseSymbolicFactorization = false;
         }
-
-        if (!reuseSymbolicFactorization) {
-            if (this->IsComputed_ && this->Verbose_) std::cout << "FROSch::OverlappingOperator : Recomputing the Symbolic Factorization" << std::endl;
-            SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
-            SubdomainSolver_->initialize();
-        } else {
-            FROSCH_ASSERT(!SubdomainSolver_.is_null(),"FROSch::OverlappingOperator : ERROR: SubdomainSolver_.is_null()");
-            SubdomainSolver_->resetMatrix(OverlappingMatrix_,true);
+        if (OnFirstLevelComm_) {
+            if (!reuseSymbolicFactorization) {
+                if (this->IsComputed_ && this->Verbose_) std::cout << "FROSch::OverlappingOperator : Recomputing the Symbolic Factorization" << std::endl;
+                SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
+                SubdomainSolver_->initialize();
+            } else {
+                FROSCH_ASSERT(!SubdomainSolver_.is_null(),"FROSch::OverlappingOperator : ERROR: SubdomainSolver_.is_null()");
+                SubdomainSolver_->resetMatrix(OverlappingMatrix_,true);
+            }
+            this->IsComputed_ = true;
+            return SubdomainSolver_->compute();
         }
-        this->IsComputed_ = true;
-        return SubdomainSolver_->compute();
+        else
+            return 0;
+
     }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::XMapPtr OverlappingOperator<SC,LO,GO,NO>::getOverlappingMap()
+    {
+        return OverlappingMap_;
+    }
+
+
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::XMatrixPtr OverlappingOperator<SC,LO,GO,NO>::getOverlappingMatrix()
+    {
+        return OverlappingMatrix_;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::SubdomainSolverPtr OverlappingOperator<SC,LO,GO,NO>::getSubdomainSolver()
+    {
+        return SubdomainSolver_;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::XMultiVectorPtr OverlappingOperator<SC,LO,GO,NO>::getMultiplicity()
+    {
+        return Multiplicity_;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::XImportPtr OverlappingOperator<SC,LO,GO,NO>::getScatter()
+    {
+        return Scatter_;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename OverlappingOperator<SC,LO,GO,NO>::CommPtr OverlappingOperator<SC,LO,GO,NO>::getLevelComm()
+    {
+        return FirstLevelSolveComm_;
+    }
+
+    template <class SC,class LO,class GO,class NO>
+    bool OverlappingOperator<SC,LO,GO,NO>::getOnLevelComm()
+    {
+        return OnFirstLevelComm_;
+    }
+
+    
+    template <class SC,class LO,class GO,class NO>
+    CombinationType OverlappingOperator<SC,LO,GO,NO>::getCombineMode()
+    {
+        return Combine_;
+    }
+
 }
 
 #endif

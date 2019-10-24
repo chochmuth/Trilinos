@@ -63,6 +63,18 @@ namespace FROSch {
         parameterList->sublist("AlgebraicOverlappingOperator").set("Level ID",this->LevelID_);
         OverlappingOperator_.reset(new AlgebraicOverlappingOperator<SC,LO,GO,NO>(k,sublist(parameterList,"AlgebraicOverlappingOperator")));
         SumOperator_->addOperator(OverlappingOperator_);
+
+//        Use level Combination operator !!!!
+//        if (!parameterList->get("Level Combination","Additive").compare("Additive")) {
+//            SumOperatorPtr sumOperator = rcp(new SumOperator<SC,LO,GO,NO>(k->getRangeMap()->getComm()));
+//            LevelCombinationOperator_ = sumOperator;
+//        }
+//        else if(!parameterList->get("Level Combination","Additive").compare("Multiplicative")) {
+//            MultiplicativeOperatorPtr multiplicativeOperator = rcp(new MultiplicativeOperator<SC,LO,GO,NO>(k, parameterList));
+//            LevelCombinationOperator_ = multiplicativeOperator;
+//        }
+//        LevelCombinationOperator_->addOperator(FirstLevelOperator_);
+
     }
 
     template <class SC,class LO,class GO,class NO>
@@ -94,6 +106,8 @@ namespace FROSch {
                                                                 SC beta) const
     {
         FROSCH_TIMER_START_LEVELID(applyTime,"AlgebraicOverlappingPreconditioner::apply");
+        
+        //use level combination operator
         return SumOperator_->apply(x,y,true,mode,alpha,beta);
     }
 
@@ -113,7 +127,7 @@ namespace FROSch {
     void AlgebraicOverlappingPreconditioner<SC,LO,GO,NO>::describe(FancyOStream &out,
                                                                    const EVerbosityLevel verbLevel) const
     {
-        SumOperator_->describe(out,verbLevel);
+        LevelCombinationOperator_->describe(out,verbLevel);
     }
 
     template <class SC,class LO,class GO,class NO>

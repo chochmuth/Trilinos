@@ -89,6 +89,8 @@ APPEND_SET(HEADERS
   SchwarzOperators/FROSch_HarmonicCoarseOperator_def.hpp
   SchwarzOperators/FROSch_IPOUHarmonicCoarseOperator_decl.hpp
   SchwarzOperators/FROSch_IPOUHarmonicCoarseOperator_def.hpp
+  SchwarzOperators/FROSch_LevelCombinationOperator_decl.hpp
+  SchwarzOperators/FROSch_LevelCombinationOperator_def.hpp
   SchwarzOperators/FROSch_MultiplicativeOperator_decl.hpp
   SchwarzOperators/FROSch_MultiplicativeOperator_def.hpp
   SchwarzOperators/FROSch_OverlappingOperator_decl.hpp

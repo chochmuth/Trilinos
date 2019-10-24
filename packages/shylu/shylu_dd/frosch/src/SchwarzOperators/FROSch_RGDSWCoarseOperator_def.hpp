@@ -70,21 +70,21 @@ namespace FROSch {
         FROSCH_TIMER_START_LEVELID(resetCoarseSpaceBlockTime,"RGDSWCoarseOperator::resetCoarseSpaceBlock");
         FROSCH_ASSERT(dofsMaps.size()==dofsPerNode,"dofsMaps.size()!=dofsPerNode");
         FROSCH_ASSERT(blockId<this->NumberOfBlocks_,"Block does not exist yet and can therefore not be reset.");
-
+        
         if (this->Verbose_) {
             std::cout << "\n\
-+---------------------+\n\
-| RGDSWCoarseOperator |\n\
-|  Block " << blockId << "            |\n\
-+---------------------+\n";
+            +---------------------+\n\
+            | RGDSWCoarseOperator |\n\
+            |  Block " << blockId << "            |\n\
+            +---------------------+\n";
         }
-
+        
         // Process the parameter list
         std::stringstream blockIdStringstream;
         blockIdStringstream << blockId+1;
         std::string blockIdString = blockIdStringstream.str();
         RCP<ParameterList> coarseSpaceList = sublist(sublist(this->ParameterList_,"Blocks"),blockIdString.c_str());
-
+        
         CommunicationStrategy communicationStrategy = CreateOneToOneMap;
         if (!coarseSpaceList->get("Interface Communication Strategy","CreateOneToOneMap").compare("CrsMatrix")) {
             communicationStrategy = CommCrsMatrix;
@@ -95,7 +95,7 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"FROSch::RGDSWCoarseOperator : ERROR: Specify a valid communication strategy for the identification of the interface components.");
         }
-
+        
         Verbosity verbosity = All;
         if (!coarseSpaceList->get("Verbosity","All").compare("None")) {
             verbosity = None;
@@ -104,41 +104,42 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"FROSch::RGDSWCoarseOperator : ERROR: Specify a valid verbosity level.");
         }
-
+        
         bool useForCoarseSpace = coarseSpaceList->get("Use For Coarse Space",false);
         std::string option = coarseSpaceList->get("Option","1");
         DistanceFunction distanceFunction = ConstantDistanceFunction;
         if (!option.compare("1")) {
-
+            
         } else if (!option.compare("2.2")) {
             distanceFunction = InverseEuclideanDistanceFunction;
         } else {
             FROSCH_ASSERT(false,"Option is unknown!");
         }
-
+        
         bool useRotations = coarseSpaceList->get("Rotations",true);
         if (useRotations && nodeList.is_null()) {
             //FROSCH_ASSERT(option==1,"Only option 1 can be constructed without a valid node list.");
             useRotations = false;
             if (this->Verbose_) std::cout << "FROSch::RGDSWCoarseOperator : WARNING: Rotations cannot be used" << std::endl;
         }
-
+        
         this->DofsMaps_[blockId] = dofsMaps;
         this->DofsPerNode_[blockId] = dofsPerNode;
-
+        
         Array<GO> tmpDirichletBoundaryDofs(dirichletBoundaryDofs()); // Here, we do a copy. Maybe, this is not necessary
         sortunique(tmpDirichletBoundaryDofs);
-
+        
         this->DDInterface_.reset(new DDInterface<SC,LO,GO,NO>(dimension,this->DofsPerNode_[blockId],nodesMap.getConst(),verbosity,this->LevelID_,communicationStrategy));
         this->DDInterface_->resetGlobalDofs(dofsMaps);
         this->DDInterface_->removeDirichletNodes(tmpDirichletBoundaryDofs);
-
+        
         EntitySetPtr interface = this->DDInterface_->getInterface();
         EntitySetPtr interior = this->DDInterface_->getInterior();
-
+        
         // Check for interface
-        if (interface->getEntity(0)->getNumNodes()==0) {
+        if (interface->getEntity(0)->getNumNodes()==0 && this->OnLocalSolveComm_) {
             if (this->Verbose_) std::cout << "FROSch::RGDSWCoarseOperator : WARNING: No interface found => Volume functions will be used instead.";
+            //CH 04/11/19: We need to test the behaviour for parallel coarse solves and volume functions
             this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior);
         } else {
             this->GammaDofs_[blockId] = LOVecPtr(this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes());
@@ -151,9 +152,9 @@ namespace FROSch {
                     this->IDofs_[blockId][this->DofsPerNode_[blockId]*i+k] = interior->getEntity(0)->getLocalDofID(i,k);
                 }
             }
-
+            
             this->InterfaceCoarseSpaces_[blockId].reset(new CoarseSpace<SC,LO,GO,NO>());
-
+            
             if (useForCoarseSpace) {
                 
                 if (this->ParameterList_->get("Test Unconnected Interface",true)) {
@@ -161,9 +162,9 @@ namespace FROSch {
                 }
                 
                 this->DDInterface_->buildEntityHierarchy();
-
+                
                 this->DDInterface_->computeDistancesToCoarseNodes(dimension,nodeList,distanceFunction);
-
+                
                 /////////////////////////////////
                 // Coarse Node Basis Functions //
                 /////////////////////////////////
@@ -174,34 +175,34 @@ namespace FROSch {
                                                     false,
                                                     false,
                                                     true);
-
+                
                 XMultiVectorPtrVecPtr translations = this->computeTranslations(blockId,this->DDInterface_->getCoarseNodes(),entitySetVector,distanceFunction);
                 for (UN i=0; i<translations.size(); i++) {
                     this->InterfaceCoarseSpaces_[blockId]->addSubspace(this->DDInterface_->getCoarseNodes()->getEntityMap(),translations[i]);
                 }
-
+                
                 if (useRotations) {
                     XMultiVectorPtrVecPtr rotations = this->computeRotations(blockId,dimension,nodeList,this->DDInterface_->getCoarseNodes(),entitySetVector,distanceFunction);
                     for (UN i=0; i<rotations.size(); i++) {                        this->InterfaceCoarseSpaces_[blockId]->addSubspace(this->DDInterface_->getCoarseNodes()->getEntityMap(),rotations[i]);
                     }
                 }
-
-                this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace();
-
+                
+                this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->OnLocalSolveComm_);
+                
                 if (this->MpiComm_->getRank() == 0) {
                     std::cout << std::boolalpha << "\n\
-    ------------------------------------------------------------------------------\n\
-     RGDSW coarse space\n\
-    ------------------------------------------------------------------------------\n\
-      Coarse nodes: translations                 --- " << true << "\n\
-      Coarse nodes: rotations                    --- " << useRotations << "\n\
-    ------------------------------------------------------------------------------\n" << std::noboolalpha;
+                    ------------------------------------------------------------------------------\n\
+                    RGDSW coarse space\n\
+                    ------------------------------------------------------------------------------\n\
+                    Coarse nodes: translations                 --- " << true << "\n\
+                    Coarse nodes: rotations                    --- " << useRotations << "\n\
+                    ------------------------------------------------------------------------------\n" << std::noboolalpha;
                 }
             }
         }
         return 0;
     }
-
+    
     template <class SC,class LO,class GO,class NO>
     typename RGDSWCoarseOperator<SC,LO,GO,NO>::XMultiVectorPtrVecPtr RGDSWCoarseOperator<SC,LO,GO,NO>::computeTranslations(UN blockId,
                                                                                                                            EntitySetPtr coarseNodes,
@@ -218,7 +219,7 @@ namespace FROSch {
                 translations[i] = null;
             }
         }
-
+        
         // Loop over Dofs
         for (UN k=0; k<this->DofsPerNode_[blockId]; k++) {
             // Loop over entitySetVector
@@ -263,7 +264,7 @@ namespace FROSch {
         FROSCH_TIMER_START_LEVELID(computeRotationsTime,"RGDSWCoarseOperator::computeRotations");
         FROSCH_ASSERT(nodeList->getNumVectors()==dimension,"dimension of the nodeList is wrong.");
         FROSCH_ASSERT(dimension==this->DofsPerNode_[blockId],"dimension!=this->DofsPerNode_[blockId]");
-
+        
         UN rotationsPerEntity = 0;
         switch (dimension) {
             case 1:
@@ -279,7 +280,7 @@ namespace FROSch {
                 FROSCH_ASSERT(false,"The dimension is neither 2 nor 3!");
                 break;
         }
-
+        
         XMultiVectorPtrVecPtr rotations(rotationsPerEntity);
         XMapPtr serialGammaMap = MapFactory<LO,GO,NO>::Build(this->K_->getRangeMap()->lib(),this->GammaDofs_[blockId].size(),0,this->SerialComm_);
         for (UN i=0; i<rotationsPerEntity; i++) {
@@ -289,7 +290,7 @@ namespace FROSch {
                 rotations[i] = null;
             }
         }
-
+        
         SC x,y,z,rx,ry,rz;
         // Loop over entitySetVector
         for (UN i=0; i<entitySetVector.size(); i++) {
@@ -306,11 +307,11 @@ namespace FROSch {
                         // Offspring: loop over nodes
                         for (UN l=0; l<tmpEntity->getNumNodes(); l++) {
                             SC value = tmpEntity->getDistanceToCoarseNode(l,m)/tmpEntity->getDistanceToCoarseNode(l,numCoarseNodes);
-
+                            
                             // Rotations
                             x = nodeList->getData(0)[tmpEntity->getLocalNodeID(l)];
                             y = nodeList->getData(1)[tmpEntity->getLocalNodeID(l)];
-
+                            
                             // Rotation 1
                             rx = y;
                             ry = -x;
@@ -319,9 +320,9 @@ namespace FROSch {
                             rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,1),index,value*ry);
                             if (dimension == 3) {
                                 z = nodeList->getData(2)[tmpEntity->getLocalNodeID(l)];
-
+                                
                                 rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,2),index,value*rz);
-
+                                
                                 // Rotation 2
                                 rx = -z;
                                 ry = 0;
@@ -329,7 +330,7 @@ namespace FROSch {
                                 rotations[1]->replaceLocalValue(tmpEntity->getGammaDofID(l,0),index,value*rx);
                                 rotations[1]->replaceLocalValue(tmpEntity->getGammaDofID(l,1),index,value*ry);
                                 rotations[1]->replaceLocalValue(tmpEntity->getGammaDofID(l,2),index,value*rz);
-
+                                
                                 // Rotation 3
                                 rx = 0;
                                 ry = z;
@@ -346,7 +347,7 @@ namespace FROSch {
                         // Rotations
                         x = nodeList->getData(0)[tmpEntity->getLocalNodeID(l)];
                         y = nodeList->getData(1)[tmpEntity->getLocalNodeID(l)];
-
+                        
                         // Rotation 1
                         rx = y;
                         ry = -x;
@@ -355,9 +356,9 @@ namespace FROSch {
                         rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,1),coarseNodeID,ry);
                         if (dimension == 3) {
                             z = nodeList->getData(2)[tmpEntity->getLocalNodeID(l)];
-
+                            
                             rotations[0]->replaceLocalValue(tmpEntity->getGammaDofID(l,2),coarseNodeID,rz);
-
+                            
                             // Rotation 2
                             rx = -z;
                             ry = 0;
@@ -365,7 +366,7 @@ namespace FROSch {
                             rotations[1]->replaceLocalValue(tmpEntity->getGammaDofID(l,0),coarseNodeID,rx);
                             rotations[1]->replaceLocalValue(tmpEntity->getGammaDofID(l,1),coarseNodeID,ry);
                             rotations[1]->replaceLocalValue(tmpEntity->getGammaDofID(l,2),coarseNodeID,rz);
-
+                            
                             // Rotation 3
                             rx = 0;
                             ry = z;

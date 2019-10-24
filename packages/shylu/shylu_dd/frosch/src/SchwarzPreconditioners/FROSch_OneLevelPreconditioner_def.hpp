@@ -55,8 +55,7 @@ namespace FROSch {
                                                                 ParameterListPtr parameterList) :
     SchwarzPreconditioner<SC,LO,GO,NO> (parameterList,k->getRangeMap()->getComm()),
     K_ (k),
-    SumOperator_ (new SumOperator<SC,LO,GO,NO>(k->getRangeMap()->getComm())),
-    MultiplicativeOperator_ (new MultiplicativeOperator<SC,LO,GO,NO>(k,parameterList)),
+    LevelCombinationOperator_(),
     OverlappingOperator_ (),
     UseMultiplicative_(false)
     {
@@ -77,7 +76,19 @@ namespace FROSch {
         else{
             SumOperator_->addOperator(OverlappingOperator_);
         }
-
+        
+        
+        /* Use level combination
+         if (UseMultiplicative_) {
+         MultiplicativeOperatorPtr multiplicativeOperator = rcp(new MultiplicativeOperator<SC,LO,GO,NO>(k,parameterList));
+         LevelCombinationOperator_ = multiplicativeOperator;
+         }
+         else{
+         SumOperatorPtr sumOperator = rcp(new SumOperator<SC,LO,GO,NO>(k->getRangeMap()->getComm()));
+         LevelCombinationOperator_ = sumOperator;
+         }
+         LevelCombinationOperator_->addOperator(OverlappingOperator_);
+         */
     }
 
     template <class SC,class LO,class GO,class NO>
@@ -116,6 +127,7 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"OverlappingOperator Type unkown.");
         }
+        this->IsInitialized_ = true;        
         return ret;
     }
 
@@ -158,13 +170,7 @@ namespace FROSch {
     void OneLevelPreconditioner<SC,LO,GO,NO>::describe(FancyOStream &out,
                                                        const EVerbosityLevel verbLevel) const
     {
-        if (UseMultiplicative_) {
-            MultiplicativeOperator_->describe(out,verbLevel);
-        }
-        else{
-            SumOperator_->describe(out,verbLevel);
-        }
-
+        LevelCombinationOperator_->describe(out,verbLevel);
     }
 
     template <class SC,class LO,class GO,class NO>

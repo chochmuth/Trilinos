@@ -52,39 +52,43 @@ namespace FROSch {
 
     template <class SC,class LO,class GO,class NO>
     RCP<const Matrix<SC,LO,GO,NO> > ExtractLocalSubdomainMatrix(RCP<const Matrix<SC,LO,GO,NO> > globalMatrix,
-                                                                RCP<const Map<LO,GO,NO> > map)
+                                                                RCP<const Map<LO,GO,NO> > map,
+                                                                bool OnLocalComm)
     {
         FROSCH_TIMER_START(extractLocalSubdomainMatrixTime,"ExtractLocalSubdomainMatrix");
         RCP<Matrix<SC,LO,GO,NO> > subdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(map,2*globalMatrix->getGlobalMaxNumRowEntries());
         RCP<Import<LO,GO,NO> > scatter = ImportFactory<LO,GO,NO>::Build(globalMatrix->getRowMap(),map);
         subdomainMatrix->doImport(*globalMatrix,*scatter,ADD);
         //cout << *subdomainMatrix << std::endl;
-        RCP<const Comm<LO> > SerialComm = rcp(new MpiComm<LO>(MPI_COMM_SELF));
-        RCP<Map<LO,GO,NO> > localSubdomainMap = MapFactory<LO,GO,NO>::Build(map->lib(),map->getNodeNumElements(),0,SerialComm);
-        RCP<Matrix<SC,LO,GO,NO> > localSubdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(localSubdomainMap,globalMatrix->getNodeMaxNumRowEntries());
-
-        for (unsigned i=0; i<localSubdomainMap->getNodeNumElements(); i++) {
-            ArrayView<const GO> indices;
-            ArrayView<const SC> values;
-            subdomainMatrix->getGlobalRowView(map->getGlobalElement(i),indices,values);
-
-            LO size = indices.size();
-            if (size>0) {
-                Array<GO> indicesLocal;
-                Array<SC> valuesLocal;
-                for (LO j=0; j<size; j++) {
-                    GO localIndex = map->getLocalElement(indices[j]);
-                    if (localIndex>=0) {
-                        indicesLocal.push_back(localIndex);
-                        valuesLocal.push_back(values[j]);
+        if (OnLocalComm) {
+            RCP<const Comm<LO> > SerialComm = rcp(new MpiComm<LO>(MPI_COMM_SELF));
+            RCP<Map<LO,GO,NO> > localSubdomainMap = MapFactory<LO,GO,NO>::Build(map->lib(),map->getNodeNumElements(),0,SerialComm);
+            RCP<Matrix<SC,LO,GO,NO> > localSubdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(localSubdomainMap,globalMatrix->getNodeMaxNumRowEntries());
+            
+            for (unsigned i=0; i<localSubdomainMap->getNodeNumElements(); i++) {
+                ArrayView<const GO> indices;
+                ArrayView<const SC> values;
+                subdomainMatrix->getGlobalRowView(map->getGlobalElement(i),indices,values);
+                
+                LO size = indices.size();
+                if (size>0) {
+                    Array<GO> indicesLocal;
+                    Array<SC> valuesLocal;
+                    for (LO j=0; j<size; j++) {
+                        GO localIndex = map->getLocalElement(indices[j]);
+                        if (localIndex>=0) {
+                            indicesLocal.push_back(localIndex);
+                            valuesLocal.push_back(values[j]);
+                        }
                     }
+                    localSubdomainMatrix->insertGlobalValues(i,indicesLocal(),valuesLocal());
                 }
-                localSubdomainMatrix->insertGlobalValues(i,indicesLocal(),valuesLocal());
             }
+            localSubdomainMatrix->fillComplete();
         }
-        localSubdomainMatrix->fillComplete();
         return localSubdomainMatrix.getConst();
     }
+
 
     template <class SC,class LO,class GO,class NO>
     RCP<const Matrix<SC,LO,GO,NO> > ExtractLocalSubdomainMatrix(RCP<const Matrix<SC,LO,GO,NO> > globalMatrix,
@@ -99,12 +103,12 @@ namespace FROSch {
         RCP<const Comm<LO> > SerialComm = rcp(new MpiComm<LO>(MPI_COMM_SELF));
         RCP<Map<LO,GO,NO> > localSubdomainMap = MapFactory<LO,GO,NO>::Build(map->lib(),map->getNodeNumElements(),0,SerialComm);
         RCP<Matrix<SC,LO,GO,NO> > localSubdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(localSubdomainMap,globalMatrix->getNodeMaxNumRowEntries());
-
+        
         for (unsigned i=0; i<localSubdomainMap->getNodeNumElements(); i++) {
             ArrayView<const GO> indices;
             ArrayView<const SC> values;
             subdomainMatrix->getGlobalRowView(map->getGlobalElement(i),indices,values);
-
+            
             LO size = indices.size();
             if (size>0) {
                 Array<GO> indicesGlobal;
@@ -132,13 +136,13 @@ namespace FROSch {
         RCP<Matrix<SC,LO,GO,NO> > subdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(map,2*globalMatrix->getGlobalMaxNumRowEntries());
         RCP<Import<LO,GO,NO> > scatter = ImportFactory<LO,GO,NO>::Build(globalMatrix->getRowMap(),map);
         subdomainMatrix->doImport(*globalMatrix,*scatter,ADD);
-
+        
         localSubdomainMatrix->resumeFill();
         for (unsigned i=0; i<map->getNodeNumElements(); i++) {
             ArrayView<const GO> indices;
             ArrayView<const SC> values;
             subdomainMatrix->getGlobalRowView(map->getGlobalElement(i),indices,values);
-
+            
             LO size = indices.size();
             if (size>0) {
                 Array<LO> indicesLocal;
@@ -154,7 +158,7 @@ namespace FROSch {
             }
         }
         localSubdomainMatrix->fillComplete();
-
+        
         return 0;
     }
 
@@ -164,20 +168,21 @@ namespace FROSch {
                          RCP<Matrix<SC,LO,GO,NO> > &kII,
                          RCP<Matrix<SC,LO,GO,NO> > &kIJ,
                          RCP<Matrix<SC,LO,GO,NO> > &kJI,
-                         RCP<Matrix<SC,LO,GO,NO> > &kJJ)
+                         RCP<Matrix<SC,LO,GO,NO> > &kJJ,
+                         bool checkEmptyCols)
     {
         FROSCH_TIMER_START(buildSubmatricesTime,"BuildSubmatrices");
         // We need four Maps
         RCP<Map<LO,GO,NO> > mapI = MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indI(),0,k->getRowMap()->getComm());
         RCP<Map<LO,GO,NO> > mapILocal = MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indI.size(),0,k->getRowMap()->getComm());
-
+        
         Array<GO> indJ;
         for (unsigned i=0; i<k->getNodeNumRows(); i++) {
             if (mapI->getLocalElement(i)<0) {
                 indJ.push_back(i);
             }
         }
-
+        
         RCP<Map<LO,GO,NO> > mapJ = MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indJ(),0,k->getRowMap()->getComm());
         RCP<Map<LO,GO,NO> > mapJLocal = MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indJ.size(),0,k->getRowMap()->getComm());
         RCP<const Map<LO,GO,NO> > colMap = k->getColMap();
@@ -185,11 +190,16 @@ namespace FROSch {
         kIJ = MatrixFactory<SC,LO,GO,NO>::Build(mapILocal,std::min((LO) k->getGlobalMaxNumRowEntries(),(LO) indJ.size()));
         kJI = MatrixFactory<SC,LO,GO,NO>::Build(mapJLocal,std::min((LO) k->getGlobalMaxNumRowEntries(),(LO) indI.size()));
         kJJ = MatrixFactory<SC,LO,GO,NO>::Build(mapJLocal,std::min((LO) k->getGlobalMaxNumRowEntries(),(LO) indJ.size()));
+        
+        Array<SC> colSums;
+        if (checkEmptyCols)
+            colSums.resize(indI.size(), 0.);
 
+        
         for (unsigned i=0; i<k->getNodeNumRows(); i++) {
             ArrayView<const LO> indices;
             ArrayView<const SC> values;
-
+            
             k->getLocalRowView(i,indices,values);
             //cout << numEntries << std::endl;
             Array<GO> indicesI;
@@ -204,6 +214,8 @@ namespace FROSch {
                     if (tmp2>=0) {
                         indicesI.push_back(tmp2);
                         valuesI.push_back(values[j]);
+                        if (checkEmptyCols)
+                            colSums[tmp2] += std::fabs(values[j]);
                     } else {
                         indicesJ.push_back(mapJ->getLocalElement(colMap->getGlobalElement(indices[j])));
                         valuesJ.push_back(values[j]);
@@ -228,12 +240,22 @@ namespace FROSch {
                 kJJ->insertGlobalValues(tmp1,indicesJ(),valuesJ());
             }
         }
-
+        
+        if (checkEmptyCols) {
+            Array<SC> additinalValueI(1, ScalarTraits<SC>::one());
+            for (unsigned j=0; j<colSums.size(); j++) {
+                if (colSums[j] - ScalarTraits<SC>::eps() < ScalarTraits<SC>::zero()) {
+                    Array<GO> indexI(1,j);
+                    kII->insertGlobalValues(j,indexI(),additinalValueI());
+                }
+            }
+        }
+        
         kII->fillComplete(mapILocal,mapILocal);
         kIJ->fillComplete(mapJLocal,mapILocal);
         kJI->fillComplete(mapILocal,mapJLocal);
         kJJ->fillComplete(mapJLocal,mapJLocal);
-
+        
         return 0;
     }
 
@@ -246,19 +268,19 @@ namespace FROSch {
         FROSCH_TIMER_START(buildSubmatrixTime,"BuildSubmatrix");
         //RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout));
         RCP<Map<LO,GO,NO> > mapI = MapFactory<LO,GO,NO>::Build(k->getRowMap()->lib(),-1,indI(),0,k->getRowMap()->getComm());
-
+        
         kII = MatrixFactory<SC,LO,GO,NO>::Build(mapI,std::min((LO) k->getGlobalMaxNumRowEntries(),(LO) indI.size()));
         GO maxGID = mapI->getMaxAllGlobalIndex();
         GO minGID = mapI->getMinAllGlobalIndex();
         for (unsigned i=0; i<k->getNodeNumRows(); i++) {
             ArrayView<const LO> indices;
             ArrayView<const SC> values;
-
+            
             k->getLocalRowView(i,indices,values);
-
+            
             Array<GO> indicesI;
             Array<SC> valuesI;
-
+            
             LO tmp1=mapI->getLocalElement(k->getRowMap()->getGlobalElement(i));
             GO tmp2=0;
             if (tmp1>=0) {
@@ -274,7 +296,7 @@ namespace FROSch {
             }
         }
         kII->fillComplete(mapI,mapI);
-
+        
         return 0;
     }
 

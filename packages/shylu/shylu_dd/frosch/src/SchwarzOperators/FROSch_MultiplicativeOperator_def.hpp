@@ -58,10 +58,10 @@ namespace FROSch {
     XTmp_ (),
     YTmp_ (),
     EnableOperators_ (0)
+    //LevelCombinationOperator
     {
         FROSCH_TIMER_START_LEVELID(multiplicativeOperatorTime,"MultiplicativeOperator::MultiplicativeOperator");
     }
-
     template <class SC,class LO,class GO,class NO>
     MultiplicativeOperator<SC,LO,GO,NO>::MultiplicativeOperator(ConstXMatrixPtr k,
                                                                 SchwarzOperatorPtrVecPtr operators,
@@ -71,13 +71,14 @@ namespace FROSch {
     XTmp_ (),
     YTmp_ (),
     EnableOperators_ (0)
+        //LevelCombinationOperator
     {
         FROSCH_TIMER_START_LEVELID(multiplicativeOperatorTime,"MultiplicativeOperator::MultiplicativeOperator");
         OperatorVector_.push_back(operators.at(0));
         for (unsigned i=1; i<operators.size(); i++) {
             FROSCH_ASSERT(operators[i]->OperatorDomainMap().SameAs(OperatorVector_[i]->OperatorDomainMap()),"The DomainMaps of the operators are not identical.");
             FROSCH_ASSERT(operators[i]->OperatorRangeMap().SameAs(OperatorVector_[i]->OperatorRangeMap()),"The RangeMaps of the operators are not identical.");
-
+            
             OperatorVector_.push_back(operators[i]);
             EnableOperators_.push_back(true);
         }
@@ -88,7 +89,6 @@ namespace FROSch {
     {
 
     }
-
     template <class SC,class LO,class GO,class NO>
     void MultiplicativeOperator<SC,LO,GO,NO>::preApplyCoarse(XMultiVector &x,
                                                              XMultiVector &y)
@@ -110,21 +110,21 @@ namespace FROSch {
         FROSCH_TIMER_START_LEVELID(applyTime,"MultiplicativeOperator::apply");
         FROSCH_ASSERT(usePreconditionerOnly,"MultiplicativeOperator can only be used as a preconditioner.");
         FROSCH_ASSERT(this->OperatorVector_.size()==2,"Should be a Two-Level Operator.");
-
-
+        
+        
         if (XTmp_.is_null()) XTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
         *XTmp_ = x; // Need this for the case when x aliases y
-
+        
         if (YTmp_.is_null()) XMultiVectorPtr YTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(y.getMap(),y.getNumVectors());
         *YTmp_ = y; // for the second apply
-
+        
         this->OperatorVector_[0]->apply(*XTmp_,*YTmp_,true);
-
+        
         this->K_->apply(*YTmp_,*XTmp_);
-
+        
         this->OperatorVector_[1]->apply(*XTmp_,*XTmp_,true);
-
-        YTmp_->update(ScalarTraits<SC>::one(),*XTmp_,-ScalarTraits<SC>::one());
+        
+        YTmp_->update(-ScalarTraits<SC>::one(),*XTmp_,ScalarTraits<SC>::one());
         y.update(alpha,*YTmp_,beta);
     }
 
@@ -174,12 +174,12 @@ namespace FROSch {
     {
         FROSCH_ASSERT(false,"describe() has to be implemented properly...");
     }
-
+    
     template <class SC,class LO,class GO,class NO>
     std::string MultiplicativeOperator<SC,LO,GO,NO>::description() const
     {
         std::string labelString = "Level operator: ";
-
+        
         for (UN i=0; i<OperatorVector_.size(); i++) {
             labelString += OperatorVector_.at(i)->description();
             if (i<OperatorVector_.size()-1) {
@@ -256,6 +256,9 @@ namespace FROSch {
         return OperatorVector_.size();
     }
 
+=======
+    
+>>>>>>> a54f39a1fe10545e44268d427da258c2fa40c27d
 }
 
 #endif

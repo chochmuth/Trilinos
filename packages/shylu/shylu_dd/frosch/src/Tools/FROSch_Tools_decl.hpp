@@ -93,138 +93,138 @@ namespace FROSch {
     #endif
 
     enum DofOrdering {NodeWise=0,DimensionWise=1,Custom=2};
-
+    
     enum NullSpace {LaplaceNullSpace=0,LinearElasticityNullSpace=1};
-
-        enum Verbosity {None=0,All=1};
-
+    
+    enum Verbosity {None=0,All=1};
+    
     template <typename LO,
-              typename GO>
+    typename GO>
     class OverlappingData {
-
+        
     protected:
-
+        
         using IntVec        = Array<int>;
-
+        
         using LOVec         = Array<LO>;
-
+        
     public:
-
+        
         OverlappingData(GO gid,
                         int pid,
                         LO lid);
-
+        
         int Merge(const RCP<OverlappingData<LO,GO> > od) const;
-
+        
         GO GID_;
-
+        
         mutable IntVec PIDs_;
-
+        
         mutable LOVec LIDs_;
-
+        
     };
-
+    
     template <typename LO,typename GO>
     int MergeList(Array<RCP<OverlappingData<LO,GO> > > &odList);
-
+    
     template <typename LO,
-              typename GO,
-              typename NO>
+    typename GO,
+    typename NO>
     class LowerPIDTieBreak : public Tpetra::Details::TieBreak<LO,GO> {
-
+        
     protected:
-
+        
         using CommPtr                   = RCP<const Comm<int> >;
-
+        
         using ConstXMapPtr               = RCP<const Map<LO,GO,NO> >;
-
+        
         using OverlappingDataPtr        = RCP<OverlappingData<LO,GO> >;
         using OverlappingDataPtrVec     = Array<OverlappingDataPtr>;
-
+        
         using UN                        = unsigned;
-
+        
         using IntVec                    = Array<int>;
         using IntVecVecPtr              = ArrayRCP<IntVec>;
-
+        
         using LOVec                     = Array<LO>;
-
+        
         using GOVec                     = Array<GO>;
         using GOVecPtr                  = ArrayRCP<GO>;
         using GOVecVec                  = Array<GOVec>;
         using GOVecVecPtr               = ArrayRCP<GOVec>;
-
+        
     public:
         LowerPIDTieBreak(CommPtr comm,
                          ConstXMapPtr originalMap,
                          UN dimension,
                          UN levelID = 1); // This is in order to estimate the length of SendImageIDs_ and ExportEntries_ in advance
-
+        
         virtual bool mayHaveSideEffects() const {
             return false;
         }
-
+        
         IntVecVecPtr& getComponents()
         {
             return ComponentsSubdomains_;
         }
-
+        
         int sendDataToOriginalMap();
-
+        
         virtual std::size_t selectedIndex(GO GID,
                                           const std::vector<std::pair<int,LO> > & pid_and_lid) const;
-
+        
     protected:
-
+        
         CommPtr MpiComm_;
-
+        
         ConstXMapPtr OriginalMap_;
-
+        
         mutable LO ElementCounter_; // This is mutable such that it can be modified in selectedIndex()
-
+        
         mutable OverlappingDataPtrVec OverlappingDataList_; // This is mutable such that it can be modified in selectedIndex()
-
+        
         IntVecVecPtr ComponentsSubdomains_; // This is mutable such that it can be modified in selectedIndex()
-
+        
         UN LevelID_ = 1;
     };
-
+    
     template <class LO,class GO,class NO>
     RCP<const Map<LO,GO,NO> > BuildUniqueMap(const RCP<const Map<LO,GO,NO> > map,
                                              bool useCreateOneToOneMap = true,
                                              RCP<Tpetra::Details::TieBreak<LO,GO> > tieBreak = null);
-
+    
     template <class SC,class LO,class GO,class NO>
     ArrayRCP<RCP<const Map<LO,GO,NO> > > BuildRepeatedSubMaps(RCP<const Matrix<SC,LO,GO,NO> > matrix,
                                                               ArrayRCP<const RCP<Map<LO,GO,NO> > > subMaps);
-
+    
     template <class SC,class LO,class GO,class NO>
     ArrayRCP<RCP<const Map<LO,GO,NO> > > BuildRepeatedSubMaps(RCP<const CrsGraph<LO,GO,NO> > graph,
                                                               ArrayRCP<const RCP<Map<LO,GO,NO> > > subMaps);
-
+    
     template <class SC,class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const Matrix<SC,LO,GO,NO> > matrix, bool reduceMap = true);
-
+    
     template <class SC,class LO,class GO,class NO>
     RCP<const Map<LO,GO,NO> > BuildRepeatedMap(RCP<const Matrix<SC,LO,GO,NO> > matrix, bool reduceMap = true);
-
+    
     template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const CrsGraph<LO,GO,NO> > graph);
-
+    
     template <class LO,class GO,class NO>
     RCP<const Map<LO,GO,NO> > BuildRepeatedMap(RCP<const CrsGraph<LO,GO,NO> > graph);
-
+    
     template <class SC,class LO,class GO,class NO>
     int ExtendOverlapByOneLayer_Old(RCP<const Matrix<SC,LO,GO,NO> > inputMatrix,
                                     RCP<const Map<LO,GO,NO> > inputMap,
                                     RCP<const Matrix<SC,LO,GO,NO> > &outputMatrix,
                                     RCP<const Map<LO,GO,NO> > &outputMap);
-
+    
     template <class SC,class LO,class GO,class NO>
     int ExtendOverlapByOneLayer(RCP<const Matrix<SC,LO,GO,NO> > inputMatrix,
                                 RCP<const Map<LO,GO,NO> > inputMap,
                                 RCP<const Matrix<SC,LO,GO,NO> > &outputMatrix,
                                 RCP<const Map<LO,GO,NO> > &outputMap);
-
+    
     template <class LO,class GO,class NO>
     int ExtendOverlapByOneLayer(RCP<const CrsGraph<LO,GO,NO> > inputGraph,
                                 RCP<const Map<LO,GO,NO> > inputMap,
@@ -236,22 +236,31 @@ namespace FROSch {
      */
     template <class LO,class GO,class NO>
     RCP<const Map<LO,GO,NO> > SortMapByGlobalIndex(RCP<const Map<LO,GO,NO> > inputMap);
-
+    
     template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > AssembleMaps(ArrayView<RCP<Map<LO,GO,NO> > > mapVector,
-                                     ArrayRCP<ArrayRCP<LO> > &partMappings);
+                                     ArrayRCP<ArrayRCP<LO> > &partMappings,
+                                     bool OnLocalSolveComm=true,
+                                     UnderlyingLib lib=UseTpetra,
+                                     RCP< const Comm< int > > mpiComm=Teuchos::null);
     
     template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > AssembleSubdomainMap(unsigned numberOfBlocks,
                                              ArrayRCP<ArrayRCP<RCP<const Map<LO,GO,NO> > > > dofsMaps,
                                              ArrayRCP<unsigned> dofsPerNode);
-
+    
     template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > MergeMapsNonConst(ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVector);
-
+    
     template <class LO,class GO,class NO>
     RCP<const Map<LO,GO,NO> > MergeMaps(ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVector);
 
+    template <class LO,class GO,class NO>
+    RCP<Map<LO,GO,NO> > MergeMapsContNonConst(ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVector);
+    
+    template <class LO,class GO,class NO>
+    RCP<const Map<LO,GO,NO> > MergeMapsCont(ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVector);
+    
     template <class LO,class GO,class NO>
     int BuildDofMaps(const RCP<const Map<LO,GO,NO> > map,
                      unsigned dofsPerNode,
@@ -259,33 +268,41 @@ namespace FROSch {
                      RCP<const Map<LO,GO,NO> > &nodesMap,
                      ArrayRCP<RCP<const Map<LO,GO,NO> > > &dofMaps,
                      GO offset = 0);
-
+    
     template <class LO,class GO,class NO>
     int BuildDofMapsVec(const ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVec,
                         ArrayRCP<unsigned> dofsPerNodeVec,
                         ArrayRCP<FROSch::DofOrdering> dofOrderingVec,
                         ArrayRCP<RCP<const Map<LO,GO,NO> > > &nodesMapVec,
                         ArrayRCP<ArrayRCP<RCP<const Map<LO,GO,NO> > > >&dofMapsVec);
-
-
+    
+    
     template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > BuildMapFromDofMaps(const ArrayRCP<RCP<Map<LO,GO,NO> > > &dofMaps,
                                             unsigned dofsPerNode,
                                             unsigned dofOrdering);
-
+    
     template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > BuildMapFromNodeMap(RCP<Map<LO,GO,NO> > &nodesMap,
                                             unsigned dofsPerNode,
                                             unsigned dofOrdering);
-
+    
+    template <class LO,class GO,class NO>
+    ArrayRCP<RCP<Map<LO,GO,NO> > > BuildNodeMapsFromDofMaps(ArrayRCP<ArrayRCP<Teuchos:RCP<Map<LO,GO,NO> > > >dofsMapsVecVec,
+                                                            ArrayRCP<unsigned> dofsPerNodeVec,
+                                                            ArrayRCP<DofOrdering> dofOrderingVec);
+    
     template <class LO,class GO,class NO>
     ArrayRCP<RCP<Map<LO,GO,NO> > > BuildSubMaps(RCP<const Map<LO,GO,NO> > &fullMap,
                                                 ArrayRCP<GO> maxSubGIDVec);
     
+    template <class LO,class GO,class NO>
+    ArrayRCP<RCP<Map<LO,GO,NO> > > BuildMapsWithOffset(ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVector);
+    
     template <class SC,class LO,class GO,class NO>
     ArrayRCP<GO> FindOneEntryOnlyRowsGlobal(RCP<const Matrix<SC,LO,GO,NO> > matrix,
                                             RCP<const Map<LO,GO,NO> > repeatedMap);
-
+    
     template <class LO,class GO,class NO>
     ArrayRCP<GO> FindOneEntryOnlyRowsGlobal(RCP<const CrsGraph<LO,GO,NO> > graph,
                                             RCP<const Map<LO,GO,NO> > repeatedMap);
@@ -293,17 +310,17 @@ namespace FROSch {
     template <class SC,class LO>
     bool ismultiple(ArrayView<SC> A,
                     ArrayView<SC> B);
-
+    
     template<class T>
     inline void sort(T &v);
     
     template<class T>
     inline void sortunique(T &v);
-
+    
     template <class SC, class LO,class GO,class NO>
     RCP<MultiVector<SC,LO,GO,NO> > ModifiedGramSchmidt(RCP<const MultiVector<SC,LO,GO,NO> > multiVector,
                                                        ArrayView<unsigned> zero = ArrayView<unsigned>());
-
+    
     template <class SC, class LO,class GO,class NO>
     RCP<const MultiVector<SC,LO,GO,NO> > BuildNullSpace(unsigned dimension,
                                                         unsigned nullSpaceType,
@@ -311,105 +328,105 @@ namespace FROSch {
                                                         unsigned dofsPerNode,
                                                         ArrayRCP<RCP<const Map<LO,GO,NO> > > dofsMaps,
                                                         RCP<const MultiVector<SC,LO,GO,NO> > nodeList = null);
-
+    
 #ifdef HAVE_SHYLU_DDFROSCH_EPETRA
     template <class SC,class LO,class GO,class NO>
     struct ConvertToXpetra {
-
+        
     public:
-
+        
         static RCP<Map<LO,GO,NO> > ConvertMap(UnderlyingLib lib,
                                               const Epetra_BlockMap &map,
                                               RCP<const Comm<int> > comm);
-
+        
         static RCP<Matrix<SC,LO,GO,NO> > ConvertMatrix(UnderlyingLib lib,
                                                        Epetra_CrsMatrix &matrix,
                                                        RCP<const Comm<int> > comm);
-
+        
         static RCP<MultiVector<SC,LO,GO,NO> > ConvertMultiVector(UnderlyingLib lib,
                                                                  Epetra_MultiVector &vector,
                                                                  RCP<const Comm<int> > comm);
     };
-
+    
     template <class SC,class LO,class NO>
     struct ConvertToXpetra<SC,LO,int,NO> {
-
+        
     public:
-
+        
         static RCP<Map<LO,int,NO> > ConvertMap(UnderlyingLib lib,
                                                const Epetra_BlockMap &map,
                                                RCP<const Comm<int> > comm);
-
+        
         static RCP<Matrix<SC,LO,int,NO> > ConvertMatrix(UnderlyingLib lib,
                                                         Epetra_CrsMatrix &matrix,
                                                         RCP<const Comm<int> > comm);
-
+        
         static RCP<MultiVector<SC,LO,int,NO> > ConvertMultiVector(UnderlyingLib lib,
                                                                   Epetra_MultiVector &vector,
                                                                   RCP<const Comm<int> > comm);
     };
-
+    
     template <class SC,class LO,class NO>
     struct ConvertToXpetra<SC,LO,long long,NO> {
-
+        
     public:
-
+        
         static RCP<Map<LO,long long,NO> > ConvertMap(UnderlyingLib lib,
                                                      const Epetra_BlockMap &map,
                                                      RCP<const Comm<int> > comm);
-
+        
         static RCP<Matrix<SC,LO,long long,NO> > ConvertMatrix(UnderlyingLib lib,
                                                               Epetra_CrsMatrix &matrix,
                                                               RCP<const Comm<int> > comm);
-
+        
         static RCP<MultiVector<SC,LO,long long,NO> > ConvertMultiVector(UnderlyingLib lib,
                                                                         Epetra_MultiVector &vector,
                                                                         RCP<const Comm<int> > comm);
     };
 #endif
-
+    
     template <class Type>
     RCP<Type> ExtractPtrFromParameterList(ParameterList& paramList,
                                           std::string namePtr="Ptr");
-
+    
     template <class Type>
     ArrayRCP<Type> ExtractVectorFromParameterList(ParameterList& paramList,
                                                   std::string nameVector="Vector");
-
+    
 #ifdef HAVE_SHYLU_DDFROSCH_EPETRA
     template <class LO,class GO,class NO>
     RCP<Epetra_Map> ConvertToEpetra(const Map<LO,GO,NO> &map,
                                     RCP<Epetra_Comm> epetraComm);
-
+    
     template <class SC,class LO,class GO,class NO>
     RCP<Epetra_MultiVector> ConvertToEpetra(const MultiVector<SC,LO,GO,NO> &vector,
                                             RCP<Epetra_Comm> epetraComm);
-
+    
     template <class SC,class LO,class GO,class NO>
     RCP<Epetra_CrsMatrix> ConvertToEpetra(const Matrix<SC,LO,GO,NO> &matrix,
                                           RCP<Epetra_Comm> epetraComm);
 #endif
-
+    
     template <class LO>
     Array<LO> GetIndicesFromString(std::string string);
-
+    
 #ifdef HAVE_SHYLU_DDFROSCH_ZOLTAN2
     template <class SC,class LO,class GO,class NO>
     int RepartionMatrixZoltan2(RCP<Matrix<SC,LO,GO,NO> > &crsMatrix,
                                RCP<ParameterList> parameterList);
 #endif
-
+    
     /*!
-    \brief Throw runtime error due to missing package in build configuration
-
-    As many packages are optional, we might detect only at runtime that are certain package
-    is not included into the build configuration, but still is used by FROSch.
-    Use this routine to throw a generic error message with some information for the user
-    and provide details how to fix it.
-
-    \param[in] forschObj FROSch object that is asking for the missing package
-    \param[in] packageName Name of the missing package
-    */
+     \brief Throw runtime error due to missing package in build configuration
+     
+     As many packages are optional, we might detect only at runtime that are certain package
+     is not included into the build configuration, but still is used by FROSch.
+     Use this routine to throw a generic error message with some information for the user
+     and provide details how to fix it.
+     
+     \param[in] forschObj FROSch object that is asking for the missing package
+     \param[in] packageName Name of the missing package
+     */
     inline void ThrowErrorMissingPackage(const std::string& froschObj,
                                          const std::string& packageName)
     {
@@ -418,12 +435,13 @@ namespace FROSch {
         errMsg << froschObj << " is asking for the Trilinos packate '"<< packageName << "', "
         "but this package is not included in your build configuration. "
         "Please enable '" << packageName << "' in your build configuration to be used with ShyLU_DDFROSch.";
-
+        
         // Throw the error
         FROSCH_ASSERT(false, errMsg.str());
-
+        
         return;
     }
+
 }
 
 #endif

@@ -73,7 +73,7 @@ namespace FROSch {
     template <class SC,class LO,class GO,class NO>
     bool SchwarzPreconditioner<SC,LO,GO,NO>::isInitialized() const
     {
-        return IsInitialized_; // TODO: Das hat noch keine Bedeutung
+        return IsInitialized_;
     }
 
     template <class SC,class LO,class GO,class NO>

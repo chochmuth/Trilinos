@@ -619,104 +619,104 @@ namespace FROSch {
     {
         FROSCH_TIMER_START_LEVELID(communicateLocalComponentsTime,"DDInterface::communicateLocalComponents");
         //if (Verbose_ && Verbosity_==All) std::cout << "FROSch::DDInterface : Communicating nodes" << std::endl;
-
+        
         if (NodesMap_->lib() == UseEpetra && commStrategy == CreateOneToOneMap) {
             if (Verbose_) std::cout << "FROSch::DDInterface : WARNING: CreateOneToOneMap communication strategy does not work for Epetra => Switching to CommCrsGraph" << std::endl;
             commStrategy = CommCrsGraph;
         }
-
+        
         // Different communication strategies
         switch (commStrategy) {
             case CommCrsMatrix:
-                {
-                    UniqueNodesMap_ = BuildUniqueMap<LO,GO,NO>(NodesMap_);
-                    RCP<Matrix<SC,LO,GO,NO> > commMat = MatrixFactory<SC,LO,GO,NO>::Build(NodesMap_,10);
-                    RCP<Matrix<SC,LO,GO,NO> > commMatTmp = MatrixFactory<SC,LO,GO,NO>::Build(UniqueNodesMap_,10);
-                    XExportPtr commExporter = ExportFactory<LO,GO,NO>::Build(NodesMap_,UniqueNodesMap_);
-
-                    Array<SC> one(1,ScalarTraits<SC>::one());
-                    Array<GO> myPID(1,MpiComm_->getRank());
-                    for (int i=0; i<NumMyNodes_; i++) {
-                        commMat->insertGlobalValues(NodesMap_->getGlobalElement(i),myPID(),one());
-                    }
-                    XMapPtr rangeMap = MapFactory<LO,GO,NO>::Build(NodesMap_->lib(),-1,myPID(),0,NodesMap_->getComm());
-
-                    commMat->fillComplete(NodesMap_,rangeMap);
-                    commMatTmp->doExport(*commMat,*commExporter,INSERT);
-                    commMatTmp->fillComplete(UniqueNodesMap_,rangeMap);
-                    commMat = MatrixFactory<SC,LO,GO,NO>::Build(NodesMap_,10);
-                    commMat->doImport(*commMatTmp,*commExporter,INSERT);
-
-                    componentsSubdomains = IntVecVecPtr(NumMyNodes_);
-
-                    ArrayView<const GO> indices;
-                    ArrayView<const SC> values;
-                    for (LO i=0; i<NumMyNodes_; i++) {
-                        commMat->getGlobalRowView(NodesMap_->getGlobalElement(i),indices,values);
-                        componentsSubdomains[i].resize(indices.size());
-                        for (LO j=0; j<indices.size(); j++) {
-                            componentsSubdomains[i][j] = as<int>(indices[j]);
-                        }
+            {
+                UniqueNodesMap_ = BuildUniqueMap<LO,GO,NO>(NodesMap_);
+                RCP<Matrix<SC,LO,GO,NO> > commMat = MatrixFactory<SC,LO,GO,NO>::Build(NodesMap_,10);
+                RCP<Matrix<SC,LO,GO,NO> > commMatTmp = MatrixFactory<SC,LO,GO,NO>::Build(UniqueNodesMap_,10);
+                XExportPtr commExporter = ExportFactory<LO,GO,NO>::Build(NodesMap_,UniqueNodesMap_);
+                
+                Array<SC> one(1,ScalarTraits<SC>::one());
+                Array<GO> myPID(1,MpiComm_->getRank());
+                for (int i=0; i<NumMyNodes_; i++) {
+                    commMat->insertGlobalValues(NodesMap_->getGlobalElement(i),myPID(),one());
+                }
+                XMapPtr rangeMap = MapFactory<LO,GO,NO>::Build(NodesMap_->lib(),-1,myPID(),0,NodesMap_->getComm());
+                
+                commMat->fillComplete(NodesMap_,rangeMap);
+                commMatTmp->doExport(*commMat,*commExporter,INSERT);
+                commMatTmp->fillComplete(UniqueNodesMap_,rangeMap);
+                commMat = MatrixFactory<SC,LO,GO,NO>::Build(NodesMap_,10);
+                commMat->doImport(*commMatTmp,*commExporter,INSERT);
+                
+                componentsSubdomains = IntVecVecPtr(NumMyNodes_);
+                
+                ArrayView<const GO> indices;
+                ArrayView<const SC> values;
+                for (LO i=0; i<NumMyNodes_; i++) {
+                    commMat->getGlobalRowView(NodesMap_->getGlobalElement(i),indices,values);
+                    componentsSubdomains[i].resize(indices.size());
+                    for (LO j=0; j<indices.size(); j++) {
+                        componentsSubdomains[i][j] = as<int>(indices[j]);
                     }
                 }
+            }
                 break;
-
+                
             case CommCrsGraph:
-                {
-                    UniqueNodesMap_ = BuildUniqueMap<LO,GO,NO>(NodesMap_);
-
-                    XCrsGraphPtr commGraph = CrsGraphFactory<LO,GO,NO>::Build(NodesMap_,10); // AH 08/07/2019: Can we put 1 instead of 10 here?
-                    XCrsGraphPtr commGraphTmp = CrsGraphFactory<LO,GO,NO>::Build(UniqueNodesMap_,10); // We assume that any node is part of no more than 10 subdomains
-                    XExportPtr commExporter = ExportFactory<LO,GO,NO>::Build(NodesMap_,UniqueNodesMap_);
-
-                    Array<GO> myPID(1,MpiComm_->getRank());
-                    for (int i=0; i<NumMyNodes_; i++) {
-                        commGraph->insertGlobalIndices(NodesMap_->getGlobalElement(i),myPID());
-                    }
-                    XMapPtr rangeMap = MapFactory<LO,GO,NO>::Build(NodesMap_->lib(),-1,myPID(),0,NodesMap_->getComm());
-
-                    commGraph->fillComplete(NodesMap_,rangeMap); // AH 08/07/2019: Can we remove some fillComplete?
-                    commGraphTmp->doExport(*commGraph,*commExporter,INSERT);
-                    commGraphTmp->fillComplete(UniqueNodesMap_,rangeMap);
-                    commGraph = CrsGraphFactory<LO,GO,NO>::Build(NodesMap_,10);
-                    commGraph->doImport(*commGraphTmp,*commExporter,INSERT);
-
-                    componentsSubdomains = IntVecVecPtr(NumMyNodes_);
-
-                    ArrayView<const GO> indices;
-                    for (LO i=0; i<NumMyNodes_; i++) {
-                        commGraph->getGlobalRowView(NodesMap_->getGlobalElement(i),indices);
-                        componentsSubdomains[i].resize(indices.size());
-                        for (LO j=0; j<indices.size(); j++) {
-                            componentsSubdomains[i][j] = as<int>(indices[j]);
-                        }
+            {
+                UniqueNodesMap_ = BuildUniqueMap<LO,GO,NO>(NodesMap_);
+                
+                XCrsGraphPtr commGraph = CrsGraphFactory<LO,GO,NO>::Build(NodesMap_,10); // AH 08/07/2019: Can we put 1 instead of 10 here?
+                XCrsGraphPtr commGraphTmp = CrsGraphFactory<LO,GO,NO>::Build(UniqueNodesMap_,10); // We assume that any node is part of no more than 10 subdomains
+                XExportPtr commExporter = ExportFactory<LO,GO,NO>::Build(NodesMap_,UniqueNodesMap_);
+                
+                Array<GO> myPID(1,MpiComm_->getRank());
+                for (int i=0; i<NumMyNodes_; i++) {
+                    commGraph->insertGlobalIndices(NodesMap_->getGlobalElement(i),myPID());
+                }
+                XMapPtr rangeMap = MapFactory<LO,GO,NO>::Build(NodesMap_->lib(),-1,myPID(),0,NodesMap_->getComm());
+                
+                commGraph->fillComplete(NodesMap_,rangeMap); // AH 08/07/2019: Can we remove some fillComplete?
+                commGraphTmp->doExport(*commGraph,*commExporter,INSERT);
+                commGraphTmp->fillComplete(UniqueNodesMap_,rangeMap);
+                commGraph = CrsGraphFactory<LO,GO,NO>::Build(NodesMap_,10);
+                commGraph->doImport(*commGraphTmp,*commExporter,INSERT);
+                
+                componentsSubdomains = IntVecVecPtr(NumMyNodes_);
+                
+                ArrayView<const GO> indices;
+                for (LO i=0; i<NumMyNodes_; i++) {
+                    commGraph->getGlobalRowView(NodesMap_->getGlobalElement(i),indices);
+                    componentsSubdomains[i].resize(indices.size());
+                    for (LO j=0; j<indices.size(); j++) {
+                        componentsSubdomains[i][j] = as<int>(indices[j]);
                     }
                 }
+            }
                 break;
-
+                
             case CreateOneToOneMap:
-                {
-                    RCP<LowerPIDTieBreak<LO,GO,NO> > lowerPIDTieBreak(new LowerPIDTieBreak<LO,GO,NO>(MpiComm_,NodesMap_,Dimension_,LevelID_));
-                    UniqueNodesMap_ = BuildUniqueMap<LO,GO,NO>(NodesMap_,true,lowerPIDTieBreak);
-                    lowerPIDTieBreak->sendDataToOriginalMap();
-                    componentsSubdomains = lowerPIDTieBreak->getComponents();
-                }
+            {
+                RCP<LowerPIDTieBreak<LO,GO,NO> > lowerPIDTieBreak(new LowerPIDTieBreak<LO,GO,NO>(MpiComm_,NodesMap_,Dimension_,LevelID_));
+                UniqueNodesMap_ = BuildUniqueMap<LO,GO,NO>(NodesMap_,true,lowerPIDTieBreak);
+                lowerPIDTieBreak->sendDataToOriginalMap();
+                componentsSubdomains = lowerPIDTieBreak->getComponents();
+            }
                 break;
-
+                
             default:
                 FROSCH_ASSERT(false,"FROSch::DDInterface : ERROR: Specify a valid communication strategy.");
                 break;
         }
-
+        
         componentsSubdomainsUnique = IntVecVec(NumMyNodes_);
         for (LO i=0; i<NumMyNodes_; i++) {
             sortunique(componentsSubdomains[i]);
             if (componentsSubdomains[i].size() == 0) componentsSubdomains[i].push_back(MpiComm_->getRank()); // For Tpetra this is empty if the repeatedMap is already unique. In this case, we have to add the local rank. Otherwise, we obtain nodes with multiplicity 0.
             componentsSubdomainsUnique[i] = componentsSubdomains[i];
-//            if (MpiComm_->getRank() == 0) std::cout << MpiComm_->getRank() << ": " << i << " " << componentsSubdomains[i] << std::endl;
+            //            if (MpiComm_->getRank() == 0) std::cout << MpiComm_->getRank() << ": " << i << " " << componentsSubdomains[i] << std::endl;
         }
         sortunique(componentsSubdomainsUnique);
-
+        
         return 0;
     }
 
@@ -785,6 +785,7 @@ namespace FROSch {
                 componentsGamma[localComponentIndices[i]].push_back(interface->getNumNodes()-1);
             }
         }
+
         Interior_->addEntity(interior);
         Interface_->addEntity(interface);
 

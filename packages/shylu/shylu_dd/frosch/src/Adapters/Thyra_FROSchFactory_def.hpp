@@ -43,6 +43,15 @@
 #define THYRA_FROSCH_XPETRA_FACTORY_DEF_HPP
 
 #include "Thyra_FROSchFactory_decl.hpp"
+//FROSch
+#include <FROSch_AlgebraicOverlappingPreconditioner_def.hpp>
+#include <FROSch_GDSWPreconditioner_def.hpp>
+#include <FROSch_RGDSWPreconditioner_def.hpp>
+#include <FROSch_OneLevelPreconditioner_def.hpp>
+#include <FROSch_TwoLevelPreconditioner_def.hpp>
+#include <FROSch_TwoLevelBlockPreconditioner_def.hpp>
+#include <Thyra_FROSchLinearOp_def.hpp>
+#include <FROSch_Tools_def.hpp>
 
 
 namespace Thyra {
@@ -92,11 +101,11 @@ namespace Thyra {
         TEUCHOS_ASSERT(nonnull(fwdOpSrc));
         //TEUCHOS_ASSERT(this->isCompatible(*fwdOpSrc));
         TEUCHOS_ASSERT(prec);
-
+        
         // Retrieve wrapped concrete Xpetra matrix from FwdOp
         const ConstLinearOpBasePtr fwdOp = fwdOpSrc->getOp();
         TEUCHOS_TEST_FOR_EXCEPT(is_null(fwdOp));
-
+        
         // Check whether it is Epetra/Tpetra
         bool bIsEpetra  = ThyraUtils<SC,LO,GO,NO>::isEpetra(fwdOp);
         bool bIsTpetra  = ThyraUtils<SC,LO,GO,NO>::isTpetra(fwdOp);
@@ -104,11 +113,11 @@ namespace Thyra {
         TEUCHOS_TEST_FOR_EXCEPT((bIsEpetra == true  && bIsTpetra == true));
         TEUCHOS_TEST_FOR_EXCEPT((bIsEpetra == bIsTpetra) && bIsBlocked == false);
         TEUCHOS_TEST_FOR_EXCEPT((bIsEpetra != bIsTpetra) && bIsBlocked == true);
-
+        
         // Retrieve Matrix
         ConstXCrsMatrixPtr xpetraFwdCrsMat = ThyraUtils<SC,LO,GO,NO>::toXpetra(fwdOp);
         TEUCHOS_TEST_FOR_EXCEPT(is_null(xpetraFwdCrsMat));
-
+        
         // AH 08/07/2019: Going from const to non-const to const. One should be able to improve this.
         XCrsMatrixPtr xpetraFwdCrsMatNonConst = rcp_const_cast<XCrsMatrix>(xpetraFwdCrsMat);
         XMatrixPtr ANonConst = rcp(new CrsMatrixWrap<SC,LO,GO,NO>(xpetraFwdCrsMatNonConst));
@@ -116,15 +125,15 @@ namespace Thyra {
         
         CommPtr comm = A->getMap()->getComm();
         UnderlyingLib underlyingLib = A->getMap()->lib();
-
+        
         // Retrieve concrete preconditioner object
         const Ptr<DefaultPreconditioner<SC> > defaultPrec = ptr(dynamic_cast<DefaultPreconditioner<SC> *>(prec));
         TEUCHOS_TEST_FOR_EXCEPT(is_null(defaultPrec));
-
+        
         // extract preconditioner operator
         LinearOpBasePtr thyra_precOp = null;
         thyra_precOp = rcp_dynamic_cast<LinearOpBase<SC> >(defaultPrec->getNonconstUnspecifiedPrecOp(), true);
-
+        
         // Abstract SchwarzPreconditioner
         RCP<SchwarzPreconditioner<SC,LO,GO,NO> > SchwarzPreconditioner = null;
         
@@ -310,7 +319,7 @@ namespace Thyra {
             TEUCHOS_TEST_FOR_EXCEPT(is_null(thyraPrecOp));
             
             //Set SchwarzPreconditioner
-            defaultPrec->initializeUnspecified(thyraPrecOp);            
+            defaultPrec->initializeUnspecified(thyraPrecOp);
         } else {
             // cast to SchwarzPreconditioner
             RCP<FROSchLinearOp<SC,LO,GO,NO> > fROSch_LinearOp = rcp_dynamic_cast<FROSchLinearOp<SC,LO,GO,NO> >(thyra_precOp,true);
@@ -347,155 +356,6 @@ namespace Thyra {
             SchwarzPreconditioner->compute();
         }
     }
-
-    //-------------------------------------------------------------
-    //uninitialize
-    template <class SC, class LO, class GO, class NO>
-    void FROSchFactory<SC,LO,GO,NO>::uninitializePrec(PreconditionerBase<SC>* prec,
-                                                      ConstLinearOpSourceBasePtr* fwdOp,
-                                                      ESupportSolveUse* supportSolveUse) const
-    {
-        TEUCHOS_ASSERT(prec);
-
-        // Retrieve concrete preconditioner object
-        const Ptr<DefaultPreconditioner<SC> > defaultPrec = ptr(dynamic_cast<DefaultPreconditioner<SC> *>(prec));
-        TEUCHOS_TEST_FOR_EXCEPT(is_null(defaultPrec));
-
-        if (fwdOp) {
-            // TODO: Implement properly instead of returning default value
-            *fwdOp = null;
-        }
-
-        if (supportSolveUse) {
-            // TODO: Implement properly instead of returning default value
-            *supportSolveUse = SUPPORT_SOLVE_UNSPECIFIED;
-        }
-
-        defaultPrec->uninitialize();
-    }
-    //-----------------------------------------------------------------
-    //Following Functione maybe needed later
-    template <class SC, class LO, class GO, class NO>
-    void FROSchFactory<SC,LO,GO,NO>::setParameterList(ParameterListPtr const & paramList)
-    {
-        TEUCHOS_TEST_FOR_EXCEPT(is_null(paramList));
-        paramList_ = paramList;
-    }
-    
-    template<class SC, class LO,class GO, class NO>
-    typename FROSchFactory<SC,LO,GO,NO>::ParameterListPtr FROSchFactory<SC,LO,GO,NO>::unsetParameterList()
-    {
-        ParameterListPtr savedParamList = paramList_;
-        paramList_ = null;
-        return savedParamList;
-    }
-
-    template <class SC, class LO, class GO, class NO>
-    typename FROSchFactory<SC,LO,GO,NO>::ParameterListPtr FROSchFactory<SC,LO,GO,NO>::getNonconstParameterList()
-    {
-        return paramList_;
-    }
-
-    template <class SC, class LO, class GO, class NO>
-    typename FROSchFactory<SC,LO,GO,NO>::ConstParameterListPtr FROSchFactory<SC,LO,GO,NO>::getParameterList() const
-    {
-        return paramList_;
-    }
-    
-    template <class SC, class LO, class GO, class NO>
-    typename FROSchFactory<SC,LO,GO,NO>::ConstParameterListPtr FROSchFactory<SC,LO,GO,NO>::getValidParameters() const
-    {
-        static ConstParameterListPtr validPL;
-
-        if (is_null(validPL))
-        validPL = rcp(new ParameterList());
-
-        return validPL;
-    }
-   
-    template <class SC, class LO, class GO, class NO>
-    std::string FROSchFactory<SC,LO,GO,NO>::description() const
-    {
-        return "FROSchFactory";
-    }
-    
-    template <class SC, class LO, class GO, class NO>
-    typename FROSchFactory<SC,LO,GO,NO>::ConstXMapPtr FROSchFactory<SC,LO,GO,NO>::extractRepeatedMap(CommPtr comm,
-                                                                                                     UnderlyingLib lib) const
-    {
-        ConstXMapPtr repeatedMap = null;
-        if (paramList_->isParameter("Repeated Map")) {
-            repeatedMap = ExtractPtrFromParameterList<XMap>(*paramList_,"Repeated Map").getConst();
-            if (repeatedMap.is_null()) {
-                if (lib==UseTpetra) { // If coordinatesList.is_null(), we look for Tpetra/Epetra RCPs
-                    RCP<const Tpetra::Map<LO,GO,NO> > repeatedMapTmp = ExtractPtrFromParameterList<const Tpetra::Map<LO,GO,NO> >(*paramList_,"Repeated Map");
-                    
-                    RCP<const TpetraMap<LO,GO,NO> > xTpetraRepeatedMap(new const TpetraMap<LO,GO,NO>(repeatedMapTmp));
-                    repeatedMap = rcp_dynamic_cast<ConstXMap>(xTpetraRepeatedMap);
-                } else {
-#ifdef HAVE_SHYLU_DDFROSCH_EPETRA
-                    if (comm->getRank()==0) std::cout << "FROSch::FROSchFactory : WARNING: Cannot retrieve Epetra objects from ParameterList. Use Xpetra isntead." << std::endl;
-#endif
-                }
-            }
-            FROSCH_ASSERT(!repeatedMap.is_null(),"FROSch::FROSchFactory : ERROR: repeatedMap.is_null()");
-        }
-        return repeatedMap;
-    }
-    
-    template <class SC, class LO, class GO, class NO>
-    typename FROSchFactory<SC,LO,GO,NO>::ConstXMultiVectorPtr FROSchFactory<SC,LO,GO,NO>::extractCoordinatesList(CommPtr comm,
-                                                                                                                 UnderlyingLib lib) const
-    {
-        ConstXMultiVectorPtr coordinatesList = null;
-        if (paramList_->isParameter("Coordinates List")) {
-            coordinatesList = ExtractPtrFromParameterList<XMultiVector>(*paramList_,"Coordinates List").getConst();
-            if (coordinatesList.is_null()) {
-                if (lib==UseTpetra) { // If coordinatesList.is_null(), we look for Tpetra/Epetra RCPs
-                    RCP<Tpetra::MultiVector<SC,LO,GO,NO> > coordinatesListTmp = ExtractPtrFromParameterList<Tpetra::MultiVector<SC,LO,GO,NO> >(*paramList_,"Coordinates List");
-                    
-                    RCP<const Xpetra::TpetraMultiVector<SC,LO,GO,NO> > xTpetraCoordinatesList(new const Xpetra::TpetraMultiVector<SC,LO,GO,NO>(coordinatesListTmp));
-                    coordinatesList = rcp_dynamic_cast<ConstXMultiVector>(xTpetraCoordinatesList);
-                } else {
-#ifdef HAVE_SHYLU_DDFROSCH_EPETRA
-                    if (comm->getRank()==0) {
-                        std::cout << "FROSch::FROSchFactory : WARNING: Cannot retrieve Epetra objects from ParameterList. Use Xpetra isntead." << std::endl;
-                    }
-#endif
-                }
-            }
-            FROSCH_ASSERT(!coordinatesList.is_null(),"FROSch::FROSchFactory : ERROR: coordinatesList.is_null()");
-        }
-        return coordinatesList;
-    }
-    
-    template <class SC, class LO, class GO, class NO>
-    typename FROSchFactory<SC,LO,GO,NO>::ConstXMultiVectorPtr FROSchFactory<SC,LO,GO,NO>::extractNullSpace(CommPtr comm,
-                                                                                                           UnderlyingLib lib) const
-    {
-        ConstXMultiVectorPtr nullSpaceBasis = null;
-        if (paramList_->isParameter("Null Space")) {
-            nullSpaceBasis = ExtractPtrFromParameterList<XMultiVector>(*paramList_,"Null Space").getConst();
-            if (nullSpaceBasis.is_null()) {
-                if (lib==UseTpetra) { // If nullSpaceBasis.is_null(), we look for Tpetra/Epetra RCPs
-                    RCP<Tpetra::MultiVector<SC,LO,GO,NO> > nullSpaceBasisTmp = ExtractPtrFromParameterList<Tpetra::MultiVector<SC,LO,GO,NO> >(*paramList_,"Null Space");
-                    
-                    RCP<const Xpetra::TpetraMultiVector<SC,LO,GO,NO> > xTpetraNullSpaceBasis(new const Xpetra::TpetraMultiVector<SC,LO,GO,NO>(nullSpaceBasisTmp));
-                    nullSpaceBasis = rcp_dynamic_cast<ConstXMultiVector>(xTpetraNullSpaceBasis);
-                } else {
-#ifdef HAVE_SHYLU_DDFROSCH_EPETRA
-                    if (comm->getRank()==0) {
-                        std::cout << "FROSch::FROSchFactory : WARNING: Cannot retrieve Epetra objects from ParameterList. Use Xpetra isntead." << std::endl;
-                    }
-#endif
-                }
-            }
-            FROSCH_ASSERT(!nullSpaceBasis.is_null(),"FROSch::FROSchFactory : ERROR: nullSpaceBasis.is_null()");
-        }
-        return nullSpaceBasis;
-    }
-
-}
 #endif
 
 

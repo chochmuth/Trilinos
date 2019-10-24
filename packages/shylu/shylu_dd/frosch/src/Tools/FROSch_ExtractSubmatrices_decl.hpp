@@ -74,31 +74,33 @@ namespace FROSch {
 
     template <class SC,class LO,class GO,class NO>
     RCP<const Matrix<SC,LO,GO,NO> > ExtractLocalSubdomainMatrix(RCP<const Matrix<SC,LO,GO,NO> > globalMatrix,
-                                                                RCP<const Map<LO,GO,NO> > map);
-
+                                                                RCP<const Map<LO,GO,NO> > map,
+                                                                bool OnLocalComm = true);
+    
     template <class SC,class LO,class GO,class NO>
     RCP<const Matrix<SC,LO,GO,NO> > ExtractLocalSubdomainMatrix(RCP<const Matrix<SC,LO,GO,NO> > globalMatrix,
                                                                 RCP<const Map<LO,GO,NO> > map,
                                                                 SC value);
-
+    
     template <class SC,class LO,class GO,class NO>
     int UpdateLocalSubdomainMatrix(RCP<Matrix<SC,LO,GO,NO> > globalMatrix,
                                    RCP<Map<LO,GO,NO> > &map,
                                    RCP<Matrix<SC,LO,GO,NO> > &localSubdomainMatrix);
-
+    
     template <class SC,class LO,class GO,class NO>
     int BuildSubmatrices(RCP<const Matrix<SC,LO,GO,NO> > k,
                          ArrayView<GO> indI,
                          RCP<const Matrix<SC,LO,GO,NO> > &kII,
                          RCP<const Matrix<SC,LO,GO,NO> > &kIJ,
                          RCP<const Matrix<SC,LO,GO,NO> > &kJI,
-                         RCP<const Matrix<SC,LO,GO,NO> > &kJJ);
-
+                         RCP<const Matrix<SC,LO,GO,NO> > &kJJ,
+                         bool checkEmptyCols=false);
+    
     template <class SC,class LO,class GO,class NO>
     int BuildSubmatrix(RCP<const Matrix<SC,LO,GO,NO> > k,
                        ArrayView<GO> indI,
                        RCP<const Matrix<SC,LO,GO,NO> > &kII);
-
+    
     template <class LO,class GO,class NO>
     int BuildSubgraph(RCP<const CrsGraph<LO,GO,NO> > k,
                       ArrayView<GO> indI,

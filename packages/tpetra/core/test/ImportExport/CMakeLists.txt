@@ -193,3 +193,21 @@ TRIBITS_ADD_TEST(
   NUM_MPI_PROCS 4
   STANDARD_PASS_OUTPUT
   )
+
+TRIBITS_ADD_EXECUTABLE(
+MyIssue
+SOURCES
+MyIssue
+COMM serial mpi
+)
+
+
+TRIBITS_ADD_TEST(
+MyIssue
+NAME MyIssue_mpi
+ARGS "--globally-reduce-test-result --output-show-proc-rank --output-to-root-rank-only=-1"
+COMM mpi
+NUM_MPI_PROCS 4
+STANDARD_PASS_OUTPUT
+)
+

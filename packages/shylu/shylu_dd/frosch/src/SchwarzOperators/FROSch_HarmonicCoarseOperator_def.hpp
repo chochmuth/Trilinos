@@ -43,7 +43,7 @@
 #define _FROSCH_HARMONICCOARSEOPERATOR_DEF_HPP
 
 #include <FROSch_HarmonicCoarseOperator_decl.hpp>
-
+#include <MatrixMarket_Tpetra.hpp>
 
 namespace FROSch {
 
@@ -71,15 +71,15 @@ namespace FROSch {
     {
         FROSCH_TIMER_START_LEVELID(computeCoarseSpaceTime,"HarmonicCoarseOperator::computeCoarseSpace");
         XMapPtr repeatedMap = AssembleSubdomainMap(NumberOfBlocks_,DofsMaps_,DofsPerNode_);
-
+        
         // Build local saddle point problem
         ConstXMatrixPtr repeatedMatrix = ExtractLocalSubdomainMatrix(this->K_.getConst(),repeatedMap.getConst()); // AH 12/11/2018: Should this be in initalize?
-
+        
         // Extract submatrices
         GOVec indicesGammaDofsAll(0);
         GOVec indicesIDofsAll(0);
         LO tmp = 0;
-
+        
         for (UN i=0; i<NumberOfBlocks_; i++) {
             for (UN j=0; j<GammaDofs_[i].size(); j++) {
                 indicesGammaDofsAll.push_back(tmp+GammaDofs_[i][j]);
@@ -89,25 +89,47 @@ namespace FROSch {
             }
             tmp += GammaDofs_[i].size()+IDofs_[i].size();
         }
-
+        
         XMatrixPtr kII;
         XMatrixPtr kIGamma;
         XMatrixPtr kGammaI;
         XMatrixPtr kGammaGamma;
+        bool checkEmptyCols = sublist(this->ParameterList_,"ExtensionSolver")->get("Check for empty columns",false);
 
-        BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma);
-
+        BuildSubmatrices(repeatedMatrix,indicesIDofsAll(),kII,kIGamma,kGammaI,kGammaGamma,checkEmptyCols);
+        
         // Build the saddle point harmonic extensions
         XMultiVectorPtr localCoarseSpaceBasis;
         if (this->CoarseMap_->getNodeNumElements()) {
             localCoarseSpaceBasis = computeExtensions(repeatedMatrix->getRowMap(),this->CoarseMap_,indicesGammaDofsAll(),indicesIDofsAll(),kII,kIGamma);
             
-            coarseSpace->addSubspace(this->CoarseMap_,localCoarseSpaceBasis);
+            coarseSpace->addSubspace(this->CoarseMap_,localCoarseSpaceBasis,this->OnLocalSolveComm_);
         } else {
             if (this->Verbose_) std::cout << "FROSch::HarmonicCoarseOperator : WARNING: The Coarse Space is empty. No extensions are computed" << std::endl;
         }
-
+        
         return repeatedMap;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    typename HarmonicCoarseOperator<SC,LO,GO,NO>::MapPtr HarmonicCoarseOperator<SC,LO,GO,NO>::assembleCoarseMap()
+    {
+        GOVec mapVector(0);
+        GO tmp = 0;
+        if (this->OnLocalSolveComm_) {
+            for (UN i=0; i<NumberOfBlocks_; i++) {
+                if (InterfaceCoarseSpaces_[i]->hasBasisMap()) {
+                    for (UN j=0; j<InterfaceCoarseSpaces_[i]->getBasisMap()->getNodeNumElements(); j++) {
+                        mapVector.push_back(InterfaceCoarseSpaces_[i]->getBasisMap()->getGlobalElement(j)+tmp);
+                    }
+                    if (InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()>=0) {
+                        tmp += InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()+1;
+                    }
+                }
+            }
+        }
+        return Xpetra::MapFactory<LO,GO,NO>::Build(DofsMaps_[0][0]->lib(),-1,mapVector(),0,this->MpiComm_);
+>>>>>>> a54f39a1fe10545e44268d427da258c2fa40c27d
     }
 
     template <class SC,class LO,class GO,class NO>
@@ -181,7 +203,7 @@ namespace FROSch {
             blockCoarseMap = MapFactory<LO,GO,NO>::Build(dofsMap->lib(),-1,GammaDofs_[blockId](),0,this->MpiComm_);
 
             InterfaceCoarseSpaces_[blockId]->addSubspace(blockCoarseMap,mVPhiGamma);
-            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace();
+            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->OnLocalSolveComm_);
         }
 
         DofsMaps_[blockId] = XMapPtrVecPtr(0);
@@ -197,7 +219,8 @@ namespace FROSch {
                                                                     UN dimension,
                                                                     ConstXMapPtr nodesMap,
                                                                     ConstXMultiVectorPtr nodeList,
-                                                                    EntitySetConstPtr interior)
+                                                                    EntitySetConstPtr interior,
+                                                                    bool OnLocalSolveComm)
     {
         FROSCH_TIMER_START_LEVELID(computeVolumeFunctionsTime,"HarmonicCoarseOperator::computeVolumeFunctions");
         // Process the parameter list
@@ -205,14 +228,14 @@ namespace FROSch {
         blockIdStringstream << blockId+1;
         std::string blockIdString = blockIdStringstream.str();
         RCP<ParameterList> coarseSpaceList = sublist(sublist(this->ParameterList_,"Blocks"),blockIdString.c_str());
-
+        
         bool useForCoarseSpace = coarseSpaceList->get("Use For Coarse Space",true);
         bool useRotations = coarseSpaceList->get("Rotations",true);
         if (useRotations && nodeList.is_null()) {
             useRotations = false;
             if (this->Verbose_) std::cout << "FROSch::HarmonicCoarseOperator : WARNING: Rotations cannot be used" << std::endl;
         }
-
+        
         this->GammaDofs_[blockId] = LOVecPtr(this->DofsPerNode_[blockId]*interior->getEntity(0)->getNumNodes());
         this->IDofs_[blockId] = LOVecPtr(0);
         for (UN k=0; k<this->DofsPerNode_[blockId]; k++) {
@@ -220,12 +243,12 @@ namespace FROSch {
                 this->GammaDofs_[blockId][this->DofsPerNode_[blockId]*i+k] = interior->getEntity(0)->getLocalDofID(i,k);
             }
         }
-
+        
         if (useForCoarseSpace) {
             InterfaceCoarseSpaces_[blockId].reset(new CoarseSpace<SC,LO,GO,NO>());
-
+            
             interior->buildEntityMap(nodesMap);
-
+            
             XMultiVectorPtrVecPtr translations = computeTranslations(blockId,interior);
             for (UN i=0; i<translations.size(); i++) {
                 this->InterfaceCoarseSpaces_[blockId]->addSubspace(interior->getEntityMap(),translations[i]);
@@ -236,23 +259,23 @@ namespace FROSch {
                     this->InterfaceCoarseSpaces_[blockId]->addSubspace(interior->getEntityMap(),rotations[i]);
                 }
             }
-
-            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace();
-
+            
+            InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace(this->OnLocalSolveComm_, nodesMap->lib(), this->MpiComm_);
+            
             // Count entities
             GO numEntitiesGlobal = interior->getEntityMap()->getMaxAllGlobalIndex();
             if (interior->getEntityMap()->lib()==UseEpetra || interior->getEntityMap()->getGlobalNumElements()>0) {
                 numEntitiesGlobal += 1;
             }
-
+            
             if (this->MpiComm_->getRank() == 0) {
                 std::cout << std::boolalpha << "\n\
-    ------------------------------------------------------------------------------\n\
-     GDSW coarse space\n\
-    ------------------------------------------------------------------------------\n\
-      Volumes: translations                       --- " << useForCoarseSpace << "\n\
-      Volumes: rotations                          --- " << useRotations << "\n\
-    ------------------------------------------------------------------------------\n" << std::noboolalpha;
+                ------------------------------------------------------------------------------\n\
+                GDSW coarse space\n\
+                ------------------------------------------------------------------------------\n\
+                Volumes: translations                       --- " << useForCoarseSpace << "\n\
+                Volumes: rotations                          --- " << useRotations << "\n\
+                ------------------------------------------------------------------------------\n" << std::noboolalpha;
             }
         }
         return 0;
@@ -425,7 +448,7 @@ namespace FROSch {
         }
         return rotations;
     }
-
+    
     template <class SC,class LO,class GO,class NO>
     typename HarmonicCoarseOperator<SC,LO,GO,NO>::XMultiVectorPtr HarmonicCoarseOperator<SC,LO,GO,NO>::computeExtensions(ConstXMapPtr localMap,
                                                                                                                          ConstXMapPtr coarseMap,
@@ -436,90 +459,105 @@ namespace FROSch {
     {
         FROSCH_TIMER_START_LEVELID(computeExtensionsTime,"HarmonicCoarseOperator::computeExtensions");
         //this->Phi_ = MatrixFactory<SC,LO,GO,NO>::Build(this->K_->getRangeMap(),coarseMap,coarseMap->getNodeNumElements()); // Nonzeroes abhängig von dim/dofs!!!
-        XMultiVectorPtr mVPhi = MultiVectorFactory<SC,LO,GO,NO>::Build(localMap,coarseMap->getNodeNumElements());
-        XMultiVectorPtr mVtmp = MultiVectorFactory<SC,LO,GO,NO>::Build(kII->getRowMap(),coarseMap->getNodeNumElements());
-        XMultiVectorPtr mVPhiI = MultiVectorFactory<SC,LO,GO,NO>::Build(kII->getRowMap(),coarseMap->getNodeNumElements());
-
-        //Build mVPhiGamma
-        XMultiVectorPtr mVPhiGamma = MultiVectorFactory<SC,LO,GO,NO>::Build(kIGamma->getDomainMap(),coarseMap->getNodeNumElements());
-        LO jj=0;
-        LO kk=0;
-        UNVec numLocalBlockRows(NumberOfBlocks_);
-        for (UN i=0; i<NumberOfBlocks_; i++) {
-            UN j = 0;
-            UN k = 0;
-            if (InterfaceCoarseSpaces_[i]->hasAssembledBasis()) {
-                numLocalBlockRows[i] = InterfaceCoarseSpaces_[i]->getAssembledBasis()->getNumVectors();
-                for (j=0; j<numLocalBlockRows[i]; j++) {
-                    for (k=0; k<InterfaceCoarseSpaces_[i]->getAssembledBasis()->getLocalLength(); k++) {
-                        mVPhiGamma->replaceLocalValue(k+kk,j+jj,InterfaceCoarseSpaces_[i]->getAssembledBasis()->getData(j)[k]);
-                        mVPhi->replaceLocalValue(indicesGammaDofsAll[k+kk],j+jj,InterfaceCoarseSpaces_[i]->getAssembledBasis()->getData(j)[k]);
+        XMultiVectorPtr mVPhi;
+        if (this->OnLocalSolveComm_) {
+            mVPhi = MultiVectorFactory<SC,LO,GO,NO>::Build(localMap,coarseMap->getNodeNumElements());
+            XMultiVectorPtr mVtmp = MultiVectorFactory<SC,LO,GO,NO>::Build(kII->getRowMap(),coarseMap->getNodeNumElements());
+            XMultiVectorPtr mVPhiI = MultiVectorFactory<SC,LO,GO,NO>::Build(kII->getRowMap(),coarseMap->getNodeNumElements());
+            
+            //Build mVPhiGamma
+            XMultiVectorPtr mVPhiGamma = MultiVectorFactory<SC,LO,GO,NO>::Build(kIGamma->getDomainMap(),coarseMap->getNodeNumElements());
+            LO jj=0;
+            LO kk=0;
+            UNVec numLocalBlockRows(NumberOfBlocks_);
+            for (UN i=0; i<NumberOfBlocks_; i++) {
+                UN j = 0;
+                UN k = 0;
+                if (InterfaceCoarseSpaces_[i]->hasAssembledBasis()) {
+                    numLocalBlockRows[i] = InterfaceCoarseSpaces_[i]->getAssembledBasis()->getNumVectors();
+                    for (j=0; j<numLocalBlockRows[i]; j++) {
+                        for (k=0; k<InterfaceCoarseSpaces_[i]->getAssembledBasis()->getLocalLength(); k++) {
+                            mVPhiGamma->replaceLocalValue(k+kk,j+jj,InterfaceCoarseSpaces_[i]->getAssembledBasis()->getData(j)[k]);
+                            mVPhi->replaceLocalValue(indicesGammaDofsAll[k+kk],j+jj,InterfaceCoarseSpaces_[i]->getAssembledBasis()->getData(j)[k]);
+                        }
+                    }
+                } else { // Das ist für den Fall, dass keine Basisfunktionen für einen Block gebaut werden sollen
+                    k=GammaDofs_[i].size();
+                }
+                jj += j;
+                kk += k;
+            }
+            // RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout)); this->Phi_->describe(*fancy,VERB_EXTREME);
+            // Hier Multiplikation kIGamma*PhiGamma
+            kIGamma->apply(*mVPhiGamma,*mVtmp);
+            
+            mVtmp->scale(-ScalarTraits<SC>::one());
+            
+            // Jetzt der solver für kII
+            if (indicesIDofsAll.size()>0) {
+                bool reuseExtensionSymbolicFactorization = this->ParameterList_->get("Reuse: Extension Symbolic Factorization",true);
+                if (ExtensionSolver_.is_null())
+                    reuseExtensionSymbolicFactorization = false;
+                
+                if (!reuseSymbolicFactorization) {
+                    if (this->IsComputed_ && this->Verbose_)
+                        std::cout << "FROSch::HarmonicCoarseOperator : Recomputing the Symbolic Factorization of the harmonic extensions" << std::endl;
+                    
+                    ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));
+                    ExtensionSolver_->initialize();
+                    ExtensionSolver_->compute();
+                }
+                else{
+                    ExtensionSolver_->resetMatrix(kII.getConst(),true);
+                    ExtensionSolver_->compute();
+                }
+                ExtensionSolver_->apply(*mVtmp,*mVPhiI);
+            }
+            
+            GOVec priorIndex(NumberOfBlocks_,0);
+            GOVec postIndex(NumberOfBlocks_,0);
+            
+            GOVec2D excludeCols(NumberOfBlocks_);
+            
+            LOVec bound(NumberOfBlocks_+1,(LO)0);
+            for (UN i=0; i<NumberOfBlocks_; i++) {
+                bound[i+1] = bound[i] + this->IDofs_[i].size();
+            }
+            
+            LO itmp = 0;
+            for (UN i=0; i<NumberOfBlocks_; i++) {
+                std::stringstream blockIdStringstream;
+                blockIdStringstream << i+1;
+                std::string blockIdString = blockIdStringstream.str();
+                RCP<ParameterList> coarseSpaceList = sublist(sublist(this->ParameterList_,"Blocks"),blockIdString.c_str());
+                std::string excludeBlocksString = coarseSpaceList->get("Exclude","0");
+                UNVec excludeBlocks = FROSch::GetIndicesFromString(excludeBlocksString,(UN)0);
+                sortunique(excludeBlocks);
+                for (UN j=0; j<excludeBlocks.size(); j++) {
+                    excludeBlocks[j] -= 1;
+                }
+                UNVec extensionBlocks(0);
+                for (UN j=0; j<NumberOfBlocks_; j++) {
+                    typename UNVec::iterator it = std::find(excludeBlocks.begin(),excludeBlocks.end(),j);
+                    if (it == excludeBlocks.end()) {
+                        extensionBlocks.push_back(j);
                     }
                 }
-            } else { // Das ist für den Fall, dass keine Basisfunktionen für einen Block gebaut werden sollen
-                k=GammaDofs_[i].size();
-            }
-            jj += j;
-            kk += k;
-        }
-        // RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout)); this->Phi_->describe(*fancy,VERB_EXTREME);
-        // Hier Multiplikation kIGamma*PhiGamma
-        kIGamma->apply(*mVPhiGamma,*mVtmp);
-
-        mVtmp->scale(-ScalarTraits<SC>::one());
-
-        // Jetzt der solver für kII
-        if (indicesIDofsAll.size()>0) {
-            ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));
-            ExtensionSolver_->initialize();
-            ExtensionSolver_->compute();
-            ExtensionSolver_->apply(*mVtmp,*mVPhiI);
-        }
-
-        GOVec priorIndex(NumberOfBlocks_,0);
-        GOVec postIndex(NumberOfBlocks_,0);
-
-        GOVec2D excludeCols(NumberOfBlocks_);
-
-        LOVec bound(NumberOfBlocks_+1,(LO)0);
-        for (UN i=0; i<NumberOfBlocks_; i++) {
-            bound[i+1] = bound[i] + this->IDofs_[i].size();
-        }
-
-        LO itmp = 0;
-        for (UN i=0; i<NumberOfBlocks_; i++) {
-            std::stringstream blockIdStringstream;
-            blockIdStringstream << i+1;
-            std::string blockIdString = blockIdStringstream.str();
-            RCP<ParameterList> coarseSpaceList = sublist(sublist(this->ParameterList_,"Blocks"),blockIdString.c_str());
-            std::string excludeBlocksString = coarseSpaceList->get("Exclude","0");
-            UNVec excludeBlocks = FROSch::GetIndicesFromString(excludeBlocksString,(UN)0);
-            sortunique(excludeBlocks);
-            for (UN j=0; j<excludeBlocks.size(); j++) {
-                excludeBlocks[j] -= 1;
-            }
-            UNVec extensionBlocks(0);
-            for (UN j=0; j<NumberOfBlocks_; j++) {
-                typename UNVec::iterator it = std::find(excludeBlocks.begin(),excludeBlocks.end(),j);
-                if (it == excludeBlocks.end()) {
-                    extensionBlocks.push_back(j);
-                }
-            }
-
-            for (UN j=0; j<numLocalBlockRows[i]; j++) {
-                for (UN ii=0; ii<extensionBlocks.size(); ii++) {
-                    for (LO k=bound[extensionBlocks[ii]]; k<bound[extensionBlocks[ii]+1]; k++) {
-                        indicesIDofsAll[k];
-                        mVPhiI->getData(itmp)[k];
-                        mVPhi->replaceLocalValue(indicesIDofsAll[k],itmp,mVPhiI->getData(itmp)[k]);
+                
+                for (UN j=0; j<numLocalBlockRows[i]; j++) {
+                    for (UN ii=0; ii<extensionBlocks.size(); ii++) {
+                        for (LO k=bound[extensionBlocks[ii]]; k<bound[extensionBlocks[ii]+1]; k++) {
+                            indicesIDofsAll[k];
+                            mVPhiI->getData(itmp)[k];
+                            mVPhi->replaceLocalValue(indicesIDofsAll[k],itmp,mVPhiI->getData(itmp)[k]);
+                        }
                     }
+                    itmp++;
                 }
-                itmp++;
             }
         }
         return mVPhi;
     }
-
 }
 
 #endif

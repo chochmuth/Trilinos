@@ -59,8 +59,11 @@ namespace FROSch {
     Verbose_ (comm->getRank()==0),
     IsInitialized_ (false),
     IsComputed_ (false),
-    LevelID_ (1)
+    LevelID_ (1),
+    RankRange_(2)
     {
+        RankRange_[0] = parameterList->get("Local problem ranks lower bound",0);
+        RankRange_[1] = parameterList->get("Local problem ranks upper bound",MpiComm_->getSize()-1);
         SerialComm_ = createSerialComm<int>();
     }
 
@@ -74,8 +77,11 @@ namespace FROSch {
     Verbose_ (MpiComm_->getRank()==0),
     IsInitialized_ (false),
     IsComputed_ (false),
-    LevelID_ (ParameterList_->get("Level ID",UN(1)))
+    LevelID_ (ParameterList_->get("Level ID",UN(1))),
+    RankRange_(2)
     {
+        RankRange_[0] = parameterList->get("Local problem ranks lower bound",0);
+        RankRange_[1] = parameterList->get("Local problem ranks upper bound",MpiComm_->getSize()-1);
         FROSCH_ASSERT(getDomainMap()->isSameAs(*getRangeMap()),"SchwarzOperator assumes DomainMap==RangeMap");
         SerialComm_ = createSerialComm<int>();
     }
@@ -122,11 +128,16 @@ namespace FROSch {
 
     template<class SC,class LO,class GO,class NO>
     int SchwarzOperator<SC,LO,GO,NO>::resetMatrix(ConstXMatrixPtr &k) {
-    // Maybe set IsComputed_ = false ? -> Go through code to be saver/cleaner
-    // This function must be actively called by the user, and is only for recycling purposes.
-    // The preconditioner is still computed and this point or the preconditioner was never computed and can now be computed with the matrix k now.
+        // Maybe set IsComputed_ = false ? -> Go through code to be saver/cleaner
+        // This function must be actively called by the user, and is only for recycling purposes.
+        // The preconditioner is still computed and this point or the preconditioner was never computed and can now be computed with the matrix k now.
         K_ = k;
         return 0;
+    }
+    
+    template<class SC,class LO,class GO,class NO>
+    typename SchwarzOperator<SC,LO,GO,NO>::ParameterListPtr SchwarzOperator<SC,LO,GO,NO>::getParameterList() {
+        return ParameterList_;
     }
 
 }

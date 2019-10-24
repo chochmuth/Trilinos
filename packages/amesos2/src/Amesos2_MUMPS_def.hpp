@@ -79,6 +79,7 @@ namespace Amesos2
     , rowind_()
     , colptr_()
     , is_contiguous_(true)
+    , reuse_SymbolicFactorization(false)
   {
 
     typedef FunctionMap<MUMPS,scalar_type>  function_map;
@@ -154,6 +155,7 @@ namespace Amesos2
   template <class Matrix, class Vector>
   MUMPS<Matrix,Vector>::~MUMPS( )
   {
+      
     /* Clean up the struc*/
     if(MUMPS_STRUCT == true)
       {
@@ -161,6 +163,11 @@ namespace Amesos2
         free(mumps_par.jcn);
         free(mumps_par.irn);
       }
+      mumps_par.job = -2;
+      if (this->rank_ < this->nprocs_) {
+          function_map::mumps_c(&(mumps_par));
+      }
+
   }
   
   template<class Matrix, class Vector>
@@ -227,8 +234,8 @@ namespace Amesos2
   MUMPS<Matrix,Vector>::solve_impl(
                          const Teuchos::Ptr<MultiVecAdapter<Vector> >  X,
                          const Teuchos::Ptr<const MultiVecAdapter<Vector> > B) const
-  {
-    
+  {        
+      
     typedef FunctionMap<MUMPS,scalar_type> function_map;
     
     using Teuchos::as;
@@ -311,49 +318,78 @@ namespace Amesos2
     using Teuchos::RCP;
     using Teuchos::getIntegralValue;
     using Teuchos::ParameterEntryValidator;
-    
+
     RCP<const Teuchos::ParameterList> valid_params = getValidParameters_impl();
+      
     /*To Do --- add support for parameters */
-    
     if(parameterList->isParameter("ICNTL(1)"))
       {
-        mumps_par.icntl[0] = getIntegralValue<local_ordinal_type>(*parameterList, 
-                                                                  "ICNTL(1)");
+        mumps_par.icntl[0] = parameterList->get<int>("ICNTL(1)", -1);
+//          getIntegralValue<local_ordinal_type>(*parameterList,
+//                                                                  "ICNTL(1)");
       }
     if(parameterList->isParameter("ICNTL(2)"))
       {
-        mumps_par.icntl[0] = getIntegralValue<local_ordinal_type>(*parameterList, 
-                                                                  "ICNTL(2)");
+        mumps_par.icntl[1] = parameterList->get<int>("ICNTL(2)", -1);
+//          getIntegralValue<local_ordinal_type>(*parameterList,
+//                                                                  "ICNTL(2)");
+          
       }
     if(parameterList->isParameter("ICNTL(3)"))
       {
-        mumps_par.icntl[0] = getIntegralValue<local_ordinal_type>(*parameterList, 
-                                                                  "ICNTL(3)");
+        mumps_par.icntl[2] = parameterList->get<int>("ICNTL(3)", -1);
+//          getIntegralValue<local_ordinal_type>(*parameterList,
+//                                                                  "ICNTL(3)");
       }
     if(parameterList->isParameter("ICNTL(4)"))
       {
-        mumps_par.icntl[0] = getIntegralValue<local_ordinal_type>(*parameterList, 
-                                                                  "ICNTL(4)");
+
+        mumps_par.icntl[3] = parameterList->get<int>("ICNTL(4)", 1);
+//          getIntegralValue<local_ordinal_type>(*parameterList,
+//                                                                  "ICNTL(4)");
       }
     if(parameterList->isParameter("ICNTL(6)"))
       {
-        mumps_par.icntl[0] = getIntegralValue<local_ordinal_type>(*parameterList, 
-                                                                  "ICNTL(6)");
+
+        mumps_par.icntl[5] = parameterList->get<int>("ICNTL(6)", 0);
+//          getIntegralValue<local_ordinal_type>(*parameterList,
+//                                                                  "ICNTL(6)");
       }
+    if(parameterList->isParameter("ICNTL(7)"))
+      {
+          
+          mumps_par.icntl[6] = parameterList->get<int>("ICNTL(7)", 7);
+          //          getIntegralValue<local_ordinal_type>(*parameterList,
+          //                                                                  "ICNTL(6)");
+      }
+      
     if(parameterList->isParameter("ICNTL(9)"))
       {
-        mumps_par.icntl[0] = getIntegralValue<local_ordinal_type>(*parameterList, 
-                                                                  "ICNTL(9)");
+
+        mumps_par.icntl[8] = parameterList->get<int>("ICNTL(9)", 1);
+//          getIntegralValue<local_ordinal_type>(*parameterList,
+//                                                                  "ICNTL(9)");
       }
     if(parameterList->isParameter("ICNTL(11)"))
       {
-        mumps_par.icntl[0] = getIntegralValue<local_ordinal_type>(*parameterList, 
-                                                                  "ICNTL(11)");
-      }
 
+        mumps_par.icntl[10] = parameterList->get<int>("ICNTL(11)", 0);
+//          getIntegralValue<local_ordinal_type>(*parameterList,
+//                                                                  "ICNTL(11)");
+      }
+    if(parameterList->isParameter("ICNTL(14)"))
+      {
+
+          mumps_par.icntl[13] = parameterList->get<int>("ICNTL(14)", 20);
+//          getIntegralValue<local_ordinal_type>(*parameterList,
+//                                                                    "ICNTL(14)");
+      }
     if( parameterList->isParameter("IsContiguous") ){
       is_contiguous_ = parameterList->get<bool>("IsContiguous");
 
+    }
+    if( parameterList->isParameter("Reuse SymbolicFactorization") ){
+      reuse_SymbolicFactorization = parameterList->get<bool>("Reuse SymbolicFactorization",false);
     }
   }//end set parameters()
   
@@ -369,16 +405,16 @@ namespace Amesos2
     if( is_null(valid_params) ){
       Teuchos::RCP<Teuchos::ParameterList> pl = Teuchos::parameterList();
     
-      pl->set("ICNTL(1)", "no", "See Manual" );
-      pl->set("ICNTL(2)", "no", "See Manual" );
-      pl->set("ICNTL(3)", "no", "See Manual" );
-      pl->set("ICNTL(4)", "no", "See Manual" );
-      pl->set("ICNTL(6)", "no", "See Manual" );
-      pl->set("ICNTL(9)", "no", "See Manual" );
-      pl->set("ICNTL(11)", "no", "See Manual" );
-
+      pl->set("ICNTL(1)", -1, "See Manual" );
+      pl->set("ICNTL(2)", -1, "See Manual" );
+      pl->set("ICNTL(3)", -1, "See Manual" );
+      pl->set("ICNTL(4)", 1, "See Manual" );
+      pl->set("ICNTL(6)", 0, "See Manual" );
+      pl->set("ICNTL(9)", 1, "See Manual" );
+      pl->set("ICNTL(11)", 0, "See Manual" );
+      pl->set("ICNTL(14)", 20, "See Manual" );
       pl->set("IsContiguous", true, "Whether GIDs contiguous");
-      
+      pl->set("Reuse SymbolicFactorization", false, "Indicate that a symbolic factorization should already exist and that matrix must be reset in NumericFactorization Phase." );
       valid_params = pl;
     }
     
@@ -391,12 +427,11 @@ namespace Amesos2
   MUMPS<Matrix,Vector>::loadA_impl(EPhase current_phase)
   {
     using Teuchos::as;
-    
+
     #ifdef HAVE_AMESOS2_TIMERS
     Teuchos::TimeMonitor convTimer(this->timers_.mtxConvTime_);
     #endif
-    
-    if(MUMPS_MATRIX_LOAD == false)
+    if(MUMPS_MATRIX_LOAD == false || (current_phase==NUMFACT && reuse_SymbolicFactorization))
       {
         // Only the root image needs storage allocated
         if( this->root_ ){
@@ -435,7 +470,6 @@ namespace Amesos2
           ConvertToTriplet();
         }
       }
-    
     MUMPS_MATRIX_LOAD = true;
     return (true);
   }//end loadA_impl()
@@ -444,13 +478,14 @@ namespace Amesos2
   int
   MUMPS<Matrix,Vector>::ConvertToTriplet()
   {
-    MUMPS_STRUCT = true;
-    mumps_par.n =  this->globalNumCols_;
-    mumps_par.nz = this->globalNumNonZeros_;
-    mumps_par.a = (magnitude_type*)malloc(mumps_par.nz * sizeof(magnitude_type));
-    mumps_par.irn = (MUMPS_INT*)malloc(mumps_par.nz *sizeof(MUMPS_INT));
-    mumps_par.jcn = (MUMPS_INT*)malloc(mumps_par.nz * sizeof(MUMPS_INT));
-
+    if ( !MUMPS_STRUCT ) {
+        MUMPS_STRUCT = true;
+        mumps_par.n =  this->globalNumCols_;
+        mumps_par.nz = this->globalNumNonZeros_;
+        mumps_par.a = (magnitude_type*)malloc(mumps_par.nz * sizeof(magnitude_type));
+        mumps_par.irn = (MUMPS_INT*)malloc(mumps_par.nz *sizeof(MUMPS_INT));
+        mumps_par.jcn = (MUMPS_INT*)malloc(mumps_par.nz * sizeof(MUMPS_INT));
+    }
     if((mumps_par.a == NULL) || (mumps_par.irn == NULL) 
        || (mumps_par.jcn == NULL))
       {
@@ -496,11 +531,25 @@ namespace Amesos2
   void
   MUMPS<Matrix,Vector>::MUMPS_ERROR()const
   {
-    if(mumps_par.info[0] < 0)
+    bool Wrong = ((mumps_par.info[0] != 0) || (mumps_par.infog[0] != 0)) && (this->rank_ < this->nprocs_);
+    if(Wrong)
       {
-        TEUCHOS_TEST_FOR_EXCEPTION(false,
+          if (this->rank_==0) {
+              std::cerr << "Amesos_Mumps : ERROR" << std::endl;
+              std::cerr << "Amesos_Mumps : INFOG(1) = " << mumps_par.infog[0] << std::endl;
+              std::cerr << "Amesos_Mumps : INFOG(2) = " << mumps_par.infog[1] << std::endl;
+          }
+          if (mumps_par.info[0] != 0  && Wrong) {
+              std::cerr << "Amesos_Mumps : On process " << this->matrixA_->getComm()->getRank()
+              << ", INFO(1) = " << mumps_par.info[0] << std::endl;
+              std::cerr << "Amesos_Mumps : On process " << this->matrixA_->getComm()->getRank()
+              << ", INFO(2) = " << mumps_par.info[1] << std::endl;
+          }
+          if (this->rank_==0) {
+              TEUCHOS_TEST_FOR_EXCEPTION(true,
                                    std::runtime_error,
                                    "MUMPS error");
+          }
       }
   }//end MUMPS_ERROR()
 

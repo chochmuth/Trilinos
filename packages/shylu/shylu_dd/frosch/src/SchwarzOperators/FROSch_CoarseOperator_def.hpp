@@ -43,7 +43,7 @@
 #define _FROSCH_COARSEOPERATOR_DEF_HPP
 
 #include <FROSch_CoarseOperator_decl.hpp>
-
+#include <MatrixMarket_Tpetra.hpp>
 
 namespace FROSch {
 
@@ -78,8 +78,16 @@ namespace FROSch {
 #ifdef FROSCH_COARSEOPERATOR_EXPORT_AND_IMPORT
     , CoarseSolveImporters_ (0)
 #endif
+    ,OnLocalSolveComm_(false)
+    SwapMap_(),
+    SwapExporter_(),
+    CoarseRankRange_(2,0)
     {
         FROSCH_TIMER_START_LEVELID(coarseOperatorTime,"CoarseOperator::CoarseOperator");
+        CoarseRankRange_[0] = this->getParameterList()->get("Coarse problem ranks lower bound",0);
+        CoarseRankRange_[1] = this->getParameterList()->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1);
+        if ( this->MpiComm_->getRank() >= this->RankRange_[0] && this->MpiComm_->getRank() <= this->RankRange_[1] )
+            OnLocalSolveComm_ = true;
     }
 
     template<class SC,class LO,class GO,class NO>
@@ -95,14 +103,14 @@ namespace FROSch {
         FROSCH_ASSERT(this->IsInitialized_,"FROSch::CoarseOperator : ERROR: CoarseOperator has to be initialized before calling compute()");
         // This is not optimal yet... Some work could be moved to Initialize
         //if (this->Verbose_) std::cout << "FROSch::CoarseOperator : WARNING: Some of the operations could probably be moved from initialize() to Compute().\n";
-
+        
         bool reuseCoarseBasis = this->ParameterList_->get("Reuse: Coarse Basis",true);
         bool reuseCoarseMatrix = this->ParameterList_->get("Reuse: Coarse Matrix",false);
         if (!this->IsComputed_) {
             reuseCoarseBasis = false;
             reuseCoarseMatrix = false;
         }
-
+        
         if (!reuseCoarseBasis) {
             if (this->IsComputed_ && this->Verbose_) std::cout << "FROSch::CoarseOperator : Recomputing the Coarse Basis" << std::endl;
             clearCoarseSpace(); // AH 12/11/2018: If we do not clear the coarse space, we will always append just append the coarse space
@@ -118,11 +126,11 @@ namespace FROSch {
         
         if ( this->ParameterList_->get("Set Phi to PList", false ) ){
             if (this->Verbose_)
-                std::cout << "\t### Setting Phi (Xpetra::Matrix) to ParameterList.\n";
+                std::cout << "\t### Setting Phi (RCP<Xpetra::Matrix>) to ParameterList.\n";
             
             this->ParameterList_->set("Phi Pointer", Phi_);
         }
-
+        
         
         if (!reuseCoarseMatrix) {
             if (this->IsComputed_ && this->Verbose_) std::cout << "FROSch::CoarseOperator : Recomputing the Coarse Matrix" << std::endl;
@@ -131,7 +139,7 @@ namespace FROSch {
         this->IsComputed_ = true;
         return 0;
     }
-
+    
     template <class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::clearCoarseSpace()
     {
@@ -154,8 +162,11 @@ namespace FROSch {
             if (!usePreconditionerOnly && mode == NO_TRANS) {
                 this->K_->apply(x,*XTmp_,mode,ScalarTraits<SC>::one(),ScalarTraits<SC>::zero());
             }
-            if (XCoarseSolve_.is_null()) XCoarseSolve_ = MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],x.getNumVectors());
-            else XCoarseSolve_->replaceMap(GatheringMaps_[GatheringMaps_.size()-1]); // The map is replaced in applyCoarseSolve(). If we do not build it from scratch, we should at least replace the map here. This may be important since the maps live on different communicators.
+            if (XCoarseSolve_.is_null())
+                XCoarseSolve_ = MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],x.getNumVectors());
+            else
+                XCoarseSolve_->replaceMap(GatheringMaps_[GatheringMaps_.size()-1]); // The map is replaced in applyCoarseSolve(). If we do not build it from scratch, we should at least replace the map here. This may be important since the maps live on different communicators.
+            //is this correct?
             if (YCoarseSolve_.is_null()) YCoarseSolve_ = MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],y.getNumVectors());
             applyPhiT(*XTmp_,*XCoarseSolve_);
             applyCoarseSolve(*XCoarseSolve_,*YCoarseSolve_,mode);
@@ -173,7 +184,7 @@ namespace FROSch {
             y.update(ScalarTraits<SC>::one(),x,ScalarTraits<SC>::zero());
         }
     }
-
+    
     template<class SC,class LO,class GO,class NO>
     void CoarseOperator<SC,LO,GO,NO>::applyPhiT(const XMultiVector& x,
                                                 XMultiVector& y) const
@@ -197,8 +208,15 @@ namespace FROSch {
             }
             XCoarse_ = XCoarseSolveTmp_;
         }
+        int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+        if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
+            XCoarseSolveTmp_ = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(SwapMap_,x.getNumVectors());
+            XCoarseSolveTmp_->doImport(*XCoarse_,*SwapExporter_,ADD);
+        }
+        
         y = *XCoarseSolveTmp_;
     }
+
 
     template<class SC,class LO,class GO,class NO>
     void CoarseOperator<SC,LO,GO,NO>::applyCoarseSolve(XMultiVector& x,
@@ -215,7 +233,12 @@ namespace FROSch {
             if (YTmp_.is_null()) YTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,x.getNumVectors());
             else YTmp_->replaceMap(CoarseSolveMap_); // The map is replaced later in this function. If we do not build it from scratch, we should at least replace the map here. This may be important since the maps live on different communicators.
         }
-        YTmp_->replaceMap(GatheringMaps_[GatheringMaps_.size()-1]);
+        int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+        if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
+            YTmp_->replaceMap(SwapMap_);
+        else
+            YTmp_->replaceMap(GatheringMaps_[GatheringMaps_.size()-1]);
+
         y = *YTmp_;
     }
 
@@ -227,6 +250,14 @@ namespace FROSch {
         // AH 08/22/2019 TODO: We have the same issue here as in applyPhiT()
         YCoarseSolveTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
         *YCoarseSolveTmp_ = x;
+
+        int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+        if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
+            YCoarse_ = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[GatheringMaps_.size()-1],x.getNumVectors());
+            YCoarse_->doExport(*YCoarseSolveTmp_,*SwapExporter_,INSERT);
+            YCoarseSolveTmp_ = YCoarse_;
+        }
+        
         for (int j=GatheringMaps_.size()-1; j>0; j--) {
             YCoarse_ = MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[j-1],x.getNumVectors());
             {
@@ -251,13 +282,6 @@ namespace FROSch {
 #else
             YCoarse_->doImport(*YCoarseSolveTmp_,*CoarseSolveExporters_[0],INSERT);
 #endif
-        }
-        {
-#ifdef FROSCH_COARSEOPERATOR_DETAIL_TIMERS
-            FROSCH_TIMER_START_LEVELID(applyTime,"apply");
-#endif
-            Phi_->apply(*YCoarse_,y,NO_TRANS);
-        }
     }
 
     template<class SC,class LO,class GO,class NO>
@@ -273,7 +297,7 @@ namespace FROSch {
         if (!Phi_.is_null()) {
             // Build CoarseMatrix_
             XMatrixPtr k0 = buildCoarseMatrix();
-
+            
             //------------------------------------------------------------------------------------------------------------------------
             // Communicate coarse matrix
             if (!DistributionList_->get("Type","linear").compare("linear")) {
@@ -284,7 +308,7 @@ namespace FROSch {
 #endif
                     tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[0],INSERT);
                 }
-
+                
                 for (UN j=1; j<GatheringMaps_.size(); j++) {
                     tmpCoarseMatrix->fillComplete();
                     k0 = tmpCoarseMatrix;
@@ -332,6 +356,19 @@ namespace FROSch {
                 FROSCH_ASSERT(false,"Distribution Type unknown!");
             }
 
+            int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+            if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
+                k0->fillComplete();
+                if (SwapExporter_.is_null())
+                    SwapExporter_ = ExportFactory<LO,GO,NO>::Build(SwapMap_,GatheringMaps_[GatheringMaps_.size()-1]);
+                
+                XMatrixPtr tmpCoarseMatrix = MatrixFactory<SC,LO,GO,NO>::Build(SwapMap_,k0->getGlobalMaxNumRowEntries());
+                
+                tmpCoarseMatrix->doImport(*k0,*SwapExporter_,Xpetra::INSERT);
+                
+                k0 = tmpCoarseMatrix;
+            }
+            
             //------------------------------------------------------------------------------------------------------------------------
             // Matrix to the new communicator
             if (OnCoarseSolveComm_) {
@@ -394,6 +431,26 @@ namespace FROSch {
                     CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_); //RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,VERB_EXTREME);
                 }
                 
+                if (this->ParameterList_->get("Write coarse matrix",false)) {
+                    if (CoarseSolveMap_->lib() == UseTpetra ){
+                        typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
+                        typedef RCP<TpetraCrsMatrix> TpetraCrsMatrixPtr;
+                        
+                        CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<CrsMatrixWrap<SC,LO,GO,NO>&>(*CoarseMatrix_);
+                        TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
+                        TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+                        Tpetra::MatrixMarket::Writer< TpetraCrsMatrix > tpetraWriter;
+                        
+                        tpetraWriter.writeSparseFile("coarseMatrix.mm", tpetraMat, "coarse matrix", "");
+                    }
+                    else{
+                        if (this->Verbose_)
+                            std::err << "FROSch::CoarseOperator : Can not write Epetra coarse matrix to matrix market file!" << std::endl;
+                    }
+                    
+                }
+                
+                
                 bool reuseCoarseMatrixSymbolicFactorization = this->ParameterList_->get("Reuse: Coarse Matrix Symbolic Factorization",true);
                 if (!this->IsComputed_) {
                     reuseCoarseMatrixSymbolicFactorization = false;
@@ -413,23 +470,35 @@ namespace FROSch {
         }
         return 0;
     }
-
+        
     template<class SC,class LO,class GO,class NO>
     typename CoarseOperator<SC,LO,GO,NO>::XMatrixPtr CoarseOperator<SC,LO,GO,NO>::buildCoarseMatrix()
     {
         FROSCH_TIMER_START_LEVELID(buildCoarseMatrixTime,"CoarseOperator::buildCoarseMatrix");
         XMatrixPtr k0 = MatrixFactory<SC,LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),CoarseSpace_->getBasisMap()->getNodeNumElements());
-
-        if (this->ParameterList_->get("Use Triple MatrixMultiply",false)) {
-            TripleMatrixMultiply<SC,LO,GO,NO>::MultiplyRAP(*Phi_,true,*this->K_,false,*Phi_,false,*k0);
-        } else {
-            XMatrixPtr tmp = MatrixFactory<SC,LO,GO,NO>::Build(this->K_->getRowMap(),50);
-            MatrixMatrix<SC,LO,GO,NO>::Multiply(*this->K_,false,*Phi_,false,*tmp);
-            MatrixMatrix<SC,LO,GO,NO>::Multiply(*Phi_,true,*tmp,false,*k0);
+        
+        
+        if (this->ParameterList_->get("Write phi and problem",false)) {
+            typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
+            typedef RCP<TpetraCrsMatrix> TpetraCrsMatrixPtr;
+            
+            Tpetra::MatrixMarket::Writer< TpetraCrsMatrix > tpetraWriter;
+            {
+                CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<CrsMatrixWrap<SC,LO,GO,NO>&>(*this->K_);
+                TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
+                TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+                tpetraWriter.writeSparseFile("matrix.mm", tpetraMat, "matrix", "");
+            }
+            {
+                CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<CrsMatrixWrap<SC,LO,GO,NO>&>(*Phi_);
+                TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
+                TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+                tpetraWriter.writeSparseFile("phi.mm", tpetraMat, "phi", "");
+            }
         }
         return k0;
     }
-
+        
     template<class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::buildCoarseSolveMap()
     {
@@ -454,8 +523,13 @@ namespace FROSch {
                 break;
         }
         
-        if (!DistributionList_->get("Type","linear").compare("linear")) {
+        int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
+        if (coarseRankRangeDiff < this->MpiComm_->getSize()-1)
+            NumProcsCoarseSolve_ = coarseRankRangeDiff + 1;
 
+        
+        if (!DistributionList_->get("Type","linear").compare("linear")) {
+            
             int gatheringSteps = DistributionList_->get("GatheringSteps",1);
             GatheringMaps_.resize(gatheringSteps);
             CoarseSolveExporters_.resize(gatheringSteps);
@@ -467,7 +541,7 @@ namespace FROSch {
             GO numGlobalIndices = CoarseMap_->getMaxAllGlobalIndex()+1;
             int numMyRows;
             double gatheringFactor = pow(double(this->MpiComm_->getSize())/double(NumProcsCoarseSolve_),1.0/double(gatheringSteps));
-
+            
             for (int i=0; i<gatheringSteps-1; i++) {
                 numMyRows = 0;
                 numProcsGatheringStep = LO(numProcsGatheringStep/gatheringFactor);
@@ -486,7 +560,7 @@ namespace FROSch {
                     GatheringMaps_[i] = MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,numMyRows,0,this->MpiComm_);
                 }
             }
-
+            
             numMyRows = 0;
             if (this->MpiComm_->getRank()%(this->MpiComm_->getSize()/NumProcsCoarseSolve_) == 0 && this->MpiComm_->getRank()/(this->MpiComm_->getSize()/NumProcsCoarseSolve_) < NumProcsCoarseSolve_) {
                 if (this->MpiComm_->getRank()==0) {
@@ -502,12 +576,33 @@ namespace FROSch {
                 GatheringMaps_[gatheringSteps-1] = MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,numMyRows,0,this->MpiComm_);
             }
             //cout << *GatheringMaps_->at(gatheringSteps-1);
-
+            
+            // For parallel coarse solves
+            
+            if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
+                GO numGlobalElements = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1;
+                numMyRows = (LO) (((numGlobalElements) / NumProcsCoarseSolve_) + 100.*std::numeric_limits<SC>::epsilon());
+                LO remainingEl = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1 - NumProcsCoarseSolve_*numMyRows;
+                if (remainingEl > this->MpiComm_->getRank() - (this->MpiComm_->getSize() - NumProcsCoarseSolve_) && this->MpiComm_->getRank() >= this->MpiComm_->getSize() - NumProcsCoarseSolve_) {
+                    numMyRows++;
+                }
+                //Not a parallel coarse solve proc. Therfore these procs don't own any rows.
+                if (!(this->MpiComm_->getRank() >= this->MpiComm_->getSize() - NumProcsCoarseSolve_))
+                    numMyRows = 0;
+                
+                SwapMap_ = MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,numMyRows,0,this->MpiComm_);
+            }
+            
+            XMapPtr tmpCoarseMap;
+            if (SwapMap_.is_null())
+                tmpCoarseMap = GatheringMaps_[GatheringMaps_.size()-1];
+            else
+                tmpCoarseMap = SwapMap_;
             //------------------------------------------------------------------------------------------------------------------------
             // Use a separate Communicator for the coarse problem
-            if (GatheringMaps_[GatheringMaps_.size()-1]->getNodeNumElements()>0) {
+            if (tmpCoarseMap->getNodeNumElements()>0)
                 OnCoarseSolveComm_=true;
-            }
+            
             {
 #ifdef FROSCH_COARSEOPERATOR_DETAIL_TIMERS
                 FROSCH_TIMER_START_LEVELID(commSplitTime,"Coarse Communicator Split");
@@ -518,7 +613,7 @@ namespace FROSch {
 #ifdef FROSCH_COARSEOPERATOR_DETAIL_TIMERS
                 FROSCH_TIMER_START_LEVELID(coarseCommMapTime,"Coarse Communicator Map");
 #endif
-                CoarseSolveMap_ = MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,GatheringMaps_[GatheringMaps_.size()-1]->getNodeElementList(),0,CoarseSolveComm_);
+                CoarseSolveMap_ = MapFactory<LO,GO,NO>::Build(CoarseMap_->lib(),-1,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
             }
             
             // Possibly change the Send type for this Exporter
@@ -563,6 +658,9 @@ namespace FROSch {
 #endif
             }
         } else if(!DistributionList_->get("Type","linear").compare("Zoltan2")) {
+            FROSCH_ASSERT(!(coarseRankRangeDiff < this->MpiComm_->getSize()-1),"FROSch::CoarseOperator : ERROR: Parallel coarse solves only supported for linear partition.");
+            if ()
+                
 #ifdef HAVE_SHYLU_DDFROSCH_ZOLTAN2
             GatheringMaps_.resize(1);
             CoarseSolveExporters_.resize(1);
@@ -575,20 +673,37 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"FROSch::CoarseOperator : ERROR: Distribution type unknown.");
         }
-
+        
         if (this->Verbose_) {
             std::cout << "\n\
-    ------------------------------------------------------------------------------\n\
-     Coarse problem statistics\n\
-    ------------------------------------------------------------------------------\n\
-      Dimension of the coarse problem             --- " << CoarseMap_->getMaxAllGlobalIndex()+1 << "\n\
-      Number of processes                         --- " << NumProcsCoarseSolve_ << "\n\
-    ------------------------------------------------------------------------------\n";
+            ------------------------------------------------------------------------------\n\
+            Coarse problem statistics\n\
+            ------------------------------------------------------------------------------\n\
+            Dimension of the coarse problem             --- " << CoarseMap_->getMaxAllGlobalIndex()+1 << "\n\
+            Number of processes                         --- " << NumProcsCoarseSolve_ << "\n\
+            ------------------------------------------------------------------------------\n";
         }
-
+        
         return 0;
     }
+        
+    template<class SC,class LO,class GO,class NO>
+    typename CoarseOperator<SC,LO,GO,NO>::MapPtrVecPtr CoarseOperator<SC,LO,GO,NO>::getGatheringMaps()
+    {
+        return GatheringMaps_;
+    }
     
+    template<class SC,class LO,class GO,class NO>
+    typename CoarseOperator<SC,LO,GO,NO>::MapPtr CoarseOperator<SC,LO,GO,NO>::getSwapMap()
+    {
+        return SwapMap_;
+    }
+
+    template<class SC,class LO,class GO,class NO>
+    typename CoarseOperator<SC,LO,GO,NO>::CrsMatrixPtr CoarseOperator<SC,LO,GO,NO>::getPhi()
+    {
+        return Phi_;
+    }
 }
 
 #endif

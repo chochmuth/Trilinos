@@ -60,103 +60,103 @@ namespace FROSch {
               class GO = DefaultGlobalOrdinal,
               class NO = KokkosClassic::DefaultNode::DefaultNodeType>
     class CoarseOperator : public SchwarzOperator<SC,LO,GO,NO> {
-
+        
     protected:
-
+        
         using CommPtr               = typename SchwarzOperator<SC,LO,GO,NO>::CommPtr;
-
+        
         using XMap                  = typename SchwarzOperator<SC,LO,GO,NO>::XMap;
         using XMapPtr               = typename SchwarzOperator<SC,LO,GO,NO>::XMapPtr;
         using ConstXMapPtr          = typename SchwarzOperator<SC,LO,GO,NO>::ConstXMapPtr;
         using XMapPtrVecPtr         = typename SchwarzOperator<SC,LO,GO,NO>::XMapPtrVecPtr;
         using ConstXMapPtrVecPtr    = typename SchwarzOperator<SC,LO,GO,NO>::ConstXMapPtrVecPtr;
-
+        
         using XMatrixPtr            = typename SchwarzOperator<SC,LO,GO,NO>::XMatrixPtr;
         using ConstXMatrixPtr       = typename SchwarzOperator<SC,LO,GO,NO>::ConstXMatrixPtr;
-
+        
         using XMultiVector          = typename SchwarzOperator<SC,LO,GO,NO>::XMultiVector;
         using XMultiVectorPtr       = typename SchwarzOperator<SC,LO,GO,NO>::XMultiVectorPtr;
-
+        
         using XImportPtrVecPtr      = typename SchwarzOperator<SC,LO,GO,NO>::XImportPtrVecPtr;
         
         using XExportPtrVecPtr      = typename SchwarzOperator<SC,LO,GO,NO>::XExportPtrVecPtr;
-
+        
         using ParameterListPtr      = typename SchwarzOperator<SC,LO,GO,NO>::ParameterListPtr;
-
+        
         using CoarseSpacePtr        = typename SchwarzOperator<SC,LO,GO,NO>::CoarseSpacePtr;
-
+        
         using SubdomainSolverPtr    = typename SchwarzOperator<SC,LO,GO,NO>::SubdomainSolverPtr;
-
+        
         using UN                    = typename SchwarzOperator<SC,LO,GO,NO>::UN;
-
+        
         using GOVec                 = typename SchwarzOperator<SC,LO,GO,NO>::GOVec;
         using GOVecPtr              = typename SchwarzOperator<SC,LO,GO,NO>::GOVecPtr;
-
+        
         using LOVec                 = typename SchwarzOperator<SC,LO,GO,NO>::LOVec;
         using LOVecPtr2D            = typename SchwarzOperator<SC,LO,GO,NO>::LOVecPtr2D;
-
+        
         using SCVec                 = typename SchwarzOperator<SC,LO,GO,NO>::SCVec;
-
+        
         using ConstLOVecView        = typename SchwarzOperator<SC,LO,GO,NO>::ConstLOVecView;
-
+        
         using ConstGOVecView        = typename SchwarzOperator<SC,LO,GO,NO>::ConstGOVecView;
-
+        
         using ConstSCVecView        = typename SchwarzOperator<SC,LO,GO,NO>::ConstSCVecView;
-
+        
     public:
-
+        
         CoarseOperator(ConstXMatrixPtr k,
                        ParameterListPtr parameterList);
-
+        
         ~CoarseOperator();
-
+        
         virtual int initialize() = 0;
-
+        
         virtual int compute();
-
+        
         virtual XMapPtr computeCoarseSpace(CoarseSpacePtr coarseSpace) = 0;
-
+        
         virtual int clearCoarseSpace();
-
+        
         virtual void apply(const XMultiVector &x,
                            XMultiVector &y,
                            bool usePreconditionerOnly,
                            ETransp mode=NO_TRANS,
                            SC alpha=ScalarTraits<SC>::one(),
                            SC beta=ScalarTraits<SC>::zero()) const;
-
+        
         virtual void applyPhiT(const XMultiVector& x,
                                XMultiVector& y) const;
-
+        
         virtual void applyCoarseSolve(XMultiVector& x,
                                       XMultiVector& y,
                                       ETransp mode=NO_TRANS) const;
-
+        
         virtual void applyPhi(const XMultiVector& x,
                               XMultiVector& y) const;
-
+        
         virtual CoarseSpacePtr getCoarseSpace() const;
-
+        
     protected:
-
+        
         virtual int setUpCoarseOperator();
-
+        
         XMatrixPtr buildCoarseMatrix();
-
+        
         int buildCoarseSolveMap();
-
-
+        
+        
         CommPtr CoarseSolveComm_;
-
+        
         bool OnCoarseSolveComm_;
         
         int NumProcsCoarseSolve_;
-
+        
         CoarseSpacePtr CoarseSpace_;
-
+        
         XMatrixPtr Phi_;
         XMatrixPtr CoarseMatrix_;
-
+        
         // Temp Vectors for apply()
         mutable XMultiVectorPtr XTmp_;
         mutable XMultiVectorPtr XCoarse_;
@@ -166,22 +166,30 @@ namespace FROSch {
         mutable XMultiVectorPtr YCoarse_;
         mutable XMultiVectorPtr YCoarseSolve_;
         mutable XMultiVectorPtr YCoarseSolveTmp_;
-
+        
         ConstXMapPtrVecPtr GatheringMaps_;
         XMapPtr CoarseMap_;
         XMapPtr CoarseSolveMap_;
         XMapPtr CoarseSolveRepeatedMap_;
-
+        
         SubdomainSolverPtr CoarseSolver_;
-
+        
         ParameterListPtr DistributionList_;
-
+        
         XExportPtrVecPtr CoarseSolveExporters_;
 #ifdef FROSCH_COARSEOPERATOR_EXPORT_AND_IMPORT
         XImportPtrVecPtr CoarseSolveImporters_;
 #endif
+        
+        bool OnLocalSolveComm_;    
+        
+        MapPtr SwapMap_;
+        
+        ExporterPtr SwapExporter_;
+        
+        IntVec CoarseRankRange_;
+        
     };
-
 }
 
 #endif

@@ -72,12 +72,8 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
         } // TODO: Add ability to disable individual levels
-        if (this->UseMultiplicative_) {
-            this->MultiplicativeOperator_->addOperator(CoarseOperator_);
-        }
-        else{
-            this->SumOperator_->addOperator(CoarseOperator_);
-        }
+        
+        this->LevelCombinationOperator_->addOperator(CoarseOperator_);
     }
 
     template <class SC,class LO,class GO,class NO>
@@ -127,13 +123,13 @@ namespace FROSch {
         ////////////
         FROSCH_ASSERT(dofOrdering == NodeWise || dofOrdering == DimensionWise || dofOrdering == Custom,"ERROR: Specify a valid DofOrdering.");
         int ret = 0;
-
+        
         //////////
         // Maps //
         //////////
         if (repeatedMap.is_null()) {
             FROSCH_TIMER_START_LEVELID(buildRepeatedMapTime,"BuildRepeatedMap");
-            repeatedMap = BuildRepeatedMap(this->K_->getCrsGraph()); // Todo: Achtung, die UniqueMap könnte unsinnig verteilt sein. Falls es eine repeatedMap gibt, sollte dann die uniqueMap neu gebaut werden können. In diesem Fall, sollte man das aber basierend auf der repeatedNodesMap tun
+            repeatedMap = BuildRepeatedMap(this->K_); // Todo: Achtung, die UniqueMap könnte unsinnig verteilt sein. Falls es eine repeatedMap gibt, sollte dann die uniqueMap neu gebaut werden können. In diesem Fall, sollte man das aber basierend auf der repeatedNodesMap tun
         }
         // Build dofsMaps and repeatedNodesMap
         ConstXMapPtr repeatedNodesMap;
@@ -149,7 +145,7 @@ namespace FROSch {
                 repeatedNodesMap = dofsMaps[0];
             }
         }
-
+        
         //////////////////////////
         // Communicate nodeList //
         //////////////////////////
@@ -162,7 +158,7 @@ namespace FROSch {
                 nodeList = tmpNodeList.getConst();
             }
         }
-
+        
         /////////////////////////////////////
         // Determine dirichletBoundaryDofs //
         /////////////////////////////////////
@@ -174,7 +170,7 @@ namespace FROSch {
             GOVecPtr dirichletBoundaryDofs = FindOneEntryOnlyRowsGlobal(this->K_->getCrsGraph(),repeatedMap);
 #endif
         }
-
+        
         ////////////////////////////////////
         // Initialize OverlappingOperator //
         ////////////////////////////////////
@@ -184,7 +180,7 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"OverlappingOperator Type unkown.");
         }
-
+        
         ///////////////////////////////
         // Initialize CoarseOperator //
         ///////////////////////////////
@@ -227,6 +223,7 @@ namespace FROSch {
         int ret = 0;
         if (0>this->OverlappingOperator_->compute()) ret -= 1;
         if (0>CoarseOperator_->compute()) ret -= 10;
+        this->IsComputed_ = true;        
         return ret;
     }
 
@@ -240,7 +237,7 @@ namespace FROSch {
     template <class SC,class LO,class GO,class NO>
     std::string TwoLevelPreconditioner<SC,LO,GO,NO>::description() const
     {
-        return "GDSW Preconditioner";
+        return "Two Level Preconditioner";
     }
 
     template <class SC,class LO,class GO,class NO>
@@ -249,8 +246,19 @@ namespace FROSch {
         FROSCH_TIMER_START_LEVELID(resetMatrixTime,"TwoLevelPreconditioner::resetMatrix");
         this->K_ = k;
         this->OverlappingOperator_->resetMatrix(this->K_);
-        CoarseOperator_->resetMatrix(this->K_);
+        if (this->ParameterList_->get("TwoLevel",true)) {
+            CoarseOperator_->resetMatrix(this->K_);
+            //this->LevelCombinationOperator_->resetMatrix(this->K_);
+        }
         if (this->UseMultiplicative_) this->MultiplicativeOperator_->resetMatrix(this->K_);
+        return 0;
+    }
+    
+    template <class SC,class LO,class GO,class NO>
+    int TwoLevelPreconditioner<SC,LO,GO,NO>::applyCoarseOperator(XMultiVectorPtr &x,
+                                                                 XMultiVectorPtr &y)
+    {
+//        this->LevelCombinationOperator_->applyCoarseOperator(*x,*y);
         return 0;
     }
 }

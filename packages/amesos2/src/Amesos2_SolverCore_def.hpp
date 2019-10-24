@@ -149,7 +149,6 @@ SolverCore<ConcreteSolver,Matrix,Vector>::numericFactorization()
   } else {
     loadA(NUMFACT);
   }
-
   static_cast<solver_type*>(this)->numericFactorization_impl();
   ++status_.numNumericFact_;
   status_.last_phase_ = NUMFACT;

@@ -303,7 +303,10 @@ namespace FROSch {
             this->DofsMaps_.resize(this->DofsMaps_.size()+1);
             this->DofsPerNode_.resize(this->DofsPerNode_.size()+1);
             this->NumberOfBlocks_++;
+
             resetCoarseSpaceBlock(this->NumberOfBlocks_-1,dimension,dofsPerNodeVec[i],repeatedNodesMapVec[i],repeatedDofMapsVec[i],dirichletBoundaryDofsVec[i],nodeListVec[i]);
+            
+
         }
         return 0;
     }
@@ -321,22 +324,22 @@ namespace FROSch {
         FROSCH_TIMER_START_LEVELID(resetCoarseSpaceBlockTime,"GDSWCoarseOperator::resetCoarseSpaceBlock");
         FROSCH_ASSERT(dofsMaps.size()==dofsPerNode,"dofsMaps.size()!=dofsPerNode");
         FROSCH_ASSERT(blockId<this->NumberOfBlocks_,"Block does not exist yet and can therefore not be reset.");
-
+        
         if (this->Verbose_) {
             std::cout << "\n\
-+--------------------+\n\
-| GDSWCoarseOperator |\n\
-|  Block " << blockId << "           |\n\
-+--------------------+\n";
+            +--------------------+\n\
+            | GDSWCoarseOperator |\n\
+            |  Block " << blockId << "           |\n\
+            +--------------------+\n";
         }
-
-
+        
+        
         // Process the parameter list
         std::stringstream blockIdStringstream;
         blockIdStringstream << blockId+1;
         std::string blockIdString = blockIdStringstream.str();
         RCP<ParameterList> coarseSpaceList = sublist(sublist(this->ParameterList_,"Blocks"),blockIdString.c_str());
-
+        
         CommunicationStrategy communicationStrategy = CreateOneToOneMap;
         if (!coarseSpaceList->get("Interface Communication Strategy","CreateOneToOneMap").compare("CrsMatrix")) {
             communicationStrategy = CommCrsMatrix;
@@ -347,7 +350,7 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"FROSch::GDSWCoarseOperator : ERROR: Specify a valid communication strategy for the identification of the interface components.");
         }
-
+        
         Verbosity verbosity = All;
         if (!coarseSpaceList->get("Verbosity","All").compare("None")) {
             verbosity = None;
@@ -356,23 +359,23 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"FROSch::GDSWCoarseOperator : ERROR: Specify a valid verbosity level.");
         }
-
+        
         bool useForCoarseSpace = coarseSpaceList->get("Use For Coarse Space",true);
-
+        
         bool useVertexTranslations = coarseSpaceList->sublist("Custom").get("Vertices: translations",true);
-
+        
         bool useShortEdgeTranslations = coarseSpaceList->sublist("Custom").get("ShortEdges: translations",true);
         bool useShortEdgeRotations = coarseSpaceList->sublist("Custom").get("ShortEdges: rotations",true);
-
+        
         bool useStraightEdgeTranslations = coarseSpaceList->sublist("Custom").get("StraightEdges: translations",true);
         bool useStraightEdgeRotations = coarseSpaceList->sublist("Custom").get("StraightEdges: rotations",true);
-
+        
         bool useEdgeTranslations = coarseSpaceList->sublist("Custom").get("Edges: translations",true);
         bool useEdgeRotations = coarseSpaceList->sublist("Custom").get("Edges: rotations",true);
-
+        
         bool useFaceTranslations = coarseSpaceList->sublist("Custom").get("Faces: translations",true);
         bool useFaceRotations = coarseSpaceList->sublist("Custom").get("Faces: rotations",true);
-
+        
         bool useRotations = coarseSpaceList->get("Rotations",true);
         if (useRotations && nodeList.is_null()) {
             useRotations = false;
@@ -384,24 +387,32 @@ namespace FROSch {
             useEdgeRotations = false;
             useFaceRotations = false;
         }
-
+        
         this->DofsMaps_[blockId] = dofsMaps;
         this->DofsPerNode_[blockId] = dofsPerNode;
-
+        
         Array<GO> tmpDirichletBoundaryDofs(dirichletBoundaryDofs()); // Here, we do a copy. Maybe, this is not necessary
         sortunique(tmpDirichletBoundaryDofs);
-
+        
         DDInterface_.reset(new DDInterface<SC,LO,GO,NO>(dimension,this->DofsPerNode_[blockId],nodesMap.getConst(),verbosity,this->LevelID_,communicationStrategy));
         DDInterface_->resetGlobalDofs(dofsMaps);
         DDInterface_->removeDirichletNodes(tmpDirichletBoundaryDofs());
-
+        
         EntitySetPtr interface = this->DDInterface_->getInterface();
         EntitySetPtr interior = this->DDInterface_->getInterior();
         
+        //CH 06/13/19: We need to check if "Mpi Ranks Coarse" > 0. If this is the case, we need to only determine for all ranks, which are not coarse solve ranks, if we have no interface. Coarse solve ranks will always have no interface as the global problem does not have any entries on these ranks.
+        // We assume that computeVolumeFunctions() will be called on all subdomains with NotOnCoarseSolveComm_==true
+        UN numNodes = interface->getEntity(0)->getNumNodes();
+        UN numNodesSum = 0;
+        Teuchos::reduceAll ( *this->MpiComm_,  REDUCE_SUM, 1, &numNodes, &numNodesSum );
+        
         // Check for interface
-        if (interface->getEntity(0)->getNumNodes()==0) {
+        if (interface->getEntity(0)->getNumNodes()==0 && numNodesSum==0) {
             if (this->Verbose_) std::cout << "FROSch::GDSWCoarseOperator : WARNING: No interface found => Volume functions will be used instead.";
-            this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior);
+            //CH 04/11/19: We need to test the behaviour for parallel coarse solves and volume functions
+            //CH 06/13/19: This will only work if computeVolumeFunctions(...) is called on all subdomains
+            this->computeVolumeFunctions(blockId,dimension,nodesMap,nodeList,interior,this->OnLocalSolveComm_);
         } else {
             this->GammaDofs_[blockId] = LOVecPtr(this->DofsPerNode_[blockId]*interface->getEntity(0)->getNumNodes());
             this->IDofs_[blockId] = LOVecPtr(this->DofsPerNode_[blockId]*interior->getEntity(0)->getNumNodes());
@@ -413,9 +424,9 @@ namespace FROSch {
                     this->IDofs_[blockId][this->DofsPerNode_[blockId]*i+k] = interior->getEntity(0)->getLocalDofID(i,k);
                 }
             }
-
+            
             this->InterfaceCoarseSpaces_[blockId].reset(new CoarseSpace<SC,LO,GO,NO>());
-
+            
             if (useForCoarseSpace && (useVertexTranslations||useShortEdgeTranslations||useShortEdgeRotations||useStraightEdgeTranslations||useStraightEdgeRotations||useEdgeTranslations||useEdgeRotations||useFaceTranslations||useFaceRotations)) {
                 
                 if (this->ParameterList_->get("Test Unconnected Interface",true)) {
@@ -426,7 +437,7 @@ namespace FROSch {
                 
                 EntitySetPtr interface = DDInterface_->getInterface();
                 EntitySetPtr interior = DDInterface_->getInterior();
-
+                
                 ////////////////////////////////
                 // Build Processor Map Coarse //
                 ////////////////////////////////
@@ -436,7 +447,7 @@ namespace FROSch {
                                               useEdgeTranslations || useEdgeRotations,
                                               useFaceTranslations || useFaceRotations,
                                               false);
-
+                
                 // Vertices
                 if (useVertexTranslations) {
                     XMultiVectorPtrVecPtr translations = this->computeTranslations(blockId,DDInterface_->getVertices());
@@ -494,24 +505,24 @@ namespace FROSch {
                         this->InterfaceCoarseSpaces_[blockId]->addSubspace(DDInterface_->getFaces()->getEntityMap(),rotations[i]);
                     }
                 }
-
+                
                 this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace();
-
+                
                 if (this->Verbose_) {
                     std::cout << std::boolalpha << "\n\
-    ------------------------------------------------------------------------------\n\
-     GDSW coarse space\n\
-    ------------------------------------------------------------------------------\n\
-      Vertices: translations                      --- " << useVertexTranslations << "\n\
-      ShortEdges: translations                    --- " << useShortEdgeTranslations << "\n\
-      ShortEdges: rotations                       --- " << useShortEdgeRotations << "\n\
-      StraightEdges: translations                 --- " << useStraightEdgeTranslations << "\n\
-      StraightEdges: rotations                    --- " << useStraightEdgeRotations << "\n\
-      Edges: translations                         --- " << useEdgeTranslations << "\n\
-      Edges: rotations                            --- " << useEdgeRotations << "\n\
-      Faces: translations                         --- " << useFaceTranslations << "\n\
-      Faces: rotations                            --- " << useFaceRotations << "\n\
-    ------------------------------------------------------------------------------\n" << std::noboolalpha;
+                    ------------------------------------------------------------------------------\n\
+                    GDSW coarse space\n\
+                    ------------------------------------------------------------------------------\n\
+                    Vertices: translations                      --- " << useVertexTranslations << "\n\
+                    ShortEdges: translations                    --- " << useShortEdgeTranslations << "\n\
+                    ShortEdges: rotations                       --- " << useShortEdgeRotations << "\n\
+                    StraightEdges: translations                 --- " << useStraightEdgeTranslations << "\n\
+                    StraightEdges: rotations                    --- " << useStraightEdgeRotations << "\n\
+                    Edges: translations                         --- " << useEdgeTranslations << "\n\
+                    Edges: rotations                            --- " << useEdgeRotations << "\n\
+                    Faces: translations                         --- " << useFaceTranslations << "\n\
+                    Faces: rotations                            --- " << useFaceRotations << "\n\
+                    ------------------------------------------------------------------------------\n" << std::noboolalpha;
                 }
             }
         }

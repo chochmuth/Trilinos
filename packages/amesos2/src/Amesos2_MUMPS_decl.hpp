@@ -222,6 +222,7 @@ private:
   mutable MUMPS_STRUC_C mumps_par;
 
   bool is_contiguous_;
+  bool reuse_SymbolicFactorization;
 
 };                              // End class MUMPS
 

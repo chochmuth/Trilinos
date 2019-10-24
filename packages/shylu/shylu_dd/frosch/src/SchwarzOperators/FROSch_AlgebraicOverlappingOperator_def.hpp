@@ -127,10 +127,10 @@ namespace FROSch {
             FROSCH_ASSERT(false,"FROSch::AlgebraicOverlappingOperator : ERROR: Specify a valid verbosity level.");
         }
         // ====================================================================================
-
+        
         this->OverlappingMap_ = repeatedMap;
         this->OverlappingMatrix_ = this->K_;
-
+        
         LO local,sum,min,max;
         SC avg;
         if (verbosity==All) {
@@ -139,16 +139,16 @@ namespace FROSch {
             avg = std::max(sum/double(this->MpiComm_->getSize()),0.0);
             reduceAll(*this->MpiComm_,REDUCE_MIN,local,ptr(&min));
             reduceAll(*this->MpiComm_,REDUCE_MAX,local,ptr(&max));
-
+            
             if (this->Verbose_) {
-            std::cout << "\n\
-    ------------------------------------------------------------------------------\n\
-     Overlapping subdomains statistics\n\
-    ------------------------------------------------------------------------------\n\
-      Layer " << 0 << ":        avg / min / max             ---  " << avg << " / " << min << " / " << max << "\n";
+                std::cout << "\n\
+                ------------------------------------------------------------------------------\n\
+                Overlapping subdomains statistics\n\
+                ------------------------------------------------------------------------------\n\
+                Layer " << 0 << ":        avg / min / max             ---  " << avg << " / " << min << " / " << max << "\n";
             }
         }
-
+        
         // Adding Layers of Elements to the overlapping subdomains
         ConstXCrsGraphPtr overlappingGraph = this->OverlappingMatrix_->getCrsGraph();
         for (int i=0; i<overlap; i++) {
@@ -156,15 +156,15 @@ namespace FROSch {
                 case LayersFromGraph:
                     ExtendOverlapByOneLayer(overlappingGraph,this->OverlappingMap_,overlappingGraph,this->OverlappingMap_);
                     break;
-
+                    
                 case LayersFromMatrix:
                     ExtendOverlapByOneLayer(this->OverlappingMatrix_,this->OverlappingMap_,this->OverlappingMatrix_,this->OverlappingMap_);
                     break;
-
+                    
                 case LayersOld:
                     ExtendOverlapByOneLayer_Old(this->OverlappingMatrix_,this->OverlappingMap_,this->OverlappingMatrix_,this->OverlappingMap_);
                     break;
-
+                    
                 default:
                     FROSCH_ASSERT(false,"FROSch::AlgebraicOverlappingOperator : ERROR: Specify a valid strategy for adding layers.");
                     break;
@@ -175,16 +175,16 @@ namespace FROSch {
                 avg = std::max(sum/double(this->MpiComm_->getSize()),0.0);
                 reduceAll(*this->MpiComm_,REDUCE_MIN,local,ptr(&min));
                 reduceAll(*this->MpiComm_,REDUCE_MAX,local,ptr(&max));
-
+                
                 if (this->Verbose_) {
                     std::cout << "\
-      layer " << i+1 << ":        avg / min / max             ---  " << avg << " / " << min << " / " << max << "\n";
+                    layer " << i+1 << ":        avg / min / max             ---  " << avg << " / " << min << " / " << max << "\n";
                 }
             }
         }
         if (this->Verbose_ && verbosity==All) {
             std::cout << "\
-    ------------------------------------------------------------------------------\n";
+            ------------------------------------------------------------------------------\n";
         }
         
         // AH 08/28/2019 TODO: It seems that ExtendOverlapByOneLayer_Old is currently the fastest method because the map is sorted. This seems to be better for the direct solver. (At least Klu)
@@ -210,14 +210,14 @@ namespace FROSch {
         
         return 0;
     }
-
+    
     template <class SC,class LO,class GO,class NO>
-    int AlgebraicOverlappingOperator<SC,LO,GO,NO>::updateLocalOverlappingMatrices()
+    int AlgebraicOverlappingOperator<SC,LO,GO,NO>::updateLocalOverlappingMatrices(bool OnFirstLevelComm)
     {
         if (this->IsComputed_) { // already computed once and we want to recycle the information. That is why we reset OverlappingMatrix_ to K_, because K_ has been reset at this point
             this->OverlappingMatrix_ = this->K_;
         }
-        this->OverlappingMatrix_ = ExtractLocalSubdomainMatrix(this->OverlappingMatrix_,this->OverlappingMap_);
+        this->OverlappingMatrix_ = ExtractLocalSubdomainMatrix(this->OverlappingMatrix_,this->OverlappingMap_,OnFirstLevelComm);
         return 0;
     }
 }

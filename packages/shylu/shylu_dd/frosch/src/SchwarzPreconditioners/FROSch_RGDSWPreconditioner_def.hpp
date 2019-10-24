@@ -60,6 +60,7 @@ namespace FROSch {
         // Set the LevelID in the sublist
         parameterList->sublist("RGDSWCoarseOperator").set("Level ID",this->LevelID_);
         CoarseOperator_.reset(new RGDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"RGDSWCoarseOperator")));
+        // Use level combination operator
         this->SumOperator_->addOperator(CoarseOperator_);
     }
 
@@ -140,7 +141,7 @@ namespace FROSch {
         int ret = 0;
         if (0>this->OverlappingOperator_->initialize(overlap,repeatedMap)) ret -= 1;
         if (0>CoarseOperator_->initialize(dimension,repeatedMap)) ret -= 10;
-
+        
         return 0;
     }
 
@@ -154,7 +155,7 @@ namespace FROSch {
         int ret = 0;
         if (0>this->OverlappingOperator_->initialize(overlap,repeatedMap)) ret -= 1;
         if (0>CoarseOperator_->initialize(dimension,repeatedMap,dirichletBoundaryDofs)) ret -= 10;
-
+        
         return 0;
     }
 
@@ -173,7 +174,7 @@ namespace FROSch {
         ConstXMapPtrVecPtr repeatedDofMaps;
         if (0>BuildDofMaps(repeatedMap,dofsPerNode,dofOrdering,repeatedNodesMap,repeatedDofMaps)) ret -= 100;
         if (0>CoarseOperator_->initialize(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps)) ret -=10;
-
+        
         return ret;
     }
 
@@ -193,7 +194,7 @@ namespace FROSch {
         ConstXMapPtrVecPtr repeatedDofMaps;
         if (0>BuildDofMaps(repeatedMap,dofsPerNode,dofOrdering,repeatedNodesMap,repeatedDofMaps)) ret -= 100;
         if (0>CoarseOperator_->initialize(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps,dirichletBoundaryDofs)) ret -=10;
-
+        
         return ret;
     }
 
@@ -213,7 +214,7 @@ namespace FROSch {
         ConstXMapPtrVecPtr repeatedDofMaps;
         if (0>BuildDofMaps(repeatedMap,dofsPerNode,dofOrdering,repeatedNodesMap,repeatedDofMaps)) ret -= 100;
         if (0>CoarseOperator_->initialize(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps,nodeList)) ret -=10;
-
+        
         return ret;
     }
 
@@ -230,12 +231,12 @@ namespace FROSch {
         FROSCH_ASSERT(dofOrdering == NodeWise || dofOrdering == DimensionWise,"ERROR: Specify a valid DofOrdering.");
         int ret = 0;
         if (0>this->OverlappingOperator_->initialize(overlap,repeatedMap)) ret -= 1;
-
+        
         ConstXMapPtr repeatedNodesMap;
         ConstXMapPtrVecPtr repeatedDofMaps;
         if (0>BuildDofMaps(repeatedMap,dofsPerNode,dofOrdering,repeatedNodesMap,repeatedDofMaps)) ret -= 100;
         if (0>CoarseOperator_->initialize(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps,dirichletBoundaryDofs,nodeList)) ret -=10;
-
+        
         return ret;
     }
 

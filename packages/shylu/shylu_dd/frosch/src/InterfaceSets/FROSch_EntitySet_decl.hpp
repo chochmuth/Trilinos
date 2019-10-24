@@ -57,134 +57,134 @@ namespace FROSch {
               class GO,
               class NO>
     class EntitySet {
-
+        
     protected:
-
+        
         using XMap                          = Map<LO,GO,NO>;
         using XMapPtr                       = RCP<XMap>;
         using ConstXMapPtr                  = RCP<const XMap>;
-
+        
         using XMatrix                       = Matrix<SC,LO,GO,NO>;
         using XMatrixPtr                    = RCP<XMatrix>;
         using ConstXMatrixPtr               = RCP<const XMatrix>;
-
+        
         using XMultiVector                  = MultiVector<SC,LO,GO,NO>;
         using XMultiVectorPtr               = RCP<XMultiVector>;
         using ConstXMultiVectorPtr          = RCP<const XMultiVector>;
-
+        
         using EntitySetPtr                  = RCP<EntitySet<SC,LO,GO,NO> >;
-
+        
         using InterfaceEntityPtr            = RCP<InterfaceEntity<SC,LO,GO,NO> >;
         using InterfaceEntityPtrVec         = Array<InterfaceEntityPtr>;
         using InterfaceEntityPtrVecPtr      = ArrayRCP<InterfaceEntityPtr>;
-
+        
         using UN                            = unsigned;
-
+        
         using GOVec                         = Array<GO>;
         using GOVecView                     = ArrayView<GO>;
-
+        
         using SCVec                         = Array<SC>;
         using SCVecPtr                      = ArrayRCP<SC>;
-
+        
     public:
-
+        
         EntitySet(EntityType type);
-
+        
         EntitySet(const EntitySet &entitySet);
-
+        
         ~EntitySet();
-
+        
         int addEntity(InterfaceEntityPtr entity);
-
+        
         int addEntitySet(EntitySetPtr entitySet);
-
+        
         EntitySetPtr deepCopy();
         
-        int buildEntityMap(ConstXMapPtr localToGlobalNodesMap);
-
+        int buildEntityMap(ConstXMapPtr localToGlobalNodesMap, bool onLocalSolveComm=true);
+        
         int findAncestorsInSet(EntitySetPtr entitySet);
-
+        
         int clearAncestors();
-
+        
         int clearOffspring();
-
+        
         EntitySetPtr findCoarseNodes();
-
+        
         int clearCoarseNodes();
-
+        
         int computeDistancesToCoarseNodes(UN dimension,
                                           ConstXMultiVectorPtr &nodeList = null,
                                           DistanceFunction distanceFunction = ConstantDistanceFunction);
-
+        
         int divideUnconnectedEntities(ConstXMatrixPtr matrix,
                                       int pID);
-
+        
         int flagNodes();
-
+        
         int flagShortEntities();
-
+        
         int flagStraightEntities(UN dimension,
                                  ConstXMultiVectorPtr &nodeList);
-
+        
         EntitySetPtr sortOutEntities(EntityFlag flag);
-
+        
         int removeEntity(UN iD);
-
+        
         int removeNodesWithDofs(GOVecView dirichletBoundaryDofs);
         
         int removeEmptyEntities();
-
+        
         int sortUnique();
-
+        
         bool checkForVertices();
-
+        
         bool checkForShortEdges();
-
+        
         bool checkForStraightEdges(UN dimension,
                                    ConstXMultiVectorPtr &nodeList);
-
+        
         bool checkForEmptyEntities();
-
+        
         /////////////////
         // Set Methods //
         /////////////////
-
+        
         int setUniqueIDToFirstGlobalNodeID();
-
+        
         int setCoarseNodeID();
-
+        
         int resetEntityType(EntityType type);
-
+        
         /////////////////
         // Get Methods //
         /////////////////
-
+        
         EntityType getEntityType() const;
-
+        
         UN getNumEntities() const;
-
+        
         const InterfaceEntityPtrVec & getEntityVector() const;
-
+        
         const InterfaceEntityPtr getEntity(UN iD) const;
-
+        
         const XMapPtr getEntityMap() const;
-
+        
         const SCVecPtr getDirection(UN dimension,
                                     ConstXMultiVectorPtr &nodeList,
                                     UN iD) const;
-
+        
     protected:
-
+        
         ///////////////
         // Variables //
         ///////////////
-
+        
         EntityType Type_;
-
+        
         InterfaceEntityPtrVec EntityVector_;
-
+        
         bool EntityMapIsUpToDate_;
-
+        
         XMapPtr EntityMap_;
     };
 

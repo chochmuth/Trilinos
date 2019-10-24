@@ -32,6 +32,9 @@
     - Allow different coarse spaces for the different blocks in TwoLevelBlockPreconditioner
     - Add the possiblity to add coordinates in TwoLevelBlockPreconditioner
 
+23.11.2018 Christian Hochmuth
+    - Build repeatedMap based on NodeMap and then determine the corresponding DofMap. If repeated map is built with dof map errors can occur with respect to partition of dofs
+
 16.01.2019 Alexander Heinlein:
     - Use Xpetra_UseDefaultTypes.hpp and Xpetra_UseShortNames.hpp?
     - Reorganization of the DDInterface

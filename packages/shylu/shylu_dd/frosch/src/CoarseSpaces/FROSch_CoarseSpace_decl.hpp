@@ -58,77 +58,79 @@ namespace FROSch {
               class GO = DefaultGlobalOrdinal,
               class NO = KokkosClassic::DefaultNode::DefaultNodeType>
     class CoarseSpace {
-
+        
     protected:
-
+        
         using XMap                  = Map<LO,GO,NO>;
         using XMapPtr               = RCP<XMap>;
         using ConstXMapPtr          = RCP<const XMap>;
         using XMapPtrVec            = Array<XMapPtr>;
-
+        
         using XMatrix               = Matrix<SC,LO,GO,NO>;
         using XMatrixPtr            = RCP<XMatrix>;
-
+        
         using XMultiVector          = MultiVector<SC,LO,GO,NO>;
         using XMultiVectorPtr       = RCP<XMultiVector>;
         using XMultiVectorPtrVec    = Array<XMultiVectorPtr>;
-
+        
         using ParameterListPtr      = RCP<ParameterList>;
-
+        
         using UN                    = unsigned;
-
+        
         using LOVec                 = Array<LO>;
         using GOVec                 = Array<GO>;
         using LOVecPtr              = ArrayRCP<LO>;
         using LOVecPtr2D            = ArrayRCP<LOVecPtr>;
-
+        
         using SCVec                 = Array<SC>;
-
+        
     public:
-
+        
         CoarseSpace();
-
+        
         int addSubspace(XMapPtr subspaceBasisMap,
-                        XMultiVectorPtr subspaceBasis = null);
-
-        int assembleCoarseSpace();
-
+                        XMultiVectorPtr subspaceBasis = null,
+                        bool onLocalSolveComm=true);
+        
+        int assembleCoarseSpace(bool onLocalSolveComm=true);
+        
         int buildGlobalBasisMatrix(ConstXMapPtr rowMap,
                                    ConstXMapPtr repeatedMap,
-                                   SC treshold);
-
+                                   SC treshold,
+                                   bool onLocalSolveComm=true);
+        
         int clearCoarseSpace();
-
+        
         int checkForLinearDependencies();
-
+        
         bool hasUnassembledMaps() const;
         
         bool hasBasisMap() const;
-
+        
         XMapPtr getBasisMap() const;
-
+        
         bool hasAssembledBasis() const;
-
+        
         XMultiVectorPtr getAssembledBasis() const;
-
+        
         bool hasGlobalBasisMatrix() const;
-
+        
         XMatrixPtr getGlobalBasisMatrix() const;
-
+        
     protected:
-
+        
         ConstXMapPtr SerialRowMap_;
-
+        
         XMapPtrVec UnassembledBasesMaps_;
-
+        
         XMultiVectorPtrVec UnassembledSubspaceBases_;
-
+        
         XMapPtr AssembledBasisMap_;
-
+        
         XMultiVectorPtr AssembledBasis_;
-
+        
         XMatrixPtr GlobalBasisMatrix_;
-
+        
     };
 
 }

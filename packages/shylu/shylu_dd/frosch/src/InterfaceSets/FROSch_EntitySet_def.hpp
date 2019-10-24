@@ -55,7 +55,8 @@ namespace FROSch {
     Type_ (type),
     EntityVector_ (0),
     EntityMapIsUpToDate_ (false),
-    EntityMap_ ()
+    EntityMap_ (),
+    ChangedTypeVector_()
     {
 
     }
@@ -65,7 +66,8 @@ namespace FROSch {
     Type_ (entitySet.getEntityType()),
     EntityVector_ (entitySet.getEntityVector()),
     EntityMapIsUpToDate_ (false),
-    EntityMap_ ()
+    EntityMap_ (),
+    ChangedTypeVector_()
     {
 
     }
@@ -117,8 +119,8 @@ namespace FROSch {
         return copy;
     }
 
-    template<class SC,class LO,class GO,class NO>
-    int EntitySet<SC,LO,GO,NO>::buildEntityMap(ConstXMapPtr localToGlobalNodesMap)
+
+    int EntitySet<SC,LO,GO,NO>::buildEntityMap(ConstMapPtr localToGlobalNodesMap, bool onLocalSolveComm)
     {
         if (!EntityMapIsUpToDate_) {
             LO localNumberEntities = getNumEntities();
@@ -126,28 +128,34 @@ namespace FROSch {
             LO maxLocalNumberEntities = 0;
             reduceAll(*localToGlobalNodesMap->getComm(),REDUCE_SUM,localNumberEntities,ptr(&globalNumberEntities));
             reduceAll(*localToGlobalNodesMap->getComm(),REDUCE_MAX,localNumberEntities,ptr(&maxLocalNumberEntities));
-
+            
             GOVec localToGlobalVector(0);
             if (globalNumberEntities>0) {
                 // Set the Unique iD
                 setUniqueIDToFirstGlobalNodeID();
-
+                
                 GOVec entities(maxLocalNumberEntities);
                 for (UN i=0; i<getNumEntities(); i++) {
                     entities[i] = getEntity(i)->getUniqueID()+1;
                     getEntity(i)->setLocalID(i);
                 }
                 XMapPtr entityMapping = MapFactory<LO,GO,NO>::Build(localToGlobalNodesMap->lib(),-1,entities(),0,localToGlobalNodesMap->getComm());
-
+                
                 GOVec allEntities(maxLocalNumberEntities*localToGlobalNodesMap->getComm()->getSize(),0);
                 //localToGlobalNodesMap->getComm().GatherAll(&(entities->at(0)),&(allEntities->at(0)),maxLocalNumberEntities);
                 gatherAll(*localToGlobalNodesMap->getComm(),maxLocalNumberEntities,entities.getRawPtr(),maxLocalNumberEntities*localToGlobalNodesMap->getComm()->getSize(),allEntities.getRawPtr());
-
+                
                 allEntities.push_back(0); // Um sicherzugehen, dass der erste Eintrag nach sort_unique eine 0 ist.
-
+                
                 sortunique(allEntities);
-
+                
                 localToGlobalVector.resize(localNumberEntities);
+                
+                if (!onLocalSolveComm){
+                    allEntities.resize(0);
+                    localToGlobalVector.resize(0);
+                }
+                
                 int LocalID;
                 for (UN i=1; i<allEntities.size(); i++) { // Wir fangen bei 1 an, weil wir am Anfang 1 auf die ID addiert haben
                     LocalID = entityMapping->getLocalElement(allEntities[i]);
@@ -155,14 +163,14 @@ namespace FROSch {
                         localToGlobalVector[LocalID] = i-1;
                     }
                 }
-
+                
             }
             EntityMap_ = MapFactory<LO,GO,NO>::Build(localToGlobalNodesMap->lib(),-1,localToGlobalVector(),0,localToGlobalNodesMap->getComm());
             EntityMapIsUpToDate_ = true;
         }
         return 0;
     }
-
+    
     template<class SC,class LO,class GO,class NO>
     int EntitySet<SC,LO,GO,NO>::findAncestorsInSet(EntitySetPtr entitySet)
     {

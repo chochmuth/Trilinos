@@ -55,7 +55,7 @@ class Amesos_EpetraInterface;
 #endif
 #include "Teuchos_RCP.hpp"
 #include <map>
-using namespace Teuchos;
+//using namespace Teuchos;
 
 //! Amesos_Mumps:  An object-oriented wrapper for the double precision version of MUMPS.
 /*!  Amesos_Mumps is an interface to the the double precision version of 
@@ -109,15 +109,16 @@ extern "C" {
 #include "dmumps_c.h"
 }
 
+
 class Amesos_Mumps: public Amesos_BaseSolver,
                     private Amesos_Time, 
                     private Amesos_NoCopiable, 
                     private Amesos_Utils,  
                     private Amesos_Control,  
                     private Amesos_Status { 
-
+                        
 public: 
-
+                        
   //@{ \name Constructor methods
   //! Amesos_Mumps Constructor.
   /*! Creates an Amesos_Mumps instance, using an Epetra_LinearProblem,
@@ -192,7 +193,7 @@ public:
   //@{ \name MUMPS' specify functions
 
   
-#if 0
+
   //! Returns the Schur complement matrix as an Epetra_CrsMatrix.
   /*! Returns the (dense) Schur complement matrix as an Epetra_CrsMatrix. This
       matrix is defined on all the processes in the Epetra Communicator. However,
@@ -202,8 +203,17 @@ public:
       \c SchurComplementRows, of size \c NumSchurComplementRows.
       Those two arrays are defined on the host only.
   */
+                        
   int ComputeSchurComplement(bool flag,
 			     int NumSchurComplementRows, int * SchurComplementRows);
+                        
+                        
+	DMUMPS_STRUC_C* GetDMUMPS_STRUC_C();
+    void SetICNTL26(int value);
+    void SetREDRHSPtr(double* redrhs_ptr);
+                        
+                        
+#if 0
 
   //! Returns the Schur complement in an Epetra_CrsMatrix on host only.
   /*! Returns the Schur complement in an Epetra_CrsMatrix on host only. Note that
@@ -213,6 +223,7 @@ public:
   */
   Epetra_CrsMatrix * GetCrsSchurComplement();
 
+                        
   //! Returns the Schur complement as a SerialDenseMatrix (on host only).
   /*! Returns the Schur complement in an Epetra_SerialDenseMatrix on host only. Note that
       no checks are performed to see whether this action is legal or not (that is,
@@ -221,6 +232,7 @@ public:
   */
   Epetra_SerialDenseMatrix * GetDenseSchurComplement();
 #endif
+
   
   //! Set prescaling.
   /*! Use double precision vectors of size N (global dimension of the matrix) as
@@ -370,8 +382,12 @@ protected:
   std::vector<double> Val;
 
   //! Maximum number of processors in the MUMPS' communicator
-  int MaxProcs_;
+//  int MaxProcs_;
   
+  int NumMyElements_;
+  double DroppingTolerance_;
+  int NumProcs_;
+                        
   //! If \c true, solve the problem with AT.
   bool UseTranspose_;
 
@@ -391,9 +407,11 @@ protected:
   int * SchurComplementRows_;
 
   //! Pointer to the Schur complement, as CrsMatrix.
-  RCP<Epetra_CrsMatrix> CrsSchurComplement_; 
+//Teuchos::RCP<Epetra_CrsMatrix> CrsSchurComplement_;
+               Epetra_CrsMatrix*         CrsSchurComplement_;
   //! Pointer to the Schur complement,as DenseMatrix.
-  RCP<Epetra_SerialDenseMatrix> DenseSchurComplement_;
+//Teuchos::RCP<Epetra_SerialDenseMatrix> DenseSchurComplement_;
+                        Epetra_SerialDenseMatrix* DenseSchurComplement_;
 
 #ifdef HAVE_MPI
   //! MPI communicator used by MUMPS
@@ -404,18 +422,18 @@ protected:
   const Epetra_LinearProblem* Problem_;
 
   //! Redistributed matrix.
-  RCP<Epetra_Map> RedistrMap_;
+  Teuchos::RCP<Epetra_Map> RedistrMap_;
   //! Redistributed importer (from Matrix().RowMatrixRowMap() to RedistrMatrix().RowMatrixRowMap()).
-  RCP<Epetra_Import> RedistrImporter_;
+  Teuchos::RCP<Epetra_Import> RedistrImporter_;
   //! Redistributed matrix (only if MaxProcs_ > 1).
-  RCP<Epetra_CrsMatrix> RedistrMatrix_;
+  Teuchos::RCP<Epetra_CrsMatrix> RedistrMatrix_;
   //! Map with all elements on process 0 (for solution and rhs).
-  RCP<Epetra_Map> SerialMap_;
+  Teuchos::RCP<Epetra_Map> SerialMap_;
   //! Importer from Matrix.OperatorDomainMap() to SerialMap_.
-  RCP<Epetra_Import> SerialImporter_;
+  Teuchos::RCP<Epetra_Import> SerialImporter_;
   
   DMUMPS_STRUC_C MDS;
-
+                        
   std::map<int, int> ICNTL;
   std::map<int, double> CNTL;
 };  // class Amesos_Mumps
