@@ -72,8 +72,13 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
         } // TODO: Add ability to disable individual levels
-        
-        this->LevelCombinationOperator_->addOperator(CoarseOperator_);
+        if (this->UseMultiplicative_) {
+            this->MultiplicativeOperator_->addOperator(CoarseOperator_);
+        }
+        else{
+            this->SumOperator_->addOperator(CoarseOperator_);
+        }
+//        this->LevelCombinationOperator_->addOperator(CoarseOperator_);
     }
 
     template <class SC,class LO,class GO,class NO>

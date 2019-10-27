@@ -132,33 +132,33 @@ namespace FROSch {
                 
                 FROSCH_ASSERT(usePreconditionerOnly,"Parallel SumOperator is only implemented as a Preconditioner.");
                 
-                Teuchos::RCP<OverlappingOperator<SC,LO,GO,NO> > overlappingOp =
-                Teuchos::rcp_dynamic_cast<OverlappingOperator<SC,LO,GO,NO> >(this->OperatorVector_[0]);
+                RCP<OverlappingOperator<SC,LO,GO,NO> > overlappingOp =
+                rcp_dynamic_cast<OverlappingOperator<SC,LO,GO,NO> >(this->OperatorVector_[0]);
                 
-                Teuchos::RCP<CoarseOperator<SC,LO,GO,NO> > coarseOp =
-                Teuchos::rcp_dynamic_cast<CoarseOperator<SC,LO,GO,NO> >(this->OperatorVector_[1]);
+                RCP<CoarseOperator<SC,LO,GO,NO> > coarseOp =
+                rcp_dynamic_cast<CoarseOperator<SC,LO,GO,NO> >(this->OperatorVector_[1]);
                 
                 FROSCH_ASSERT(overlappingOp->isComputed(),"Overlapping Operator is not computed.");
                 FROSCH_ASSERT(coarseOp->isComputed(),"Coarse Operator is not computed.");
                 
-                MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
+                XMultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
                 *xTmp = x;
                 
-                MapPtr swapMap = coarseOp->getSwapMap();
-                MapPtr overlappingMap = overlappingOp->getOverlappingMap();
-                CrsMatrixPtr overlappingMatrix = overlappingOp->getOverlappingMatrix();
+                XMapPtr swapMap = coarseOp->getSwapMap();
+                ConstXMapPtr overlappingMap = overlappingOp->getOverlappingMap();
+                ConstXMatrixPtr overlappingMatrix = overlappingOp->getOverlappingMatrix();
                 SubdomainSolverPtr subdomainSolver = overlappingOp->getSubdomainSolver();
-                ImporterPtr scatter = overlappingOp->getScatter();
+                XImportPtr scatter = overlappingOp->getScatter();
                 bool onFristLevelComm = overlappingOp->getOnLevelComm();
 
-                MultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(swapMap,x.getNumVectors());
-                MultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(swapMap,y.getNumVectors());
+                XMultiVectorPtr xCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(swapMap,x.getNumVectors());
+                XMultiVectorPtr yCoarseSolve = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(swapMap,y.getNumVectors());
                 coarseOp->applyPhiT(*xTmp,*xCoarseSolve);
                 
-                MultiVectorPtr xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(overlappingMap,x.getNumVectors());
-                MultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(overlappingMap,x.getNumVectors());
+                XMultiVectorPtr xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(overlappingMap,x.getNumVectors());
+                XMultiVectorPtr yOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(overlappingMap,x.getNumVectors());
                 
-                xOverlap->doImport(*xTmp,*scatter,Xpetra::INSERT);
+                xOverlap->doImport(*xTmp,*scatter,INSERT);
                 if (onFristLevelComm) {
                     yOverlap->replaceMap(overlappingMatrix->getRangeMap());
                     xOverlap->replaceMap(overlappingMatrix->getDomainMap());
@@ -182,10 +182,10 @@ namespace FROSch {
                     }
                 }
                 else{
-                    xTmp->doExport(*yOverlap,*scatter,Xpetra::ADD);
+                    xTmp->doExport(*yOverlap,*scatter,ADD);
                 }
                 if (overlappingOp->getCombineMode() == Averaging) {
-                    MultiVectorPtr multiplicity = overlappingOp->getMultiplicity();
+                    XMultiVectorPtr multiplicity = overlappingOp->getMultiplicity();
                     ConstSCVecPtr scaling = multiplicity->getData(0);
                     for (unsigned j=0; j<xTmp->getNumVectors(); j++) {
                         SCVecPtr values = xTmp->getDataNonConst(j);
@@ -203,12 +203,12 @@ namespace FROSch {
                 
             }
             else{
-                if (XTmp_.is_null()) XTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
-                *XTmp_ = x; // Das brauche ich für den Fall das x=y
+                XMultiVectorPtr xTmp = MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
+                *xTmp = x; // Das brauche ich für den Fall das x=y
                 UN itmp = 0;
                 for (UN i=0; i<OperatorVector_.size(); i++) {
                     if (EnableOperators_[i]) {
-                        OperatorVector_[i]->apply(*XTmp_,y,usePreconditionerOnly,mode,alpha,beta);
+                        OperatorVector_[i]->apply(*xTmp,y,usePreconditionerOnly,mode,alpha,beta);
                         if (itmp==0) beta = ScalarTraits<SC>::one();
                         itmp++;
                     }

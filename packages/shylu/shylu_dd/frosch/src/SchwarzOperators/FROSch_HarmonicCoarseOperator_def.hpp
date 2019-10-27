@@ -43,7 +43,6 @@
 #define _FROSCH_HARMONICCOARSEOPERATOR_DEF_HPP
 
 #include <FROSch_HarmonicCoarseOperator_decl.hpp>
-#include <MatrixMarket_Tpetra.hpp>
 
 namespace FROSch {
 
@@ -109,28 +108,7 @@ namespace FROSch {
         }
         
         return repeatedMap;
-    }
-    
-    template <class SC,class LO,class GO,class NO>
-    typename HarmonicCoarseOperator<SC,LO,GO,NO>::MapPtr HarmonicCoarseOperator<SC,LO,GO,NO>::assembleCoarseMap()
-    {
-        GOVec mapVector(0);
-        GO tmp = 0;
-        if (this->OnLocalSolveComm_) {
-            for (UN i=0; i<NumberOfBlocks_; i++) {
-                if (InterfaceCoarseSpaces_[i]->hasBasisMap()) {
-                    for (UN j=0; j<InterfaceCoarseSpaces_[i]->getBasisMap()->getNodeNumElements(); j++) {
-                        mapVector.push_back(InterfaceCoarseSpaces_[i]->getBasisMap()->getGlobalElement(j)+tmp);
-                    }
-                    if (InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()>=0) {
-                        tmp += InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()+1;
-                    }
-                }
-            }
-        }
-        return Xpetra::MapFactory<LO,GO,NO>::Build(DofsMaps_[0][0]->lib(),-1,mapVector(),0,this->MpiComm_);
->>>>>>> a54f39a1fe10545e44268d427da258c2fa40c27d
-    }
+    }    
 
     template <class SC,class LO,class GO,class NO>
     typename HarmonicCoarseOperator<SC,LO,GO,NO>::XMapPtr HarmonicCoarseOperator<SC,LO,GO,NO>::assembleCoarseMap()
@@ -138,14 +116,16 @@ namespace FROSch {
         FROSCH_TIMER_START_LEVELID(assembleCoarseMapTime,"HarmonicCoarseOperator::assembleCoarseMap");
         GOVec mapVector(0);
         GO tmp = 0;
-        for (UN i=0; i<NumberOfBlocks_; i++) {
-            if (!InterfaceCoarseSpaces_[i].is_null()) {
-                if (InterfaceCoarseSpaces_[i]->hasBasisMap()) {
-                    for (UN j=0; j<InterfaceCoarseSpaces_[i]->getBasisMap()->getNodeNumElements(); j++) {
-                        mapVector.push_back(InterfaceCoarseSpaces_[i]->getBasisMap()->getGlobalElement(j)+tmp);
-                    }
-                    if (InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()>=0) {
-                        tmp += InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()+1;
+        if (this->OnLocalSolveComm_) {
+            for (UN i=0; i<NumberOfBlocks_; i++) {
+                if (!InterfaceCoarseSpaces_[i].is_null()) {
+                    if (InterfaceCoarseSpaces_[i]->hasBasisMap()) {
+                        for (UN j=0; j<InterfaceCoarseSpaces_[i]->getBasisMap()->getNodeNumElements(); j++) {
+                            mapVector.push_back(InterfaceCoarseSpaces_[i]->getBasisMap()->getGlobalElement(j)+tmp);
+                        }
+                        if (InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()>=0) {
+                            tmp += InterfaceCoarseSpaces_[i]->getBasisMap()->getMaxAllGlobalIndex()+1;
+                        }
                     }
                 }
             }
@@ -222,7 +202,7 @@ namespace FROSch {
                                                                     EntitySetConstPtr interior,
                                                                     bool OnLocalSolveComm)
     {
-        FROSCH_TIMER_START_LEVELID(computeVolumeFunctionsTime,"HarmonicCoarseOperator::computeVolumeFunctions");
+    FROSCH_TIMER_START_LEVELID(computeVolumeFunctionsTime,"HarmonicCoarseOperator::computeVolumeFunctions");
         // Process the parameter list
         std::stringstream blockIdStringstream;
         blockIdStringstream << blockId+1;
@@ -499,7 +479,7 @@ namespace FROSch {
                 if (ExtensionSolver_.is_null())
                     reuseExtensionSymbolicFactorization = false;
                 
-                if (!reuseSymbolicFactorization) {
+                if (!reuseExtensionSymbolicFactorization) {
                     if (this->IsComputed_ && this->Verbose_)
                         std::cout << "FROSch::HarmonicCoarseOperator : Recomputing the Symbolic Factorization of the harmonic extensions" << std::endl;
                     

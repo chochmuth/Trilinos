@@ -57,7 +57,8 @@ namespace FROSch {
     class SumOperator : public SchwarzOperator<SC,LO,GO,NO> {
         
     protected:
-        
+        enum CombinationType {Averaging,Full,Restricted};
+
         using CommPtr                   = typename SchwarzOperator<SC,LO,GO,NO>::CommPtr;
         
         using XMapPtr                   = typename SchwarzOperator<SC,LO,GO,NO>::XMapPtr;
@@ -65,6 +66,9 @@ namespace FROSch {
         
         using XMultiVector              = typename SchwarzOperator<SC,LO,GO,NO>::XMultiVector;
         using XMultiVectorPtr           = typename SchwarzOperator<SC,LO,GO,NO>::XMultiVectorPtr;
+
+        using XMatrixPtr                = typename SchwarzOperator<SC,LO,GO,NO>::XMatrixPtr;
+        using ConstXMatrixPtr           = typename SchwarzOperator<SC,LO,GO,NO>::ConstXMatrixPtr;
         
         using SchwarzOperatorPtr        = typename SchwarzOperator<SC,LO,GO,NO>::SchwarzOperatorPtr;
         using SchwarzOperatorPtrVec     = typename SchwarzOperator<SC,LO,GO,NO>::SchwarzOperatorPtrVec;
@@ -72,8 +76,14 @@ namespace FROSch {
         
         using UN                        = typename SchwarzOperator<SC,LO,GO,NO>::UN;
         
+        using ConstSCVecPtr             = typename SchwarzOperator<SC,LO,GO,NO>::ConstSCVecPtr;
+        using SCVecPtr                  = typename SchwarzOperator<SC,LO,GO,NO>::SCVecPtr;
+        
         using BoolVec                   = typename SchwarzOperator<SC,LO,GO,NO>::BoolVec;
         
+        using SubdomainSolverPtr        = typename SchwarzOperator<SC,LO,GO,NO>::SubdomainSolverPtr;
+        
+        using XImportPtr                = typename SchwarzOperator<SC,LO,GO,NO>::XImportPtr;
     public:
         
         SumOperator(CommPtr comm);

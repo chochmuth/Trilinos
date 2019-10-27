@@ -131,18 +131,20 @@ int main(int argc, char *argv[])
     My_CLP.setOption("PLIST",&xmlFile,"File name of the parameter list.");
     bool useepetra = false;
     My_CLP.setOption("USEEPETRA","USETPETRA",&useepetra,"Use Epetra infrastructure for the linear algebra.");
-
+    bool useBlockPreconditioner = false;
+    My_CLP.setOption("USEBLOCKPREC","USENOBLOCKPREC",&useBlockPreconditioner,"Use monolithic preconditioner for blocks even if only 1 block is used.");
+    
     My_CLP.recogniseAllOptions(true);
     My_CLP.throwExceptions(false);
     CommandLineProcessor::EParseCommandLineReturn parseReturn = My_CLP.parse(argc,argv);
     if(parseReturn == CommandLineProcessor::PARSE_HELP_PRINTED) {
         return(EXIT_SUCCESS);
     }
-
+    
     CommWorld->barrier();
     RCP<StackedTimer> stackedTimer = rcp(new StackedTimer("Thyra Laplace Test"));
     TimeMonitor::setStackedTimer(stackedTimer);
-
+    
     int N = 0;
     int color=1;
     if (Dimension == 2) {
@@ -260,15 +262,15 @@ int main(int argc, char *argv[])
             } else {
                 assert(false);
             }
-
+            
             RepeatedMaps[block] = BuildRepeatedMapNonConst<LO,GO,NO>(K[block]->getCrsGraph()); //RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(cout)); RepeatedMaps[block]->describe(*fancy,VERB_EXTREME);
         }
         
-        Comm->barrier(); if (Comm->getRank()==0) cout << "##############################\n# Assembly Monolithic System #\n##############################\n" << endl;
+        Comm->barrier(); if (Comm->getRank()==0) cout << "##############################\n# Assembly Monolythic System #\n##############################\n" << endl;
         
         RCP<Matrix<SC,LO,GO,NO> > KMonolithic;
-        if (NumberOfBlocks>1) {
-
+        if (NumberOfBlocks>1 || useBlockPreconditioner) {
+            
             Array<GO> uniqueMapArray(0);
             GO tmpOffset = 0;
             for (UN block=0; block<(UN) NumberOfBlocks; block++) {
@@ -296,30 +298,30 @@ int main(int argc, char *argv[])
                 tmpOffset += K[block]->getMap()->getMaxAllGlobalIndex()+1;
             }
             KMonolithic->fillComplete();
-        } else if (NumberOfBlocks==1) {
+        } else if (NumberOfBlocks==1 && !useBlockPreconditioner) {
             KMonolithic = K[0];
         } else {
             assert(false);
         }
-
+        
         RCP<MultiVector<SC,LO,GO,NO> > xSolution = MultiVectorFactory<SC,LO,GO,NO>::Build(KMonolithic->getMap(),1);
         RCP<MultiVector<SC,LO,GO,NO> > xRightHandSide = MultiVectorFactory<SC,LO,GO,NO>::Build(KMonolithic->getMap(),1);
-
+        
         xSolution->putScalar(ScalarTraits<SC>::zero());
         xRightHandSide->putScalar(ScalarTraits<SC>::one());
-
+        
         CrsMatrixWrap<SC,LO,GO,NO>& crsWrapK = dynamic_cast<CrsMatrixWrap<SC,LO,GO,NO>&>(*KMonolithic);
         RCP<const LinearOpBase<SC> > K_thyra = ThyraUtils<SC,LO,GO,NO>::toThyra(crsWrapK.getCrsMatrix());
         RCP<MultiVectorBase<SC> >thyraX = rcp_const_cast<MultiVectorBase<SC> >(ThyraUtils<SC,LO,GO,NO>::toThyraMultiVector(xSolution));
         RCP<const MultiVectorBase<SC> >thyraB = ThyraUtils<SC,LO,GO,NO>::toThyraMultiVector(xRightHandSide);
-
+        
         //-----------Set Coordinates and RepMap in ParameterList--------------------------
         RCP<ParameterList> plList =  sublist(parameterList,"Preconditioner Types");
         sublist(plList,"FROSch")->set("Dimension",Dimension);
         sublist(plList,"FROSch")->set("Overlap",Overlap);
-        if (NumberOfBlocks>1) {
+        if (NumberOfBlocks>1 || useBlockPreconditioner) {
             sublist(plList,"FROSch")->set("Repeated Map Vector",RepeatedMaps);
-
+            
             ArrayRCP<DofOrdering> dofOrderings(NumberOfBlocks);
             if (DOFOrdering == 0) {
                 for (UN block=0; block<(UN) NumberOfBlocks; block++) {
@@ -332,13 +334,13 @@ int main(int argc, char *argv[])
             } else {
                 assert(false);
             }
-
+            
             sublist(plList,"FROSch")->set("DofOrdering Vector",dofOrderings);
             sublist(plList,"FROSch")->set("DofsPerNode Vector",dofsPerNodeVector);
-        } else if (NumberOfBlocks==1) {
+        } else if (NumberOfBlocks==1 && !useBlockPreconditioner) {
             sublist(plList,"FROSch")->set("Repeated Map",RepeatedMaps[0]);
             // sublist(plList,"FROSch")->set("Coordinates List",Coordinates[0]); // Does not work yet...
-
+            
             string DofOrderingString;
             if (DOFOrdering == 0) {
                 DofOrderingString = "NodeWise";
@@ -352,65 +354,45 @@ int main(int argc, char *argv[])
         } else {
             assert(false);
         }
-
+        
         Comm->barrier();
         if(Comm->getRank()==0) {
             cout << "##################\n# Parameter List #\n##################" << endl;
             parameterList->print(cout);
             cout << endl;
         }
-
+        
         Comm->barrier(); if (Comm->getRank()==0) cout << "###################################\n# Stratimikos LinearSolverBuilder #\n###################################\n" << endl;
         Stratimikos::DefaultLinearSolverBuilder linearSolverBuilder;
         Stratimikos::enableFROSch<LO,GO,NO>(linearSolverBuilder);
         linearSolverBuilder.setParameterList(parameterList);
-
+        
         Comm->barrier(); if (Comm->getRank()==0) cout << "######################\n# Thyra PrepForSolve #\n######################\n" << endl;
-
+        
         RCP<LinearOpWithSolveFactoryBase<SC> > lowsFactory =
         linearSolverBuilder.createLinearSolveStrategy("");
-
+        
         lowsFactory->setOStream(out);
         lowsFactory->setVerbLevel(VERB_HIGH);
-
+        
         Comm->barrier(); if (Comm->getRank()==0) cout << "###########################\n# Thyra LinearOpWithSolve #\n###########################" << endl;
-
-
-        RCP<LinearOpWithSolveBase<SC> > lows;
-        if (!sublist(plList,"FROSch")->get("Level Combination","Additive").compare("Multiplicative")) {
-            Comm->barrier(); if (Comm->getRank()==0) cout << "###########################\n# Thyra Build Preconditioner #\n###########################" << endl;
-
-            RCP<PreconditionerFactoryBase<SC> > precFactory = linearSolverBuilder.createPreconditioningStrategy("");
-            
-            RCP<PreconditionerBase<SC> > Preconditioner_thyra = precFactory->createPrec();
-            initializePrec<SC>(*precFactory, K_thyra, Preconditioner_thyra.ptr());
-
-            lows = lowsFactory->createOp();
-            
-            initializePreconditionedOp<SC>(*lowsFactory, K_thyra, Preconditioner_thyra.getConst(), lows.ptr());
-            // To use a hybrid two-level preconditioner efficiently we must set the starting solution of the iterative method. It is the result of a coarse level application to the rhs.
-            sublist(plList, "FROSch")->set("Only apply coarse",true);            
-            Teuchos::RCP<const Thyra::LinearOpBase<SC> > thyra_linOp = Preconditioner_thyra->getUnspecifiedPrecOp();
-            Thyra::apply( *thyra_linOp, Thyra::NOTRANS, *thyraB, thyraX.ptr() );
-            sublist(plList, "FROSch")->set("Only apply coarse",false);            
-        } else{
-            lows = linearOpWithSolve(*lowsFactory, K_thyra);
-            
-        }
-
+        
+        RCP<LinearOpWithSolveBase<SC> > lows =
+        linearOpWithSolve(*lowsFactory, K_thyra);
+        
         Comm->barrier(); if (Comm->getRank()==0) cout << "\n#########\n# Solve #\n#########" << endl;
         SolveStatus<double> status =
         solve<double>(*lows, Thyra::NOTRANS, *thyraB, thyraX.ptr());
-
+        
         Comm->barrier(); if (Comm->getRank()==0) cout << "\n#############\n# Finished! #\n#############" << endl;
     }
-
+    
     CommWorld->barrier();
     stackedTimer->stop("Thyra Laplace Test");
     StackedTimer::OutputOptions options;
     options.output_fraction = options.output_histogram = options.output_minmax = true;
     stackedTimer->report(*out,CommWorld,options);
-
+    
     return(EXIT_SUCCESS);
-
+    
 }

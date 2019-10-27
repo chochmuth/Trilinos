@@ -55,8 +55,7 @@ namespace FROSch {
     Type_ (type),
     EntityVector_ (0),
     EntityMapIsUpToDate_ (false),
-    EntityMap_ (),
-    ChangedTypeVector_()
+    EntityMap_ ()
     {
 
     }
@@ -66,8 +65,7 @@ namespace FROSch {
     Type_ (entitySet.getEntityType()),
     EntityVector_ (entitySet.getEntityVector()),
     EntityMapIsUpToDate_ (false),
-    EntityMap_ (),
-    ChangedTypeVector_()
+    EntityMap_ ()
     {
 
     }
@@ -119,8 +117,8 @@ namespace FROSch {
         return copy;
     }
 
-
-    int EntitySet<SC,LO,GO,NO>::buildEntityMap(ConstMapPtr localToGlobalNodesMap, bool onLocalSolveComm)
+    template<class SC,class LO,class GO,class NO>
+    int EntitySet<SC,LO,GO,NO>::buildEntityMap(ConstXMapPtr localToGlobalNodesMap, bool onLocalSolveComm)
     {
         if (!EntityMapIsUpToDate_) {
             LO localNumberEntities = getNumEntities();
@@ -155,7 +153,7 @@ namespace FROSch {
                     allEntities.resize(0);
                     localToGlobalVector.resize(0);
                 }
-                
+
                 int LocalID;
                 for (UN i=1; i<allEntities.size(); i++) { // Wir fangen bei 1 an, weil wir am Anfang 1 auf die ID addiert haben
                     LocalID = entityMapping->getLocalElement(allEntities[i]);

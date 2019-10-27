@@ -207,6 +207,8 @@ namespace FROSch {
         
         int resetMatrix(ConstXMatrixPtr &k);
         
+        ParameterListPtr getParameterList();
+        
     protected:
         
         CommPtr MpiComm_;

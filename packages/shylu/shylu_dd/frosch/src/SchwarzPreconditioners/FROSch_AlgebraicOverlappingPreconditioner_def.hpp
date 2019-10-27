@@ -127,7 +127,7 @@ namespace FROSch {
     void AlgebraicOverlappingPreconditioner<SC,LO,GO,NO>::describe(FancyOStream &out,
                                                                    const EVerbosityLevel verbLevel) const
     {
-        LevelCombinationOperator_->describe(out,verbLevel);
+//        LevelCombinationOperator_->describe(out,verbLevel);
     }
 
     template <class SC,class LO,class GO,class NO>

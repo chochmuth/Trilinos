@@ -242,7 +242,7 @@ namespace FROSch {
                                      ArrayRCP<ArrayRCP<LO> > &partMappings,
                                      bool OnLocalSolveComm=true,
                                      UnderlyingLib lib=UseTpetra,
-                                     RCP< const Comm< int > > mpiComm=Teuchos::null);
+                                     RCP<const Comm<int> > mpiComm=Teuchos::null);
     
     template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > AssembleSubdomainMap(unsigned numberOfBlocks,
@@ -288,7 +288,7 @@ namespace FROSch {
                                             unsigned dofOrdering);
     
     template <class LO,class GO,class NO>
-    ArrayRCP<RCP<Map<LO,GO,NO> > > BuildNodeMapsFromDofMaps(ArrayRCP<ArrayRCP<Teuchos:RCP<Map<LO,GO,NO> > > >dofsMapsVecVec,
+    ArrayRCP<RCP<const Map<LO,GO,NO> > > BuildNodeMapsFromDofMaps(ArrayRCP<ArrayRCP<RCP<const Map<LO,GO,NO> > > >dofsMapsVecVec,
                                                             ArrayRCP<unsigned> dofsPerNodeVec,
                                                             ArrayRCP<DofOrdering> dofOrderingVec);
     

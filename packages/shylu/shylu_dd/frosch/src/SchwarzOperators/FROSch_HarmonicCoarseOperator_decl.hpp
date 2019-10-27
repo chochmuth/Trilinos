@@ -57,7 +57,7 @@ namespace FROSch {
     class HarmonicCoarseOperator : public CoarseOperator<SC,LO,GO,NO> {
         
     protected:
-        
+        using CommPtr                 = typename SchwarzOperator<SC,LO,GO,NO>::CommPtr;
         using XMapPtr                 = typename SchwarzOperator<SC,LO,GO,NO>::XMapPtr;
         using ConstXMapPtr            = typename SchwarzOperator<SC,LO,GO,NO>::ConstXMapPtr;
         using XMapPtrVecPtr           = typename SchwarzOperator<SC,LO,GO,NO>::XMapPtrVecPtr;

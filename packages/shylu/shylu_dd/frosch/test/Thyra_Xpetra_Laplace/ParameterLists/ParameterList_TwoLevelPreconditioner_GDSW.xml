@@ -32,6 +32,8 @@
             </ParameterList>
             
             <ParameterList name="GDSWCoarseOperator">
+                <Parameter name="Write phi and problem" type="bool" value="false"/>
+                <Parameter name="Write coarse matrix" type="bool" value="false"/>
                 <ParameterList name="Blocks">
                     <ParameterList name="1">
                         <Parameter name="Use For Coarse Space"                  type="bool"     value="true"/>

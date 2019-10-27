@@ -55,7 +55,9 @@ namespace FROSch {
                                                                 ParameterListPtr parameterList) :
     SchwarzPreconditioner<SC,LO,GO,NO> (parameterList,k->getRangeMap()->getComm()),
     K_ (k),
-    LevelCombinationOperator_(),
+    SumOperator_ (new SumOperator<SC,LO,GO,NO>(k->getRangeMap()->getComm())),
+    MultiplicativeOperator_ (new MultiplicativeOperator<SC,LO,GO,NO>(k,parameterList)),
+//    LevelCombinationOperator_(),
     OverlappingOperator_ (),
     UseMultiplicative_(false)
     {
@@ -170,7 +172,7 @@ namespace FROSch {
     void OneLevelPreconditioner<SC,LO,GO,NO>::describe(FancyOStream &out,
                                                        const EVerbosityLevel verbLevel) const
     {
-        LevelCombinationOperator_->describe(out,verbLevel);
+//        LevelCombinationOperator_->describe(out,verbLevel);
     }
 
     template <class SC,class LO,class GO,class NO>

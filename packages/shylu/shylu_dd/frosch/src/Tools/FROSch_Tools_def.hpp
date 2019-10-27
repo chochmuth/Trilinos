@@ -650,7 +650,7 @@ namespace FROSch {
                                      ArrayRCP<ArrayRCP<LO> > &partMappings,
                                      bool OnLocalSolveComm,
                                      UnderlyingLib lib,
-                                     RCP< const Comm< int > > mpiComm)
+                                     RCP<const Comm<int> > mpiComm)
     {
         FROSCH_TIMER_START(assembleMapsTime,"AssembleMaps");
         if (OnLocalSolveComm)
@@ -910,14 +910,14 @@ namespace FROSch {
 
 
     template <class LO,class GO,class NO>
-    ArrayRCP<RCP<Map<LO,GO,NO> > > BuildNodeMapsFromDofMaps(ArrayRCP<ArrayRCP<RCP<Map<LO,GO,NO> > > > dofsMapsVecVec,
+    ArrayRCP<RCP<const Map<LO,GO,NO> > > BuildNodeMapsFromDofMaps(ArrayRCP<ArrayRCP<RCP<const Map<LO,GO,NO> > > > dofsMapsVecVec,
                                                             ArrayRCP<unsigned> dofsPerNodeVec,
                                                             ArrayRCP<DofOrdering> dofOrderingVec)
     {
         
         typedef Map<LO,GO,NO> Map;
-        typedef RCP<Map> MapPtr;
-        typedef ArrayRCP<MapPtr> MapPtrVecPtr;
+        typedef RCP<const Map> MapConstPtr;
+        typedef ArrayRCP<MapConstPtr> MapConstPtrVecPtr;
         
         FROSCH_ASSERT(!dofsMapsVecVec.is_null(),"dofsMapsVecVec.is_null().");
         FROSCH_ASSERT(dofsPerNodeVec.size()==dofOrderingVec.size() && dofsPerNodeVec.size()==dofsMapsVecVec.size(),"ERROR: Wrong number of maps, dof information and/or dof orderings");
@@ -969,7 +969,7 @@ namespace FROSch {
             }
         }
         
-        MapPtrVecPtr nodeMapsVec( nmbBlocks );
+        MapConstPtrVecPtr nodeMapsVec( nmbBlocks );
         // Build node maps for all blocks
         for (unsigned block=0; block<nmbBlocks; block++) {
             
@@ -1024,6 +1024,29 @@ namespace FROSch {
         }
         return subMaps;
     }
+    
+    template <class LO,class GO,class NO>
+    ArrayRCP<RCP<Map<LO,GO,NO> > > BuildMapsWithOffset(ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVector){
+        FROSCH_ASSERT(!mapVector.is_null(),"mapVector is null!");
+        FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
+        
+        ArrayRCP<RCP<Map<LO,GO,NO> > > mapOffsetVector( mapVector.size() );
+        
+        mapOffsetVector[0] = rcp_const_cast<Map<LO,GO,NO> >(mapVector[0]);
+        
+        GO offset = 0;
+        for (unsigned i=1; i<mapVector.size(); i++) {
+            offset += mapVector[i-1]->getMaxAllGlobalIndex()+1;
+            LO nodeNumElements = mapVector[i]->getNodeNumElements();
+            Array<GO> elementList(nodeNumElements);
+            for (LO j=0; j<nodeNumElements; j++) {
+                elementList.at(j) = mapVector[i]->getGlobalElement(j)+offset;
+            }
+            mapOffsetVector[i] = MapFactory<LO,GO,NO>::Build(mapVector[i]->lib(), -1, elementList(), 0 , mapVector[i]->getComm());
+        }
+        return mapOffsetVector;
+    }
+
 
     template <class SC,class LO,class GO,class NO>
     ArrayRCP<GO> FindOneEntryOnlyRowsGlobal(RCP<const Matrix<SC,LO,GO,NO> > matrix,

@@ -60,10 +60,11 @@ namespace FROSch {
         RCP<Import<LO,GO,NO> > scatter = ImportFactory<LO,GO,NO>::Build(globalMatrix->getRowMap(),map);
         subdomainMatrix->doImport(*globalMatrix,*scatter,ADD);
         //cout << *subdomainMatrix << std::endl;
+        RCP<Matrix<SC,LO,GO,NO> > localSubdomainMatrix;
         if (OnLocalComm) {
             RCP<const Comm<LO> > SerialComm = rcp(new MpiComm<LO>(MPI_COMM_SELF));
             RCP<Map<LO,GO,NO> > localSubdomainMap = MapFactory<LO,GO,NO>::Build(map->lib(),map->getNodeNumElements(),0,SerialComm);
-            RCP<Matrix<SC,LO,GO,NO> > localSubdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(localSubdomainMap,globalMatrix->getNodeMaxNumRowEntries());
+            localSubdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(localSubdomainMap,globalMatrix->getNodeMaxNumRowEntries());
             
             for (unsigned i=0; i<localSubdomainMap->getNodeNumElements(); i++) {
                 ArrayView<const GO> indices;
@@ -169,7 +170,7 @@ namespace FROSch {
                          RCP<Matrix<SC,LO,GO,NO> > &kIJ,
                          RCP<Matrix<SC,LO,GO,NO> > &kJI,
                          RCP<Matrix<SC,LO,GO,NO> > &kJJ,
-                         bool checkEmptyCols)
+                         bool checkEmptyCols=false)
     {
         FROSCH_TIMER_START(buildSubmatricesTime,"BuildSubmatrices");
         // We need four Maps

@@ -58,6 +58,9 @@ namespace FROSch {
         
     protected:
         
+        enum CombinationType {Averaging,Full,Restricted};
+
+        
         using CommPtr               = typename SchwarzOperator<SC,LO,GO,NO>::CommPtr;
         
         using XMapPtr               = typename SchwarzOperator<SC,LO,GO,NO>::XMapPtr;
@@ -99,15 +102,34 @@ namespace FROSch {
                            SC alpha=ScalarTraits<SC>::one(),
                            SC beta=ScalarTraits<SC>::zero()) const;
         
+        ConstXMapPtr getOverlappingMap();
+
+        ConstXMatrixPtr getOverlappingMatrix();
+
+        SubdomainSolverPtr getSubdomainSolver();
+        
+        XMultiVectorPtr getMultiplicity();
+        
+        XImportPtr getScatter();
+        
+        CommPtr getLevelComm();
+        
+        bool getOnLevelComm();
+        
+        CombinationType getCombineMode();
+        
+        void extend() const;
+        
+        void combine() const;
+        
     protected:
         
-        enum CombinationType {Averaging,Full,Restricted};
         
         virtual int initializeOverlappingOperator();
         
         virtual int computeOverlappingOperator();
         
-        virtual int updateLocalOverlappingMatrices() = 0;
+        virtual int updateLocalOverlappingMatrices(bool OnFirstLevelComm) = 0;
         
         ConstXMatrixPtr OverlappingMatrix_;
         

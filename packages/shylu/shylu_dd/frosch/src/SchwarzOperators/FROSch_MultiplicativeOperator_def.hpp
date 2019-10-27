@@ -256,9 +256,6 @@ namespace FROSch {
         return OperatorVector_.size();
     }
 
-=======
-    
->>>>>>> a54f39a1fe10545e44268d427da258c2fa40c27d
 }
 
 #endif

@@ -47,10 +47,10 @@
 #include <FROSch_OverlappingOperator_decl.hpp>
 namespace FROSch {
     
-    template <class SC = Xpetra::Operator<>::scalar_type,
-    class LO = typename Xpetra::Operator<SC>::local_ordinal_type,
-    class GO = typename Xpetra::Operator<SC,LO>::global_ordinal_type,
-    class NO = typename Xpetra::Operator<SC,LO,GO>::node_type>
+    template <class SC = double,
+              class LO = int,
+              class GO = DefaultGlobalOrdinal,
+              class NO = KokkosClassic::DefaultNode::DefaultNodeType>
     class LevelCombinationOperator : public SchwarzOperator<SC,LO,GO,NO> {
         
     public:
@@ -104,57 +104,57 @@ namespace FROSch {
         using ParameterListPtr          = typename SchwarzOperator<SC,LO,GO,NO>::ParameterListPtr;
         
         
-        LevelCombinationOperator(CommPtr comm);
-        
-        LevelCombinationOperator(SchwarzOperatorPtrVecPtr operators);
-        
-        LevelCombinationOperator(CrsMatrixPtr k, ParameterListPtr parameterList);
-        
-        LevelCombinationOperator(CrsMatrixPtr k, SchwarzOperatorPtrVecPtr operators, ParameterListPtr parameterList);
-        
-        ~LevelCombinationOperator();
-        
-        virtual int initialize();
-        
-        virtual int initialize(MapPtr repeatedMap);
-        
-        virtual int compute();
-        
-        virtual void apply(const MultiVector &x,
-                           MultiVector &y,
-                           bool usePreconditionerOnly,
-                           Teuchos::ETransp mode=Teuchos::NO_TRANS,
-                           SC alpha=Teuchos::ScalarTraits<SC>::one(),
-                           SC beta=Teuchos::ScalarTraits<SC>::zero()) const = 0;
-
-        void applyCoarseOperator(const MultiVector &x, MultiVector &y);
-
-        virtual ConstMapPtr getDomainMap() const;
-        
-        virtual ConstMapPtr getRangeMap() const;
-        
-        virtual void describe(Teuchos::FancyOStream &out,
-                              const Teuchos::EVerbosityLevel verbLevel=Teuchos::Describable::verbLevel_default) const;
-        
-        virtual std::string description() const = 0;
-        
-        int addOperator(SchwarzOperatorPtr op);
-        
-        int addOperators(SchwarzOperatorPtrVecPtr operators);
-        
-        int resetOperator(UN iD,
-        		 	 	  SchwarzOperatorPtr op);
-        
-        int enableOperator(UN iD,
-        				   bool enable);
-
-        UN getNumOperators();
-
-    protected:
-        
-        SchwarzOperatorPtrVec OperatorVector_;
-        
-        BoolVec EnableOperators_;
+//        LevelCombinationOperator(CommPtr comm);
+//        
+//        LevelCombinationOperator(SchwarzOperatorPtrVecPtr operators);
+//        
+//        LevelCombinationOperator(CrsMatrixPtr k, ParameterListPtr parameterList);
+//        
+//        LevelCombinationOperator(CrsMatrixPtr k, SchwarzOperatorPtrVecPtr operators, ParameterListPtr parameterList);
+//        
+//        ~LevelCombinationOperator();
+//        
+//        virtual int initialize();
+//        
+//        virtual int initialize(MapPtr repeatedMap);
+//        
+//        virtual int compute();
+//        
+//        virtual void apply(const MultiVector &x,
+//                           MultiVector &y,
+//                           bool usePreconditionerOnly,
+//                           Teuchos::ETransp mode=Teuchos::NO_TRANS,
+//                           SC alpha=Teuchos::ScalarTraits<SC>::one(),
+//                           SC beta=Teuchos::ScalarTraits<SC>::zero()) const = 0;
+//
+//        void applyCoarseOperator(const MultiVector &x, MultiVector &y);
+//
+//        virtual ConstMapPtr getDomainMap() const;
+//        
+//        virtual ConstMapPtr getRangeMap() const;
+//        
+//        virtual void describe(Teuchos::FancyOStream &out,
+//                              const Teuchos::EVerbosityLevel verbLevel=Teuchos::Describable::verbLevel_default) const;
+//        
+//        virtual std::string description() const = 0;
+//        
+//        int addOperator(SchwarzOperatorPtr op);
+//        
+//        int addOperators(SchwarzOperatorPtrVecPtr operators);
+//        
+//        int resetOperator(UN iD,
+//        		 	 	  SchwarzOperatorPtr op);
+//        
+//        int enableOperator(UN iD,
+//        				   bool enable);
+//
+//        UN getNumOperators();
+//
+//    protected:
+//        
+//        SchwarzOperatorPtrVec OperatorVector_;
+//        
+//        BoolVec EnableOperators_;
 
     };
     

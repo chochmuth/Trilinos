@@ -61,6 +61,8 @@ namespace FROSch {
         
     protected:
         
+        using CommPtr               = RCP<const Comm<int> >;
+        
         using XMap                  = Map<LO,GO,NO>;
         using XMapPtr               = RCP<XMap>;
         using ConstXMapPtr          = RCP<const XMap>;
@@ -92,7 +94,9 @@ namespace FROSch {
                         XMultiVectorPtr subspaceBasis = null,
                         bool onLocalSolveComm=true);
         
-        int assembleCoarseSpace(bool onLocalSolveComm=true);
+        int assembleCoarseSpace(bool OnLocalSolveComm=true,
+                                UnderlyingLib lib=UseTpetra,
+                                CommPtr mpiComm=null);
         
         int buildGlobalBasisMatrix(ConstXMapPtr rowMap,
                                    ConstXMapPtr repeatedMap,

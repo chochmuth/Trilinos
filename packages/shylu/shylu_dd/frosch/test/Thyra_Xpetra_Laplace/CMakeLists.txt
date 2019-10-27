@@ -652,17 +652,27 @@ NUM_MPI_PROCS 8
 # TwoLevelBlockPreconditioner_IPOUGDSW #
 ########################################
 
-## Number of Blocks = 2
+## Number of Blocks = 1
 
 ## Tpetra
 
 TRIBITS_ADD_TEST(
 thyra_xpetra_laplace
-NAME test_thyra_xpetra_laplace_TLBP_NB2_IPOUHarmonic_GDSW_DIM2_DPN2_ORD1_TPETRA
-ARGS "--M=3 --DIM=2 --O=1 --NB=2 --DPN=2 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelBlockPreconditioner_IPOUHarmonic_GDSW.xml --USETPETRA"
+NAME test_thyra_xpetra_laplace_TLBP_NB1_IPOUHarmonic_GDSW_DIM2_DPN1_ORD1_TPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=1 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelBlockPreconditioner_IPOUHarmonic_GDSW.xml --USETPETRA --USEBLOCKPREC"
 COMM mpi
 NUM_MPI_PROCS 4
 )
+
+## For Comparison
+TRIBITS_ADD_TEST(
+thyra_xpetra_laplace
+NAME test_thyra_xpetra_laplace_TLBP_NB1_GDSW_DIM2_DPN1_ORD1_TPETRA
+ARGS "--M=3 --DIM=2 --O=1 --NB=1 --DPN=1 --ORD=1 --PLIST=ParameterLists/ParameterList_TwoLevelBlockPreconditioner_GDSW.xml --USETPETRA --USEBLOCKPREC"
+COMM mpi
+NUM_MPI_PROCS 4
+)
+
 
 
 ####################################

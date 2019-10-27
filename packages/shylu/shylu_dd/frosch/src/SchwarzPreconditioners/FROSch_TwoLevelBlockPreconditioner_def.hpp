@@ -58,49 +58,52 @@ namespace FROSch {
     CoarseOperator_ ()
     {
         FROSCH_TIMER_START_LEVELID(twoLevelBlockPreconditionerTime,"TwoLevelBlockPreconditioner::TwoLevelBlockPreconditioner");
-        if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
-            // Set the LevelID in the sublist
-            parameterList->sublist("IPOUHarmonicCoarseOperator").set("Level ID",this->LevelID_);
-            //                FROSCH_ASSERT(false,"not implemented for block.");
-            this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("InterfacePartitionOfUnity").set("Test Unconnected Interface",false);
-            this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
-            this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
-            this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
-            this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Coarse problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
-            this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Coarse problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
+        if (this->ParameterList_->get("TwoLevel",true)) {
 
-            
-            CoarseOperator_ = IPOUHarmonicCoarseOperatorPtr(new IPOUHarmonicCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"IPOUHarmonicCoarseOperator")));
-        } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("GDSWCoarseOperator")) {
-            // Set the LevelID in the sublist
-            parameterList->sublist("GDSWCoarseOperator").set("Level ID",this->LevelID_);
-            this->ParameterList_->sublist("GDSWCoarseOperator").set("Test Unconnected Interface",false);
-            this->ParameterList_->sublist("GDSWCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
-            this->ParameterList_->sublist("GDSWCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
-            this->ParameterList_->sublist("GDSWCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
-            this->ParameterList_->sublist("GDSWCoarseOperator").set("Coarse problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
-            this->ParameterList_->sublist("GDSWCoarseOperator").set("Coarse problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
-            
-            CoarseOperator_ = GDSWCoarseOperatorPtr(new GDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"GDSWCoarseOperator")));
-        } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("RGDSWCoarseOperator")) {
-            // Set the LevelID in the sublist
-            parameterList->sublist("RGDSWCoarseOperator").set("Level ID",this->LevelID_);
-            this->ParameterList_->sublist("RGDSWCoarseOperator").set("Test Unconnected Interface",false);
-            this->ParameterList_->sublist("RGDSWCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
-            this->ParameterList_->sublist("RGDSWCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
-            this->ParameterList_->sublist("RGDSWCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
-            this->ParameterList_->sublist("RGDSWCoarseOperator").set("Coarse problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
-            this->ParameterList_->sublist("RGDSWCoarseOperator").set("Coarse problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
-            
-            CoarseOperator_ = RGDSWCoarseOperatorPtr(new RGDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"RGDSWCoarseOperator")));
-        } else {
-            FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
-        } // TODO: Add ability to disable individual levels
-        if (this->UseMultiplicative_) {
-            this->MultiplicativeOperator_->addOperator(CoarseOperator_);
-        }
-        else{
-            this->SumOperator_->addOperator(CoarseOperator_);
+            if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
+                // Set the LevelID in the sublist
+                parameterList->sublist("IPOUHarmonicCoarseOperator").set("Level ID",this->LevelID_);
+                //                FROSCH_ASSERT(false,"not implemented for block.");
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("InterfacePartitionOfUnity").set("Test Unconnected Interface",false);
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Coarse problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").set("Coarse problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
+
+                
+                CoarseOperator_ = IPOUHarmonicCoarseOperatorPtr(new IPOUHarmonicCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"IPOUHarmonicCoarseOperator")));
+            } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("GDSWCoarseOperator")) {
+                // Set the LevelID in the sublist
+                parameterList->sublist("GDSWCoarseOperator").set("Level ID",this->LevelID_);
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Test Unconnected Interface",false);
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Coarse problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Coarse problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
+                
+                CoarseOperator_ = GDSWCoarseOperatorPtr(new GDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"GDSWCoarseOperator")));
+            } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("RGDSWCoarseOperator")) {
+                // Set the LevelID in the sublist
+                parameterList->sublist("RGDSWCoarseOperator").set("Level ID",this->LevelID_);
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Test Unconnected Interface",false);
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Mpi Ranks Coarse",parameterList->get("Mpi Ranks Coarse",0));
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Local problem ranks lower bound",parameterList->get("Local problem ranks lower bound",0));
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Local problem ranks upper bound",parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Coarse problem ranks lower bound",parameterList->get("Coarse problem ranks lower bound",0));
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Coarse problem ranks upper bound",parameterList->get("Coarse problem ranks upper bound",this->MpiComm_->getSize()-1));
+                
+                CoarseOperator_ = RGDSWCoarseOperatorPtr(new RGDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"RGDSWCoarseOperator")));
+            } else {
+                FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
+            } // TODO: Add ability to disable individual levels
+            if (this->UseMultiplicative_) {
+                this->MultiplicativeOperator_->addOperator(CoarseOperator_);
+            }
+            else{
+                this->SumOperator_->addOperator(CoarseOperator_);
+            }
         }
     }
     

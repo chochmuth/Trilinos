@@ -110,7 +110,7 @@ namespace FROSch {
         else
             YOverlap_->replaceMap(OverlappingMatrix_->getDomainMap());
         
-        extend();
+        this->extend();
         
         if (OnFirstLevelComm_) {
             YOverlap_->replaceMap(OverlappingMatrix_->getRangeMap());
@@ -120,7 +120,7 @@ namespace FROSch {
         YOverlap_->replaceMap(OverlappingMap_);
         
         XTmp_->putScalar(ScalarTraits<SC>::zero());
-        combine();
+        this->combine();
         
         if (!usePreconditionerOnly && mode != NO_TRANS) {
             this->K_->apply(*XTmp_,*XTmp_,mode,ScalarTraits<SC>::one(),ScalarTraits<SC>::zero());
@@ -242,14 +242,14 @@ namespace FROSch {
     }
     
     template <class SC,class LO,class GO,class NO>
-    typename OverlappingOperator<SC,LO,GO,NO>::XMapPtr OverlappingOperator<SC,LO,GO,NO>::getOverlappingMap()
+    typename OverlappingOperator<SC,LO,GO,NO>::ConstXMapPtr OverlappingOperator<SC,LO,GO,NO>::getOverlappingMap()
     {
         return OverlappingMap_;
     }
 
 
     template <class SC,class LO,class GO,class NO>
-    typename OverlappingOperator<SC,LO,GO,NO>::XMatrixPtr OverlappingOperator<SC,LO,GO,NO>::getOverlappingMatrix()
+    typename OverlappingOperator<SC,LO,GO,NO>::ConstXMatrixPtr OverlappingOperator<SC,LO,GO,NO>::getOverlappingMatrix()
     {
         return OverlappingMatrix_;
     }
@@ -284,9 +284,8 @@ namespace FROSch {
         return OnFirstLevelComm_;
     }
 
-    
     template <class SC,class LO,class GO,class NO>
-    CombinationType OverlappingOperator<SC,LO,GO,NO>::getCombineMode()
+    typename OverlappingOperator<SC,LO,GO,NO>::CombinationType OverlappingOperator<SC,LO,GO,NO>::getCombineMode()
     {
         return Combine_;
     }

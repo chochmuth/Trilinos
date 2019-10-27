@@ -64,13 +64,12 @@ namespace FROSch {
 
     // Will man Informationen über die Subspaces als strings reingeben?
     template <class SC,class LO,class GO,class NO>
-    int CoarseSpace<SC,LO,GO,NO>::addSubspace(MapPtr subspaceBasisMap,
-                                              MultiVectorPtr localSubspaceBasis,
-                                              bool OnLocalSolveComm)
+    int CoarseSpace<SC,LO,GO,NO>::addSubspace(XMapPtr subspaceBasisMap,
+                                              XMultiVectorPtr localSubspaceBasis,
+                                              bool onLocalSolveComm)
     {
         if (onLocalSolveComm)
             FROSCH_ASSERT(!subspaceBasisMap.is_null(),"subspaceBasisMap.is_null()");
-        
         if (!localSubspaceBasis.is_null()) {
             FROSCH_ASSERT(localSubspaceBasis->getNumVectors()==subspaceBasisMap->getNodeNumElements(),"localSubspaceBasis->getNumVectors()!=subspaceBasisMap->getNodeNumElements()");
             if (!SerialRowMap_.is_null()) {
@@ -120,9 +119,8 @@ namespace FROSch {
     }
 
     template <class SC,class LO,class GO,class NO>
-
-    int CoarseSpace<SC,LO,GO,NO>::buildGlobalBasisMatrix(ConstMapPtr rowMap,
-                                                         ConstMapPtr repeatedMap,
+    int CoarseSpace<SC,LO,GO,NO>::buildGlobalBasisMatrix(ConstXMapPtr rowMap,
+                                                         ConstXMapPtr repeatedMap,
                                                          SC treshold,
                                                          bool onLocalSolveComm)
     {

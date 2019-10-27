@@ -71,11 +71,14 @@ namespace FROSch {
         using XMapPtrVecPtr         = typename SchwarzOperator<SC,LO,GO,NO>::XMapPtrVecPtr;
         using ConstXMapPtrVecPtr    = typename SchwarzOperator<SC,LO,GO,NO>::ConstXMapPtrVecPtr;
         
+        using XMatrix               = typename SchwarzOperator<SC,LO,GO,NO>::XMatrix;
         using XMatrixPtr            = typename SchwarzOperator<SC,LO,GO,NO>::XMatrixPtr;
         using ConstXMatrixPtr       = typename SchwarzOperator<SC,LO,GO,NO>::ConstXMatrixPtr;
         
         using XMultiVector          = typename SchwarzOperator<SC,LO,GO,NO>::XMultiVector;
         using XMultiVectorPtr       = typename SchwarzOperator<SC,LO,GO,NO>::XMultiVectorPtr;
+        
+        using XExportPtr            = typename SchwarzOperator<SC,LO,GO,NO>::XExportPtr;
         
         using XImportPtrVecPtr      = typename SchwarzOperator<SC,LO,GO,NO>::XImportPtrVecPtr;
         
@@ -88,6 +91,8 @@ namespace FROSch {
         using SubdomainSolverPtr    = typename SchwarzOperator<SC,LO,GO,NO>::SubdomainSolverPtr;
         
         using UN                    = typename SchwarzOperator<SC,LO,GO,NO>::UN;
+        
+        using IntVec                = typename SchwarzOperator<SC,LO,GO,NO>::IntVec;
         
         using GOVec                 = typename SchwarzOperator<SC,LO,GO,NO>::GOVec;
         using GOVecPtr              = typename SchwarzOperator<SC,LO,GO,NO>::GOVecPtr;
@@ -137,6 +142,10 @@ namespace FROSch {
         
         virtual CoarseSpacePtr getCoarseSpace() const;
         
+        XMapPtrVecPtr getGatheringMaps();
+        
+        XMapPtr getSwapMap();
+        
     protected:
         
         virtual int setUpCoarseOperator();
@@ -183,9 +192,9 @@ namespace FROSch {
         
         bool OnLocalSolveComm_;    
         
-        MapPtr SwapMap_;
+        XMapPtr SwapMap_;
         
-        ExporterPtr SwapExporter_;
+        XExportPtr SwapExporter_;
         
         IntVec CoarseRankRange_;
         

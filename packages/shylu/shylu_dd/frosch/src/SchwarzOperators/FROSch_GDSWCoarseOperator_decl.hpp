@@ -204,5 +204,5 @@ namespace FROSch {
         
         DDInterfacePtr DDInterface_;
     };
-
+}
 #endif
