@@ -116,7 +116,7 @@ namespace FROSch {
             clearCoarseSpace(); // AH 12/11/2018: If we do not clear the coarse space, we will always append just append the coarse space
             XMapPtr subdomainMap = this->computeCoarseSpace(CoarseSpace_); // AH 12/11/2018: This map could be overlapping, repeated, or unique. This depends on the specific coarse operator
             if (CoarseSpace_->hasUnassembledMaps()) { // If there is no unassembled basis, the current Phi_ should already be correct
-                CoarseSpace_->assembleCoarseSpace();
+                CoarseSpace_->assembleCoarseSpace( this->OnLocalSolveComm_, subdomainMap->lib(), this->MpiComm_ );
                 FROSCH_ASSERT(CoarseSpace_->hasAssembledBasis(),"FROSch::CoarseOperator : !CoarseSpace_->hasAssembledBasis()");
                 CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8));
                 FROSCH_ASSERT(CoarseSpace_->hasGlobalBasisMatrix(),"FROSch::CoarseOperator : !CoarseSpace_->hasGlobalBasisMatrix()");
@@ -598,9 +598,10 @@ namespace FROSch {
             // For parallel coarse solves
             
             if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
-                GO numGlobalElements = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1;
-                numMyRows = (LO) (((numGlobalElements) / NumProcsCoarseSolve_) + 100.*std::numeric_limits<SC>::epsilon());
-                LO remainingEl = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1 - NumProcsCoarseSolve_*numMyRows;
+                typedef ScalarTraits<SC> ST;
+//                GO numGlobalElements = CoarseSpace_->getBasisMap()->getMaxAllGlobalIndex()+1;
+                numMyRows = (LO) (((numGlobalIndices) / NumProcsCoarseSolve_) + 100.*ST::eps() );
+                LO remainingEl = numGlobalIndices - NumProcsCoarseSolve_*numMyRows;
                 if (remainingEl > this->MpiComm_->getRank() - (this->MpiComm_->getSize() - NumProcsCoarseSolve_) && this->MpiComm_->getRank() >= this->MpiComm_->getSize() - NumProcsCoarseSolve_) {
                     numMyRows++;
                 }

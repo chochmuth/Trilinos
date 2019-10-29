@@ -238,7 +238,13 @@ namespace FROSch {
     {
         FROSCH_TIMER_START_LEVELID(sortVerticesEdgesFacesTime,"DDInterface::sortVerticesEdgesFaces");
         //if (Verbose_ && Verbosity_==All) std::cout << "FROSch::DDInterface : Sorting interface components" << std::endl;
-
+        
+        if (Vertices_->getNumEntities()>0 )Vertices_.reset(new EntitySet<SC,LO,GO,NO>(VertexType));
+        if (ShortEdges_->getNumEntities()>0 )Vertices_.reset(new EntitySet<SC,LO,GO,NO>(EdgeType));
+        if (StraightEdges_->getNumEntities()>0 )Vertices_.reset(new EntitySet<SC,LO,GO,NO>(EdgeType));
+        if (Edges_->getNumEntities()>0 )Vertices_.reset(new EntitySet<SC,LO,GO,NO>(EdgeType));
+        if (Faces_->getNumEntities()>0 )Vertices_.reset(new EntitySet<SC,LO,GO,NO>(FaceType));
+        
         flagEntities(nodeList);
 
         // Make sure that we do not sort any empty entities
