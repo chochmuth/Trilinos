@@ -210,23 +210,6 @@ namespace FROSch {
         return Leafs;
     }
 
-    template<class SC,class LO,class GO,class NO>
-    int EntitySet<SC,LO,GO,NO>::clearAncestors()
-    {
-        for (UN i=0; i<getNumEntities(); i++) {
-            getEntity(i)->clearAncestors();
-        }
-        return 0;
-    }
-
-    template<class SC,class LO,class GO,class NO>
-    int EntitySet<SC,LO,GO,NO>::clearOffspring()
-    {
-        for (UN i=0; i<getNumEntities(); i++) {
-            getEntity(i)->clearOffspring();
-        }
-        return 0;
-    }
 
     template<class SC,class LO,class GO,class NO>
     int EntitySet<SC,LO,GO,NO>::clearRoots()
