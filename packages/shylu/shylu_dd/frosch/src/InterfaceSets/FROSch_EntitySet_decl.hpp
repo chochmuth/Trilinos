@@ -103,19 +103,21 @@ namespace FROSch {
         int buildEntityMap(ConstXMapPtr localToGlobalNodesMap, bool onLocalSolveComm=true);
         
         int findAncestorsInSet(EntitySetPtr entitySet);
+
+        EntitySetPtr findRoots();
         
-        int clearAncestors();
-        
-        int clearOffspring();
+        EntitySetPtr findLeafs();
         
         EntitySetPtr findCoarseNodes();
         
-        int clearCoarseNodes();
+        int clearRoots();
         
-        int computeDistancesToCoarseNodes(UN dimension,
-                                          ConstXMultiVectorPtr &nodeList = null,
-                                          DistanceFunction distanceFunction = ConstantDistanceFunction);
-        
+        int clearLeafs();
+
+        int computeDistancesToRoots(UN dimension,
+                                    ConstXMultiVectorPtr &nodeList = null,
+                                    DistanceFunction distanceFunction = ConstantDistanceFunction);
+
         int divideUnconnectedEntities(ConstXMatrixPtr matrix,
                                       int pID);
         
@@ -150,9 +152,11 @@ namespace FROSch {
         /////////////////
         
         int setUniqueIDToFirstGlobalNodeID();
+
+        int setRootID();
         
-        int setCoarseNodeID();
-        
+        int setLeafID();
+
         int resetEntityType(EntityType type);
         
         /////////////////
