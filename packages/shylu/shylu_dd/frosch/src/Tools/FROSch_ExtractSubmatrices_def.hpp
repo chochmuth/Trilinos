@@ -56,13 +56,7 @@ namespace FROSch {
                                                                 bool OnLocalComm)
     {
         FROSCH_TIMER_START(extractLocalSubdomainMatrixTime,"ExtractLocalSubdomainMatrix");
-        RCP<Matrix<SC,LO,GO,NO> > subdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(map,2*globalMatrix->getGlobalMaxNumRowEntries());
-        
-        Teuchos::RCP<Teuchos::FancyOStream> out = fancyOStream(Teuchos::rcpFromRef(std::cout));
-        
-        globalMatrix->getRowMap()->describe(*out,VERB_EXTREME);
-
-        map->describe(*out,VERB_EXTREME);
+        RCP<Matrix<SC,LO,GO,NO> > subdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(map,2*globalMatrix->getGlobalMaxNumRowEntries());            
         
         RCP<Import<LO,GO,NO> > scatter = ImportFactory<LO,GO,NO>::Build(globalMatrix->getRowMap(),map);
         
