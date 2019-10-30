@@ -234,11 +234,19 @@ namespace FROSch {
         if (this->ParameterList_->get("TwoLevel",true)) {
             if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("CoarseSolver").sublist("MueLu").set("Dimension",(int)dimension);
+
+                MapPtrVecPtr repeatedMapWithOffsetVec = BuildMapsWithOffset( repeatedMapVec );
                 // Build Null Space
                 if (!this->ParameterList_->get("Null Space Type","Stokes").compare("Stokes")) {
                     nullSpaceBasisVec.resize(2);
-                    nullSpaceBasisVec[0] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapVec[0],dofsPerNodeVec[0],dofsMapsVec[0]);
-                    nullSpaceBasisVec[1] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapVec[1],dofsPerNodeVec[1],dofsMapsVec[1]);
+                    nullSpaceBasisVec[0] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapWithOffsetVec[0],dofsPerNodeVec[0],dofsMapsVec[0], nodeListVec[0]);
+                    nullSpaceBasisVec[1] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapWithOffsetVec[1],dofsPerNodeVec[1],dofsMapsVec[1], nodeListVec[1]);
+                } else if (!this->ParameterList_->get("Null Space Type","Stokes").compare("LaplaceBlocks")) {
+                    FROSCH_ASSERT(repeatedMapVec.size()==1,"Too many blocks for Null Space Type Laplace.");
+                    nullSpaceBasisVec.resize( repeatedMapWithOffsetVec.size() );
+                    for (int i=0; i<nullSpaceBasisVec.size(); i++) {
+                        nullSpaceBasisVec[i] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapWithOffsetVec[i],dofsPerNodeVec[i],dofsMapsVec[i], nodeListVec[i]);
+                    }
                 } else if (!this->ParameterList_->get("Null Space Type","Stokes").compare("Input")) {
                     FROSCH_ASSERT(!nullSpaceBasisVec.is_null(),"Null Space Type is 'Input', but nullSpaceBasis.is_null().");
                 } else {

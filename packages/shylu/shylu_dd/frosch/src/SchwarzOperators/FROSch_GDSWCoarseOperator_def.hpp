@@ -357,7 +357,7 @@ namespace FROSch {
         // Check for interface
 //
         
-        //CH 06/13/19: We need to check if "Mpi Ranks Coarse" > 0. If this is the case we need to only determine for all ranks, which are not coarse solve ranks if we have no interface. Coarse solve ranks will always have no interface as the global problem does not have any entries on these ranks.
+        //CH 06/13/19: We need to check if "Mpi Ranks Coarse" > 0. If this is the case, we need to only determine for all ranks, which are not coarse solve ranks, if we have no interface. Coarse solve ranks will always have no interface as the global problem does not have any entries on these ranks.
         // We assume that computeVolumeFunctions() will be called on all subdomains with NotOnCoarseSolveComm_==true
         UN numNodes = interface->getEntity(0)->getNumNodes();
         UN numNodesSum = 0;

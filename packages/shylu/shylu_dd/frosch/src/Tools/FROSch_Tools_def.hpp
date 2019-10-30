@@ -402,6 +402,29 @@ namespace FROSch {
     }
     
     template <class LO,class GO,class NO>
+    Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > BuildMapsWithOffset(Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapVector){
+        FROSCH_ASSERT(!mapVector.is_null(),"mapVector is null!");
+        FROSCH_ASSERT(mapVector.size()>0,"Length of mapVector is == 0!");
+        
+        Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapOffsetVector( mapVector.size() );
+        
+        mapOffsetVector[0] = mapVector[0];
+        
+        GO offset = 0;
+        for (unsigned i=1; i<mapVector.size(); i++) {
+            offset += mapVector[i-1]->getMaxAllGlobalIndex()+1;
+            LO nodeNumElements = mapVector[i]->getNodeNumElements();
+            Teuchos::Array<GO> elementList(nodeNumElements);
+            for (LO j=0; j<nodeNumElements; j++) {
+                elementList.at(j) = mapVector[i]->getGlobalElement(j)+offset;
+            }
+            mapOffsetVector[i] = Xpetra::MapFactory<LO,GO,NO>::Build(mapVector[i]->lib(), -1, elementList(), 0 , mapVector[i]->getComm());
+        }
+        return mapOffsetVector;
+    }
+
+    
+    template <class LO,class GO,class NO>
     int BuildDofMapsVec(const Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapVec,
                         Teuchos::ArrayRCP<unsigned> dofsPerNodeVec,
                         Teuchos::ArrayRCP<FROSch::DofOrdering> dofOrderingVec,
