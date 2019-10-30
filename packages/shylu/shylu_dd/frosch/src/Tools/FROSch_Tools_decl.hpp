@@ -262,6 +262,9 @@ namespace FROSch {
     RCP<const Map<LO,GO,NO> > MergeMapsCont(ArrayRCP<RCP<const Map<LO,GO,NO> > > mapVector);
     
     template <class LO,class GO,class NO>
+    ArrayRCP<RCP<Map<LO,GO,NO> > > BuildMapsWithOffset(ArrayRCP<RCP<Map<LO,GO,NO> > > mapVector);
+    
+    template <class LO,class GO,class NO>
     int BuildDofMaps(const RCP<const Map<LO,GO,NO> > map,
                      unsigned dofsPerNode,
                      unsigned dofOrdering,
