@@ -64,7 +64,8 @@ namespace FROSch {
     GatherRestricted_(),
     SubdomainSolver_ (),
     Multiplicity_(),
-    Combine_()
+    Combine_(),
+    OnFirstLevelComm_(false)
     {
         FROSCH_TIMER_START_LEVELID(overlappingOperatorTime,"OverlappingOperator::OverlappingOperator");
         if (!this->ParameterList_->get("Combine Values in Overlap","Restricted").compare("Averaging")) {
@@ -236,9 +237,10 @@ namespace FROSch {
             this->IsComputed_ = true;
             return SubdomainSolver_->compute();
         }
-        else
+        else{
+            this->IsComputed_ = true;
             return 0;
-
+        }
     }
     
     template <class SC,class LO,class GO,class NO>

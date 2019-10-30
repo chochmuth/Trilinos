@@ -63,8 +63,12 @@ namespace FROSch {
     {
         FROSCH_TIMER_START_LEVELID(oneLevelPreconditionerTime,"OneLevelPreconditioner::OneLevelPreconditioner");
         if (!this->ParameterList_->get("OverlappingOperator Type","AlgebraicOverlappingOperator").compare("AlgebraicOverlappingOperator")) {
+            
             // Set the LevelID in the sublist
             parameterList->sublist("AlgebraicOverlappingOperator").set("Level ID",this->LevelID_);
+            parameterList->sublist("AlgebraicOverlappingOperator").set("Local problem ranks lower bound", parameterList->get("Local problem ranks lower bound",0));
+            parameterList->sublist("AlgebraicOverlappingOperator").set("Local problem ranks upper bound", parameterList->get("Local problem ranks upper bound",this->MpiComm_->getSize()-1));
+            
             OverlappingOperator_ = AlgebraicOverlappingOperatorPtr(new AlgebraicOverlappingOperator<SC,LO,GO,NO>(k,sublist(parameterList,"AlgebraicOverlappingOperator")));
         } else {
             FROSCH_ASSERT(false,"OverlappingOperator Type unkown.");

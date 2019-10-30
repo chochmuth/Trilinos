@@ -115,10 +115,19 @@ namespace FROSch {
             if (this->IsComputed_ && this->Verbose_) std::cout << "FROSch::CoarseOperator : Recomputing the Coarse Basis" << std::endl;
             clearCoarseSpace(); // AH 12/11/2018: If we do not clear the coarse space, we will always append just append the coarse space
             XMapPtr subdomainMap = this->computeCoarseSpace(CoarseSpace_); // AH 12/11/2018: This map could be overlapping, repeated, or unique. This depends on the specific coarse operator
-            if (CoarseSpace_->hasUnassembledMaps()) { // If there is no unassembled basis, the current Phi_ should already be correct
+            // We need to communicate wether the maps are assemble or not for dedicated coarse solves
+            // We assume that rank 0 is not a coarse solve rank
+            int hasUnassembledMaps = CoarseSpace_->hasUnassembledMaps();
+            // upper bound of ranks is smaller then size - 1
+            if (this->RankRange_[1] < this->MpiComm_->getSize()-1)
+                broadcast<int,int>(*this->MpiComm_,0,1,&hasUnassembledMaps);
+            
+            if (hasUnassembledMaps>0) { // If there is no unassembled basis, the current Phi_ should already be correct
                 CoarseSpace_->assembleCoarseSpace( this->OnLocalSolveComm_, subdomainMap->lib(), this->MpiComm_ );
-                FROSCH_ASSERT(CoarseSpace_->hasAssembledBasis(),"FROSch::CoarseOperator : !CoarseSpace_->hasAssembledBasis()");
-                CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8));
+                if (this->OnLocalSolveComm_)
+                    FROSCH_ASSERT(CoarseSpace_->hasAssembledBasis(),"FROSch::CoarseOperator : !CoarseSpace_->hasAssembledBasis()");
+                    
+                CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8),this->OnLocalSolveComm_);
                 FROSCH_ASSERT(CoarseSpace_->hasGlobalBasisMatrix(),"FROSch::CoarseOperator : !CoarseSpace_->hasGlobalBasisMatrix()");
                 Phi_ = CoarseSpace_->getGlobalBasisMatrix();
             }

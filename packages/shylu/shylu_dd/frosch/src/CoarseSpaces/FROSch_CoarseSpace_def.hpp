@@ -125,7 +125,8 @@ namespace FROSch {
                                                          bool onLocalSolveComm)
     {
         FROSCH_ASSERT(!AssembledBasisMap_.is_null(),"AssembledBasisMap_.is_null().");
-        FROSCH_ASSERT(!AssembledBasis_.is_null(),"AssembledBasis_.is_null().");
+        if (onLocalSolveComm)
+            FROSCH_ASSERT(!AssembledBasis_.is_null(),"AssembledBasis_.is_null().");
         
         GlobalBasisMatrix_ = MatrixFactory<SC,LO,GO,NO>::Build(rowMap,AssembledBasisMap_,AssembledBasisMap_->getNodeNumElements()); // Nonzeroes abhängig von dim/dofs!!!
         
