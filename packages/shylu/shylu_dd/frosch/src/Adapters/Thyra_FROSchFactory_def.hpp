@@ -137,7 +137,7 @@ namespace Thyra {
         // Abstract SchwarzPreconditioner
         RCP<SchwarzPreconditioner<SC,LO,GO,NO> > SchwarzPreconditioner = null;
         
-        const bool startingOver = (thyra_precOp.is_null() || !paramList_->isParameter("Recycling") || !paramList_->get("Recycling",true));
+        const bool startingOver = (thyra_precOp.is_null() || !paramList_->isParameter("Recycling") || !paramList_->get("Recycling",true) || !paramList_->get("Computed",false));
         
         if (startingOver) {
             FROSCH_ASSERT(paramList_->isParameter("FROSch Preconditioner Type"),"FROSch Preconditioner Type is not defined!");
@@ -320,6 +320,8 @@ namespace Thyra {
             
             //Set SchwarzPreconditioner
             defaultPrec->initializeUnspecified(thyraPrecOp);
+            paramList_->set("Computed",true);
+            
         } else {
             // cast to SchwarzPreconditioner
             RCP<FROSchLinearOp<SC,LO,GO,NO> > fROSch_LinearOp = rcp_dynamic_cast<FROSchLinearOp<SC,LO,GO,NO> >(thyra_precOp,true);

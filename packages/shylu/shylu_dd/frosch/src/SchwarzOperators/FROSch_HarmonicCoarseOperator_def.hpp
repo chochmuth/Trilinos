@@ -430,19 +430,22 @@ namespace FROSch {
                     FROSCH_ASSERT(false,"FROSch::HarmonicCoarseOperator : ERROR: The dimension is neither 1 nor 2 nor 3!");
                     break;
             }
-            // If necessary, discard additional rotations
-            UN rotationsToDiscard = discardRotations - numZeroRotations;
-            if (rotationsToDiscard<0) {
-                if (this->Verbose_) std::cout << "FROSch::HarmonicCoarseOperator : WARNING: More rotations have been discarded than expected." << std::endl;
-            } else if (rotationsToDiscard>0) {
-                UN it=0;
-                UN rotationsDiscarded=0;
-                while (rotationsDiscarded<rotationsToDiscard) {
-                    if (rotations[it]->getVector(i)->norm2()>1.0e-12) {
-                        rotations[it]->getVectorNonConst(i)->scale(ScalarTraits<SC>::zero());
-                        rotationsDiscarded++;
+            // no rotations are discared in 2D
+            if (dimension==3){
+                // If necessary, discard additional rotations
+                UN rotationsToDiscard = discardRotations - numZeroRotations;
+                if (rotationsToDiscard<0) {
+                    if (this->Verbose_) std::cout << "FROSch::HarmonicCoarseOperator : WARNING: More rotations have been discarded than expected." << std::endl;
+                } else if (rotationsToDiscard>0) {
+                    UN it=0;
+                    UN rotationsDiscarded=0;
+                    while (rotationsDiscarded<rotationsToDiscard) {
+                        if (rotations[it]->getVector(i)->norm2()>1.0e-12) {
+                            rotations[it]->getVectorNonConst(i)->scale(ScalarTraits<SC>::zero());
+                            rotationsDiscarded++;
+                        }
+                        it++;
                     }
-                    it++;
                 }
             }
         }
