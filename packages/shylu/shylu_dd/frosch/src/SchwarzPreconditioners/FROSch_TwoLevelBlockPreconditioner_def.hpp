@@ -58,30 +58,32 @@ namespace FROSch {
     CoarseOperator_ ()
     {
         FROSCH_TIMER_START_LEVELID(twoLevelBlockPreconditionerTime,"TwoLevelBlockPreconditioner::TwoLevelBlockPreconditioner");
-        if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
-            // Set the LevelID in the sublist
-            parameterList->sublist("IPOUHarmonicCoarseOperator").set("Level ID",this->LevelID_);
-            //                FROSCH_ASSERT(false,"not implemented for block.");
-            this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("InterfacePartitionOfUnity").set("Test Unconnected Interface",false);
-            CoarseOperator_ = IPOUHarmonicCoarseOperatorPtr(new IPOUHarmonicCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"IPOUHarmonicCoarseOperator")));
-        } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("GDSWCoarseOperator")) {
-            // Set the LevelID in the sublist
-            parameterList->sublist("GDSWCoarseOperator").set("Level ID",this->LevelID_);
-            this->ParameterList_->sublist("GDSWCoarseOperator").set("Test Unconnected Interface",false);
-            CoarseOperator_ = GDSWCoarseOperatorPtr(new GDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"GDSWCoarseOperator")));
-        } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("RGDSWCoarseOperator")) {
-            // Set the LevelID in the sublist
-            parameterList->sublist("RGDSWCoarseOperator").set("Level ID",this->LevelID_);
-            this->ParameterList_->sublist("RGDSWCoarseOperator").set("Test Unconnected Interface",false);
-            CoarseOperator_ = RGDSWCoarseOperatorPtr(new RGDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"RGDSWCoarseOperator")));
-        } else {
-            FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
-        } // TODO: Add ability to disable individual levels
-        if (this->UseMultiplicative_) {
-            this->MultiplicativeOperator_->addOperator(CoarseOperator_);
-        }
-        else{
-            this->SumOperator_->addOperator(CoarseOperator_);
+        if (this->ParameterList_->get("TwoLevel",true)) {
+            if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
+                // Set the LevelID in the sublist
+                parameterList->sublist("IPOUHarmonicCoarseOperator").set("Level ID",this->LevelID_);
+                //                FROSCH_ASSERT(false,"not implemented for block.");
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("InterfacePartitionOfUnity").set("Test Unconnected Interface",false);
+                CoarseOperator_ = IPOUHarmonicCoarseOperatorPtr(new IPOUHarmonicCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"IPOUHarmonicCoarseOperator")));
+            } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("GDSWCoarseOperator")) {
+                // Set the LevelID in the sublist
+                parameterList->sublist("GDSWCoarseOperator").set("Level ID",this->LevelID_);
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Test Unconnected Interface",false);
+                CoarseOperator_ = GDSWCoarseOperatorPtr(new GDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"GDSWCoarseOperator")));
+            } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("RGDSWCoarseOperator")) {
+                // Set the LevelID in the sublist
+                parameterList->sublist("RGDSWCoarseOperator").set("Level ID",this->LevelID_);
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Test Unconnected Interface",false);
+                CoarseOperator_ = RGDSWCoarseOperatorPtr(new RGDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"RGDSWCoarseOperator")));
+            } else {
+                FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
+            } // TODO: Add ability to disable individual levels
+            if (this->UseMultiplicative_) {
+                this->MultiplicativeOperator_->addOperator(CoarseOperator_);
+            }
+            else{
+                this->SumOperator_->addOperator(CoarseOperator_);
+            }
         }
     }
 
@@ -203,6 +205,9 @@ namespace FROSch {
                 nullSpaceBasisVec.resize(2);
                 nullSpaceBasisVec[0] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapVec[0],dofsPerNodeVec[0],dofsMapsVec[0]);
                 nullSpaceBasisVec[1] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapVec[1],dofsPerNodeVec[1],dofsMapsVec[1]);
+            } else if (!this->ParameterList_->get("Null Space Type","Stokes").compare("Laplace")) {
+                nullSpaceBasisVec.resize(1);
+                nullSpaceBasisVec[0] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapVec[0],dofsPerNodeVec[0],dofsMapsVec[0]);
             } else if (!this->ParameterList_->get("Null Space Type","Stokes").compare("Input")) {
                 FROSCH_ASSERT(!nullSpaceBasisVec.is_null(),"Null Space Type is 'Input', but nullSpaceBasis.is_null().");
             } else {

@@ -131,7 +131,9 @@ int main(int argc, char *argv[])
     My_CLP.setOption("PLIST",&xmlFile,"File name of the parameter list.");
     bool useepetra = false;
     My_CLP.setOption("USEEPETRA","USETPETRA",&useepetra,"Use Epetra infrastructure for the linear algebra.");
-
+    bool useBlockPreconditioner = false;
+    My_CLP.setOption("USEBLOCKPREC","USENOBLOCKPREC",&useBlockPreconditioner,"Use monolithic preconditioner for blocks even if only 1 block is used.");
+    
     My_CLP.recogniseAllOptions(true);
     My_CLP.throwExceptions(false);
     CommandLineProcessor::EParseCommandLineReturn parseReturn = My_CLP.parse(argc,argv);
@@ -265,9 +267,9 @@ int main(int argc, char *argv[])
         }
 
         Comm->barrier(); if (Comm->getRank()==0) cout << "##############################\n# Assembly Monolythic System #\n##############################\n" << endl;
-
+        
         RCP<Matrix<SC,LO,GO,NO> > KMonolithic;
-        if (NumberOfBlocks>1) {
+        if (NumberOfBlocks>1 || useBlockPreconditioner) {
 
             Array<GO> uniqueMapArray(0);
             GO tmpOffset = 0;
@@ -296,7 +298,7 @@ int main(int argc, char *argv[])
                 tmpOffset += K[block]->getMap()->getMaxAllGlobalIndex()+1;
             }
             KMonolithic->fillComplete();
-        } else if (NumberOfBlocks==1) {
+        } else if (NumberOfBlocks==1 && !useBlockPreconditioner) {
             KMonolithic = K[0];
         } else {
             assert(false);
@@ -317,7 +319,7 @@ int main(int argc, char *argv[])
         RCP<ParameterList> plList =  sublist(parameterList,"Preconditioner Types");
         sublist(plList,"FROSch")->set("Dimension",Dimension);
         sublist(plList,"FROSch")->set("Overlap",Overlap);
-        if (NumberOfBlocks>1) {
+        if (NumberOfBlocks>1 || useBlockPreconditioner) {
             sublist(plList,"FROSch")->set("Repeated Map Vector",RepeatedMaps);
 
             ArrayRCP<DofOrdering> dofOrderings(NumberOfBlocks);
@@ -335,7 +337,7 @@ int main(int argc, char *argv[])
 
             sublist(plList,"FROSch")->set("DofOrdering Vector",dofOrderings);
             sublist(plList,"FROSch")->set("DofsPerNode Vector",dofsPerNodeVector);
-        } else if (NumberOfBlocks==1) {
+        } else if (NumberOfBlocks==1 && !useBlockPreconditioner) {
             sublist(plList,"FROSch")->set("Repeated Map",RepeatedMaps[0]);
             // sublist(plList,"FROSch")->set("Coordinates List",Coordinates[0]); // Does not work yet...
 
