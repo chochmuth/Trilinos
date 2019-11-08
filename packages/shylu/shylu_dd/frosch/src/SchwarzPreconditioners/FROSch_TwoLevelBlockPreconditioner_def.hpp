@@ -57,7 +57,9 @@ namespace FROSch {
     OneLevelPreconditioner<SC,LO,GO,NO> (k,parameterList),
     CoarseOperator_ ()
     {
-        FROSCH_TIMER_START_LEVELID(twoLevelBlockPreconditionerTime,"TwoLevelBlockPreconditioner::TwoLevelBlockPreconditioner");
+    FROSCH_TIMER_START_LEVELID(twoLevelBlockPreconditionerTime,"TwoLevelBlockPreconditioner::TwoLevelBlockPreconditioner");
+        FROSCH_TIMER_START_LEVELID(twoLevelBlockPrecFullSetupTime,"TwoLevelBlockPreconditioner::Full Setup");
+
         if (this->ParameterList_->get("TwoLevel",true)) {
 
             if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
@@ -119,6 +121,8 @@ namespace FROSch {
                                                              GOVecPtr2D dirichletBoundaryDofsVec)
     {
         FROSCH_TIMER_START_LEVELID(initializeTime,"TwoLevelBlockPreconditioner::initialize");
+        FROSCH_TIMER_START_LEVELID(twoLevelBlockPrecFullSetupTime,"TwoLevelBlockPreconditioner::Full Setup");
+        
         ////////////
         // Checks //
         ////////////
@@ -267,6 +271,8 @@ namespace FROSch {
     int TwoLevelBlockPreconditioner<SC,LO,GO,NO>::compute()
     {
         FROSCH_TIMER_START_LEVELID(computeTime,"TwoLevelBlockPreconditioner::compute");
+        FROSCH_TIMER_START_LEVELID(twoLevelBlockPrecFullSetupTime,"TwoLevelBlockPreconditioner::Full Setup");
+        
         int ret = 0;
         
         if (this->ParameterList_->get("TwoLevel",true)) {
