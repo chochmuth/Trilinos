@@ -43,7 +43,8 @@
 #define _FROSCH_HARMONICCOARSEOPERATOR_DEF_HPP
 
 #include <FROSch_HarmonicCoarseOperator_decl.hpp>
-
+#include <Tpetra_CrsMatrix_decl.hpp>
+#include <MatrixMarket_Tpetra.hpp>
 namespace FROSch {
 
     using namespace Teuchos;
@@ -505,6 +506,22 @@ namespace FROSch {
                 if (!reuseExtensionSymbolicFactorization) {
                     if (this->IsComputed_ && this->Verbose_)
                         std::cout << "FROSch::HarmonicCoarseOperator : Recomputing the Symbolic Factorization of the harmonic extensions" << std::endl;
+                    
+                    
+                    if ( this->ParameterList_->get("Export KII",false) ){
+                        if (coarseMap->lib() == UseTpetra ){
+                            typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
+                            typedef RCP<TpetraCrsMatrix> TpetraCrsMatrixPtr;
+                            
+                            CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<CrsMatrixWrap<SC,LO,GO,NO>&>(*kII);
+                            Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
+                            TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+                            Tpetra::MatrixMarket::Writer< TpetraCrsMatrix > tpetraWriter;
+                            
+                            std::string kIIFileName = "KII_" + std::to_string( this->MpiComm_->getRank() ) + ".mm";
+                            tpetraWriter.writeSparseFile(kIIFileName, tpetraMat, "matrix", "");
+                        }
+                    }
                     
                     ExtensionSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(kII,sublist(this->ParameterList_,"ExtensionSolver")));
                     ExtensionSolver_->initialize();
