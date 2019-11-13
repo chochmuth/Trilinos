@@ -431,7 +431,7 @@ namespace FROSch {
                     FROSCH_ASSERT(false,"FROSch::HarmonicCoarseOperator : ERROR: The dimension is neither 1 nor 2 nor 3!");
                     break;
             }
-            // no rotations are discared in 2D
+            // no rotations are discarded in 2D
             if (dimension==3){
                 // If necessary, discard additional rotations
                 UN rotationsToDiscard = discardRotations - numZeroRotations;

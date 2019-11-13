@@ -43,8 +43,8 @@
 #define _FROSCH_EXTRACTSUBMATRICES_DEF_HPP
 
 #include <FROSch_ExtractSubmatrices_decl.hpp>
-
-
+#include <Tpetra_CrsMatrix_decl.hpp>
+#include <MatrixMarket_Tpetra.hpp>
 namespace FROSch {
     
     using namespace Teuchos;
@@ -56,23 +56,23 @@ namespace FROSch {
                                                                 bool OnLocalComm)
     {
         FROSCH_TIMER_START(extractLocalSubdomainMatrixTime,"ExtractLocalSubdomainMatrix");
-        RCP<Matrix<SC,LO,GO,NO> > subdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(map,2*globalMatrix->getGlobalMaxNumRowEntries());            
+        RCP<Matrix<SC,LO,GO,NO> > subdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(map,2*globalMatrix->getGlobalMaxNumRowEntries());
         
         RCP<Import<LO,GO,NO> > scatter = ImportFactory<LO,GO,NO>::Build(globalMatrix->getRowMap(),map);
         
+        Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout));
+        
         subdomainMatrix->doImport(*globalMatrix,*scatter,ADD);
-        //cout << *subdomainMatrix << std::endl;
+        
         RCP<Matrix<SC,LO,GO,NO> > localSubdomainMatrix;
         if (OnLocalComm) {
             RCP<const Comm<LO> > SerialComm = rcp(new MpiComm<LO>(MPI_COMM_SELF));
             RCP<Map<LO,GO,NO> > localSubdomainMap = MapFactory<LO,GO,NO>::Build(map->lib(),map->getNodeNumElements(),0,SerialComm);
             localSubdomainMatrix = MatrixFactory<SC,LO,GO,NO>::Build(localSubdomainMap,globalMatrix->getNodeMaxNumRowEntries());
-            
             for (unsigned i=0; i<localSubdomainMap->getNodeNumElements(); i++) {
                 ArrayView<const GO> indices;
                 ArrayView<const SC> values;
                 subdomainMatrix->getGlobalRowView(map->getGlobalElement(i),indices,values);
-                
                 LO size = indices.size();
                 if (size>0) {
                     Array<GO> indicesLocal;
@@ -89,6 +89,21 @@ namespace FROSch {
             }
             localSubdomainMatrix->fillComplete();
         }
+        
+//        if (map->lib() == UseTpetra ){
+//            
+//            typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
+//            typedef RCP<TpetraCrsMatrix> TpetraCrsMatrixPtr;
+//            
+//            CrsMatrixWrap<SC,LO,GO,NO>& crsOp = dynamic_cast<CrsMatrixWrap<SC,LO,GO,NO>&>(*localSubdomainMatrix);
+//            Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>& xTpetraMat = dynamic_cast<Xpetra::TpetraCrsMatrix<SC,LO,GO,NO>&>(*crsOp.getCrsMatrix());
+//            TpetraCrsMatrixPtr tpetraMat = xTpetraMat.getTpetra_CrsMatrixNonConst();
+//            Tpetra::MatrixMarket::Writer< TpetraCrsMatrix > tpetraWriter;
+//            
+//            std::string kIIFileName = "ExtractLocalSubdomainMat" + std::to_string( map->getComm()->getRank() ) + ".mm";
+//            tpetraWriter.writeSparseFile(kIIFileName, tpetraMat, "matrix", "");
+//        }
+        
         return localSubdomainMatrix.getConst();
     }
 

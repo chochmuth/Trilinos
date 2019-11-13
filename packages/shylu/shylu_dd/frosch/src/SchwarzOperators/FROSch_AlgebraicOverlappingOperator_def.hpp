@@ -178,13 +178,13 @@ namespace FROSch {
                 
                 if (this->Verbose_) {
                     std::cout << "\
-                    layer " << i+1 << ":        avg / min / max             ---  " << avg << " / " << min << " / " << max << "\n";
+                layer " << i+1 << ":        avg / min / max             ---  " << avg << " / " << min << " / " << max << "\n";
                 }
             }
         }
         if (this->Verbose_ && verbosity==All) {
             std::cout << "\
-            ------------------------------------------------------------------------------\n";
+                ------------------------------------------------------------------------------\n";
         }
         
         // AH 08/28/2019 TODO: It seems that ExtendOverlapByOneLayer_Old is currently the fastest method because the map is sorted. This seems to be better for the direct solver. (At least Klu)
