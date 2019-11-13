@@ -208,7 +208,11 @@ namespace FROSch {
         int resetMatrix(ConstXMatrixPtr &k);
         
         ParameterListPtr getParameterList();
-        
+      
+        virtual void residual(const XMultiVector & X,
+                              const XMultiVector & B,
+                              XMultiVector& R) const;
+
     protected:
         
         CommPtr MpiComm_;

@@ -264,7 +264,14 @@ namespace FROSch {
         
         int resetMatrix(ConstXMatrixPtr k,
                         bool reuseInitialize);
-        
+
+        /*! 
+        \brief Computes a residual using the operator
+        */
+        virtual void residual(const XMultiVector & X,
+                              const XMultiVector & B,
+                              XMultiVector& R) const;
+
         //!@}
         
     protected:

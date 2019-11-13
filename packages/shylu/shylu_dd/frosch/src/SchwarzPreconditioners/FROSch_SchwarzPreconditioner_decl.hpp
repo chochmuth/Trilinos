@@ -142,8 +142,11 @@ namespace FROSch {
         bool isInitialized() const;
         
         bool isComputed() const;
-        
-        
+
+        virtual void residual(const XMultiVector & X,
+                              const XMultiVector & B,
+                              XMultiVector& R) const;
+
     protected:
         
         CommPtr MpiComm_;
