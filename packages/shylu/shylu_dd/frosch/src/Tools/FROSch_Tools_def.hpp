@@ -185,7 +185,6 @@ namespace FROSch {
         static int counter = 0;
         for (idx = 0; idx < numLids; ++idx) {
             // Organize the overlapping data to send it back to the original processes
-            if (ElementCounter_>=OverlappingDataList_.size()) std::cout << "FUUUUUUUUCCCCKKKKK!!!!!!!" << ElementCounter_ << " " << OverlappingDataList_.size() << std::endl;
             if (ElementCounter_<OverlappingDataList_.size()) {
                 OverlappingDataList_[ElementCounter_].reset(new OverlappingData<LO,GO>(GID,
                                                                                        pid_and_lid[idx].first,
@@ -289,9 +288,9 @@ namespace FROSch {
     }
 
     template <class SC,class LO,class GO,class NO>
-    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const Matrix<SC,LO,GO,NO> > matrix, bool reduceMap)
+    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConstOld(RCP<const Matrix<SC,LO,GO,NO> > matrix)
     {
-        FROSCH_TIMER_START(buildRepeatedMapNonConstTime,"BuildRepeatedMapNonConst");
+        FROSCH_TIMER_START(buildRepeatedMapNonConstTime,"BuildRepeatedMapNonConstOld");
         RCP<Map<LO,GO,NO> > uniqueMap = MapFactory<LO,GO,NO>::Build(matrix->getRowMap(),1);
         RCP<const Map<LO,GO,NO> > overlappingMap = uniqueMap.getConst();
         ExtendOverlapByOneLayer<SC,LO,GO,NO>(matrix,overlappingMap,matrix,overlappingMap);
@@ -385,15 +384,15 @@ namespace FROSch {
     }
 
     template <class SC,class LO,class GO,class NO>
-    RCP<const Map<LO,GO,NO> > BuildRepeatedMap(RCP<const Matrix<SC,LO,GO,NO> > matrix, bool reduceMap)
+    RCP<const Map<LO,GO,NO> > BuildRepeatedMapOld(RCP<const Matrix<SC,LO,GO,NO> > matrix)
     {
         return BuildRepeatedMapNonConst(matrix,reduceMap).getConst();
     }
 
     template <class LO,class GO,class NO>
-    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const CrsGraph<LO,GO,NO> > graph)
+    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConstOld(RCP<const CrsGraph<LO,GO,NO> > graph)
     {
-        FROSCH_TIMER_START(buildRepeatedMapNonConstTime,"BuildRepeatedMapNonConst");
+        FROSCH_TIMER_START(buildRepeatedMapNonConstTime,"BuildRepeatedMapNonConstOld");
         RCP<Map<LO,GO,NO> > uniqueMap = MapFactory<LO,GO,NO>::Build(graph->getRowMap(),1);
         RCP<const Map<LO,GO,NO> > overlappingMap = uniqueMap.getConst();
         ExtendOverlapByOneLayer<LO,GO,NO>(graph,overlappingMap,graph,overlappingMap);
@@ -476,6 +475,56 @@ namespace FROSch {
         }
         sortunique(repeatedIndices);
         return MapFactory<LO,GO,NO>::Build(tmpGraph->getRowMap()->lib(),-1,repeatedIndices(),0,graph->getRowMap()->getComm());
+    }
+
+    template <class LO,class GO,class NO>
+    RCP<const Map<LO,GO,NO> > BuildRepeatedMapOld(RCP<const CrsGraph<LO,GO,NO> > graph)
+    {
+        return BuildRepeatedMapNonConstOld(graph).getConst();
+    }
+
+    template <class SC,class LO,class GO,class NO>
+    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const Matrix<SC,LO,GO,NO> > matrix)
+    {
+        return BuildRepeatedMapNonConst(matrix->getCrsGraph());
+    }
+
+    template <class SC,class LO,class GO,class NO>
+    RCP<const Map<LO,GO,NO> > BuildRepeatedMap(RCP<const Matrix<SC,LO,GO,NO> > matrix)
+    {
+        return BuildRepeatedMapNonConst(matrix).getConst();
+    }
+
+    template <class LO,class GO,class NO>
+    RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const CrsGraph<LO,GO,NO> > graph)
+    {
+        FROSCH_TIMER_START(buildRepeatedMapNonConstTime,"BuildRepeatedMapNonConst");
+        RCP<const Map<LO,GO,NO> > uniqueMap = graph->getRowMap();
+        RCP<const Map<LO,GO,NO> > overlappingMap;
+        ExtendOverlapByOneLayer<LO,GO,NO>(graph,uniqueMap,graph,overlappingMap);
+        
+        RCP<CrsGraph<LO,GO,NO> > tmpGraphUnique = CrsGraphFactory<LO,GO,NO>::Build(uniqueMap,1);
+        Array<GO> myPID(1,uniqueMap->getComm()->getRank());
+        for (unsigned i=0; i<uniqueMap->getNodeNumElements(); i++) {
+            tmpGraphUnique->insertGlobalIndices(uniqueMap->getGlobalElement(i),myPID());
+        }
+        RCP<Map<LO,GO,NO> > domainMap = MapFactory<LO,GO,NO>::Build(uniqueMap->lib(),-1,myPID(),0,uniqueMap->getComm());
+        tmpGraphUnique->fillComplete(domainMap,uniqueMap);
+        RCP<CrsGraph<LO,GO,NO> > tmpGraphOverlap = CrsGraphFactory<LO,GO,NO>::Build(overlappingMap,as<LO>(0));
+        RCP<Import<LO,GO,NO> > importer = ImportFactory<LO,GO,NO>::Build(uniqueMap,overlappingMap);
+        tmpGraphOverlap->doImport(*tmpGraphUnique,*importer,ADD);
+        ArrayView<const GO> indices;
+        Array<GO> repeatedIndices(0);
+        for (unsigned i=0; i<overlappingMap->getNodeNumElements(); i++) {
+            tmpGraphOverlap->getGlobalRowView(overlappingMap->getGlobalElement(i),indices);
+            for (unsigned j=0; j<indices.size(); j++) {
+                if (indices[j]<=uniqueMap->getComm()->getRank()) {
+                    repeatedIndices.push_back(overlappingMap->getGlobalElement(i));
+                }
+            }
+        }
+        sortunique(repeatedIndices);
+        return MapFactory<LO,GO,NO>::Build(uniqueMap->lib(),-1,repeatedIndices(),0,uniqueMap->getComm());
     }
 
     template <class LO,class GO,class NO>
@@ -646,7 +695,7 @@ namespace FROSch {
     }
 
     template <class LO,class GO,class NO>
-    RCP<Map<LO,GO,NO> > AssembleMaps(ArrayView<RCP<Map<LO,GO,NO> > > mapVector,
+    RCP<Map<LO,GO,NO> > AssembleMaps(ArrayView<RCP<const Map<LO,GO,NO> > > mapVector,
                                      ArrayRCP<ArrayRCP<LO> > &partMappings)
     {
         FROSCH_TIMER_START(assembleMapsTime,"AssembleMaps");
@@ -881,6 +930,96 @@ namespace FROSch {
 //
 //          RCP<Map<LO,GO,NO> > fullMapNonConst = rcp_dynamic_cast<Map<LO,GO,NO> >(fullMap);
 //    }
+    template <class LO,class GO,class NO>
+    ArrayRCP<RCP<const Map<LO,GO,NO> > > BuildNodeMapsFromDofMaps(ArrayRCP<ArrayRCP<RCP<const Map<LO,GO,NO> > > > dofsMapsVecVec,
+                                                            ArrayRCP<unsigned> dofsPerNodeVec,
+                                                            ArrayRCP<DofOrdering> dofOrderingVec)
+    {
+        
+        typedef Map<LO,GO,NO> Map;
+        typedef RCP<const Map> MapConstPtr;
+        typedef ArrayRCP<MapConstPtr> MapConstPtrVecPtr;
+        
+        FROSCH_ASSERT(!dofsMapsVecVec.is_null(),"dofsMapsVecVec.is_null().");
+        FROSCH_ASSERT(dofsPerNodeVec.size()==dofOrderingVec.size() && dofsPerNodeVec.size()==dofsMapsVecVec.size(),"ERROR: Wrong number of maps, dof information and/or dof orderings");
+        unsigned nmbBlocks = dofsMapsVecVec.size();
+        for (unsigned i=0; i<nmbBlocks; i++){
+            FROSCH_ASSERT(dofOrderingVec[i]==NodeWise || dofOrderingVec[i]==DimensionWise,"ERROR: Specify a valid DofOrdering.");
+            FROSCH_ASSERT(dofsMapsVecVec[i].size() == dofsPerNodeVec[i] ,"ERROR: The number of dofsPerNode does not match the number of dofsMaps for a block.");
+        }
+        
+        RCP< const Comm< int > >     comm = dofsMapsVecVec[0][0]->getComm();
+        
+        //Check if the current block is a real block, or if dof indicies are consecutive over more than one block.
+        Array<bool> isMergedPrior( nmbBlocks, false );
+        Array<bool> isMergedAfter( nmbBlocks, false );
+        
+        for (unsigned block=1; block<nmbBlocks; block++) {
+            if ( dofsMapsVecVec[block-1][0]->getMaxAllGlobalIndex() > dofsMapsVecVec[block][0]->getMinAllGlobalIndex()) {// It is enough to compare the first dofMaps of each block
+                isMergedPrior[block] = true;
+                isMergedAfter[block-1] = true;
+            }
+        }
+        
+        //Determine offset for each block based on isMergedPrior and isMergedAfter.
+        Array<GO> blockOffset( nmbBlocks, ScalarTraits<GO>::zero() ); //if blocks are real blocks, this entry here will give provide the correct offset.
+        Array<GO> consBlockOffset( nmbBlocks, ScalarTraits<GO>::zero() );
+        Array<GO> consThisBlockOffset( nmbBlocks, ScalarTraits<GO>::zero() );
+        for (unsigned block=0; block<nmbBlocks; block++) {
+            
+            consBlockOffset[block] += dofsPerNodeVec[block]; //add own dofs
+            
+            unsigned i = block;
+            while (isMergedAfter[i]) {
+                consBlockOffset[block] += dofsPerNodeVec[i+1];
+                i++;
+            }
+            i = block;
+            while (isMergedPrior[i]) {
+                consBlockOffset[block] += dofsPerNodeVec[i-1];
+                i--;
+            }
+            
+            if ( !isMergedPrior[block] && block>0 ) {
+                blockOffset[block] += dofsMapsVecVec[block-1][dofsMapsVecVec[block-1].size()-1]->getMaxAllGlobalIndex(); //It is assumed that the last dofMap of a block has the highest GID of all block dof maps.
+                unsigned j = block;
+                while (isMergedAfter[j]) {
+                    blockOffset[j] = blockOffset[block];
+                    j++;
+                }
+            }
+        }
+        
+        MapConstPtrVecPtr nodeMapsVec( nmbBlocks );
+        // Build node maps for all blocks
+        for (unsigned block=0; block<nmbBlocks; block++) {
+            
+            if (dofOrderingVec[block] == NodeWise) {
+                ArrayView< const GO > globalIndices = dofsMapsVecVec[block][0]->getNodeElementList();
+                Array<GO> globalIndicesNode( globalIndices );
+                GO offset = dofsMapsVecVec[block][0]->getMinAllGlobalIndex();
+                for (unsigned i=0; i<globalIndicesNode.size(); i++){
+                    // multiplier is not correct if isMergedPrior==true because we substract minAllGIDBlock. We have to adjust for this later
+                    // was ist wenn mergedPrior und blockOffset existiert, dann ist multiplier falsch.
+                    GO multiplier = (globalIndicesNode[i] - offset) / (consBlockOffset[block]);
+                    GO rest = (globalIndicesNode[i] - offset) % (consBlockOffset[block]);
+                    globalIndicesNode[i] = multiplier + rest;
+                    
+                }
+                nodeMapsVec[block] = MapFactory<LO,GO,NO>::Build( dofsMapsVecVec[block][0]->lib(), -1,globalIndicesNode(), 0, dofsMapsVecVec[block][0]->getComm() );
+            }
+            else{ //DimensionWise
+                GO minGID = dofsMapsVecVec[block][0]->getMinAllGlobalIndex();
+                ArrayView< const GO > globalIndices = dofsMapsVecVec[block][0]->getNodeElementList();
+                Array<GO> globalIndicesNode( globalIndices );
+                for (unsigned i=0; i<globalIndicesNode.size(); i++)
+                    globalIndicesNode[i] -= minGID;
+                
+                nodeMapsVec[block] = MapFactory<LO,GO,NO>::Build( dofsMapsVecVec[block][0]->lib(), -1,globalIndicesNode(), 0, dofsMapsVecVec[block][0]->getComm() );
+            }
+        }
+        return nodeMapsVec;
+    }
 
     template <class LO,class GO,class NO>
     ArrayRCP<RCP<Map<LO,GO,NO> > > BuildSubMaps(RCP<const Map<LO,GO,NO> > &fullMap,

@@ -434,7 +434,7 @@ namespace Thyra {
                     repeatedMap = rcp_dynamic_cast<ConstXMap>(xTpetraRepeatedMap);
                 } else {
 #ifdef HAVE_SHYLU_DDFROSCH_EPETRA
-                    if (comm->getRank()==0) std::cout << "FROSch::FROSchFactory : WARNING: Cannot retrieve Epetra objects from ParameterList. Use Xpetra isntead." << std::endl;
+                    if (comm->getRank()==0) std::cerr << "FROSch::FROSchFactory : WARNING: Cannot retrieve Epetra objects from ParameterList. Use Xpetra instead." << std::endl;
 #endif
                 }
             }
@@ -459,7 +459,7 @@ namespace Thyra {
                 } else {
 #ifdef HAVE_SHYLU_DDFROSCH_EPETRA
                     if (comm->getRank()==0) {
-                        std::cout << "FROSch::FROSchFactory : WARNING: Cannot retrieve Epetra objects from ParameterList. Use Xpetra isntead." << std::endl;
+                        std::cerr << "FROSch::FROSchFactory : WARNING: Cannot retrieve Epetra objects from ParameterList. Use Xpetra instead." << std::endl;
                     }
 #endif
                 }
@@ -485,7 +485,7 @@ namespace Thyra {
                 } else {
 #ifdef HAVE_SHYLU_DDFROSCH_EPETRA
                     if (comm->getRank()==0) {
-                        std::cout << "FROSch::FROSchFactory : WARNING: Cannot retrieve Epetra objects from ParameterList. Use Xpetra isntead." << std::endl;
+                        std::cerr << "FROSch::FROSchFactory : WARNING: Cannot retrieve Epetra objects from ParameterList. Use Xpetra instead." << std::endl;
                     }
 #endif
                 }
