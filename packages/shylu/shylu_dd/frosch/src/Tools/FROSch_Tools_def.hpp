@@ -295,10 +295,6 @@ namespace FROSch {
         RCP<const Map<LO,GO,NO> > overlappingMap = uniqueMap.getConst();
         ExtendOverlapByOneLayer<SC,LO,GO,NO>(matrix,overlappingMap,matrix,overlappingMap);
 
-        if (!reduceMap)
-            return rcp_const_cast<Map<LO,GO,NO> >(overlappingMap);
-
-        
         RCP<Matrix<SC,LO,GO,NO> > tmpMatrix = MatrixFactory<SC,LO,GO,NO>::Build(overlappingMap,matrix->getGlobalMaxNumRowEntries());
 
         RCP<Import<LO,GO,NO> > scatter;
@@ -386,7 +382,7 @@ namespace FROSch {
     template <class SC,class LO,class GO,class NO>
     RCP<const Map<LO,GO,NO> > BuildRepeatedMapOld(RCP<const Matrix<SC,LO,GO,NO> > matrix)
     {
-        return BuildRepeatedMapNonConst(matrix,reduceMap).getConst();
+        return BuildRepeatedMapNonConst(matrix).getConst();
     }
 
     template <class LO,class GO,class NO>
