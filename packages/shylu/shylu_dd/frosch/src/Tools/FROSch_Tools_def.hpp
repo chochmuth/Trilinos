@@ -390,92 +390,36 @@ namespace FROSch {
         return BuildRepeatedMapNonConst(matrix,reduceMap).getConst();
     }
 
-    template <class LO,class GO,class NO>
+        template <class LO,class GO,class NO>
     RCP<Map<LO,GO,NO> > BuildRepeatedMapNonConst(RCP<const CrsGraph<LO,GO,NO> > graph)
     {
         FROSCH_TIMER_START(buildRepeatedMapNonConstTime,"BuildRepeatedMapNonConst");
-        RCP<Map<LO,GO,NO> > uniqueMap = MapFactory<LO,GO,NO>::Build(graph->getRowMap(),1);
-        RCP<const Map<LO,GO,NO> > overlappingMap = uniqueMap.getConst();
-        ExtendOverlapByOneLayer<LO,GO,NO>(graph,overlappingMap,graph,overlappingMap);
-
-        RCP<CrsGraph<LO,GO,NO> > tmpGraph = CrsGraphFactory<LO,GO,NO>::Build(overlappingMap,graph->getGlobalMaxNumRowEntries());
-
-        RCP<Import<LO,GO,NO> > scatter;
-        RCP<Export<LO,GO,NO> > gather = ExportFactory<LO,GO,NO>::Build(overlappingMap,uniqueMap);
-
-        if (tmpGraph->getRowMap()->lib()==UseEpetra) {
-            scatter = ImportFactory<LO,GO,NO>::Build(uniqueMap,overlappingMap);
-            tmpGraph->doImport(*graph,*scatter,ADD);
-        } else {
-            tmpGraph->doImport(*graph,*gather,ADD);
-        }
-
+        RCP<const Map<LO,GO,NO> > uniqueMap = graph->getRowMap();
+        RCP<const Map<LO,GO,NO> > overlappingMap;
+        ExtendOverlapByOneLayer<LO,GO,NO>(graph,uniqueMap,graph,overlappingMap);
+        
+        RCP<CrsGraph<LO,GO,NO> > tmpGraphUnique = CrsGraphFactory<LO,GO,NO>::Build(uniqueMap,1);
         Array<GO> myPID(1,uniqueMap->getComm()->getRank());
-
-        RCP<CrsGraph<LO,GO,NO> > commGraph = CrsGraphFactory<LO,GO,NO>::Build(overlappingMap,10);
-        RCP<CrsGraph<LO,GO,NO> > commGraphTmp = CrsGraphFactory<LO,GO,NO>::Build(uniqueMap,10);
-
-        for (unsigned i=0; i<overlappingMap->getNodeNumElements(); i++) {
-            GO globalRow = overlappingMap->getGlobalElement(i);
-            if (uniqueMap->getLocalElement(globalRow)<0) {
-                ArrayView<const GO> indices;
-                tmpGraph->getGlobalRowView(globalRow,indices);
-
-                LO j=0;
-                while (j<indices.size() && overlappingMap->getLocalElement(indices[j])>=0) {
-                    j++;
-                }
-                if (j!=indices.size()) {
-                    commGraph->insertGlobalIndices(overlappingMap->getGlobalElement(i),myPID());
-                }
-            }
-        }
-        commGraph->fillComplete();
-        commGraphTmp->doExport(*commGraph,*gather,INSERT);
-
-        RCP<CrsGraph<LO,GO,NO> > commGraphTmp2 = CrsGraphFactory<LO,GO,NO>::Build(uniqueMap,10);
         for (unsigned i=0; i<uniqueMap->getNodeNumElements(); i++) {
-            GO globalRow = uniqueMap->getGlobalElement(i);
-            ArrayView<const GO> indices;
-            commGraphTmp->getGlobalRowView(globalRow,indices);
-
-            if (indices.size()>0) {
-                for (LO j=0; j<indices.size(); j++) {
-                    Array<GO> pID(1,indices[j]);
-                    if (pID<myPID) {
-                        commGraphTmp2->insertGlobalIndices(globalRow,pID());
-                    }
-                }
-            }
+            tmpGraphUnique->insertGlobalIndices(uniqueMap->getGlobalElement(i),myPID());
         }
-        commGraphTmp2->fillComplete();
-        commGraphTmp.reset();
-        commGraph = CrsGraphFactory<LO,GO,NO>::Build(overlappingMap,10);
-
-        commGraph->doImport(*commGraphTmp2,*gather,ADD);
-
-        ArrayView<const GO> myGlobalElements = uniqueMap->getNodeElementList();
-        Array<GO> repeatedIndices(uniqueMap->getNodeNumElements());
-        for (unsigned i=0; i<uniqueMap->getNodeNumElements(); i++) {
-            repeatedIndices.at(i) = myGlobalElements[i];
-        }
-
+        RCP<Map<LO,GO,NO> > domainMap = MapFactory<LO,GO,NO>::Build(uniqueMap->lib(),-1,myPID(),0,uniqueMap->getComm());
+        tmpGraphUnique->fillComplete(domainMap,uniqueMap);
+        RCP<CrsGraph<LO,GO,NO> > tmpGraphOverlap = CrsGraphFactory<LO,GO,NO>::Build(overlappingMap,as<LO>(0));
+        RCP<Import<LO,GO,NO> > importer = ImportFactory<LO,GO,NO>::Build(uniqueMap,overlappingMap);
+        tmpGraphOverlap->doImport(*tmpGraphUnique,*importer,ADD);
+        ArrayView<const GO> indices;
+        Array<GO> repeatedIndices(0);
         for (unsigned i=0; i<overlappingMap->getNodeNumElements(); i++) {
-            GO globalRow = overlappingMap->getGlobalElement(i);
-            ArrayView<const GO> indices;
-            commGraph->getGlobalRowView(globalRow,indices);
-
-            if (indices.size()>0) {
-                for (LO j=0; j<indices.size(); j++) {
-                    GO pID = indices[j];
-                    if (pID==myPID[0]) {
-                        repeatedIndices.push_back(globalRow);
-                    }
+            tmpGraphOverlap->getGlobalRowView(overlappingMap->getGlobalElement(i),indices);
+            for (unsigned j=0; j<indices.size(); j++) {
+                if (indices[j]<=uniqueMap->getComm()->getRank()) {
+                    repeatedIndices.push_back(overlappingMap->getGlobalElement(i));
                 }
             }
         }
         sortunique(repeatedIndices);
-        return MapFactory<LO,GO,NO>::Build(tmpGraph->getRowMap()->lib(),-1,repeatedIndices(),0,graph->getRowMap()->getComm());
+        return MapFactory<LO,GO,NO>::Build(uniqueMap->lib(),-1,repeatedIndices(),0,uniqueMap->getComm());
     }
 
     template <class LO,class GO,class NO>
