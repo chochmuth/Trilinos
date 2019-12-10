@@ -348,17 +348,21 @@ namespace Amesos2
 //          getIntegralValue<local_ordinal_type>(*parameterList,
 //                                                                  "ICNTL(4)");
       }
-    if(parameterList->isParameter("ICNTL(6)"))
+      if(parameterList->isParameter("ICNTL(6)"))
+        {
+          mumps_par.icntl[5] = parameterList->get<int>("ICNTL(6)", 7);
+        }
+    if(parameterList->isParameter("ICNTL(7)"))
       {
 
-        mumps_par.icntl[5] = parameterList->get<int>("ICNTL(6)", 0);
+        mumps_par.icntl[6] = parameterList->get<int>("ICNTL(7)", 7);
 //          getIntegralValue<local_ordinal_type>(*parameterList,
 //                                                                  "ICNTL(6)");
       }
-    if(parameterList->isParameter("ICNTL(7)"))
+    if(parameterList->isParameter("ICNTL(8)"))
       {
           
-          mumps_par.icntl[6] = parameterList->get<int>("ICNTL(7)", 7);
+          mumps_par.icntl[7] = parameterList->get<int>("ICNTL(8)", 7);
           //          getIntegralValue<local_ordinal_type>(*parameterList,
           //                                                                  "ICNTL(6)");
       }
@@ -409,7 +413,9 @@ namespace Amesos2
       pl->set("ICNTL(2)", -1, "See Manual" );
       pl->set("ICNTL(3)", -1, "See Manual" );
       pl->set("ICNTL(4)", 1, "See Manual" );
-      pl->set("ICNTL(6)", 0, "See Manual" );
+      pl->set("ICNTL(6)", 7, "See Manual" );
+      pl->set("ICNTL(7)", 7, "See Manual" );
+      pl->set("ICNTL(8)", 7, "See Manual" );
       pl->set("ICNTL(9)", 1, "See Manual" );
       pl->set("ICNTL(11)", 0, "See Manual" );
       pl->set("ICNTL(14)", 20, "See Manual" );
