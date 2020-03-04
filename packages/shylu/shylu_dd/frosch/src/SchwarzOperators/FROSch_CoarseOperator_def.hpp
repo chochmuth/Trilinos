@@ -443,7 +443,7 @@ namespace FROSch {
                     CoarseMatrix_ = MatrixFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,elemsPerRow,StaticProfile);
                     for (LO i = 0; i < numRows; i++) {
                         GO globalRow = CoarseSolveMap_->getGlobalElement(i);
-                        std::cout << << " i:" << i << " globRow:" << globalRow << std::endl;
+                        std::cout << this->MpiComm_->getRank() << " i:" << i << " globRow:" << globalRow << std::endl;
                         k0->getGlobalRowView(globalRow,indices,values);
                         if (indices.size()>0) {
                             CoarseMatrix_->insertGlobalValues(globalRow,indices,values);
