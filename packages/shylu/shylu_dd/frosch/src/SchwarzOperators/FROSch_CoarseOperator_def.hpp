@@ -338,8 +338,12 @@ namespace FROSch {
                 }
                 
                 for (UN j=1; j<GatheringMaps_.size(); j++) {
+                    std::cout << this->MpiComm_->getRank() <<"k0:"<<j << std::endl;
+                    this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+                    k0->describe(*fancy,Teuchos::VERB_EXTREME);
                     std::cout << this->MpiComm_->getRank() <<"pre tmpFillcomplete step:"<<j << std::endl;
                     this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+                    
                     tmpCoarseMatrix->fillComplete();
                     std::cout << this->MpiComm_->getRank() <<"after tmpFillcomplete step:"<<j << std::endl;
                     this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
