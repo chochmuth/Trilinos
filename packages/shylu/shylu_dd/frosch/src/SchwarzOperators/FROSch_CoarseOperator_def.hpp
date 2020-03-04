@@ -388,10 +388,13 @@ namespace FROSch {
             
             //------------------------------------------------------------------------------------------------------------------------
             // Matrix to the new communicator
+            std::cout << this->MpiComm_->getRank() <<"OnCoarseSolveComm_:"<< OnCoarseSolveComm_ << std::endl;
+            
             if (OnCoarseSolveComm_) {
                 LO numRows = k0->getNodeNumRows();
                 ArrayRCP<size_t> elemsPerRow(numRows);
                 if (k0->isFillComplete()) {
+                    std::cout << "k is fill complete"<<std::endl;
                     ConstLOVecView indices;
                     ConstSCVecView values;
                     for (LO i = 0; i < numRows; i++) {
@@ -403,6 +406,7 @@ namespace FROSch {
                         }
                         elemsPerRow[i] = numEntries;
                     }
+                    
                     CoarseMatrix_ = MatrixFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,elemsPerRow,StaticProfile);
                     for (LO i = 0; i < numRows; i++) {
                         GO globalRow = CoarseSolveMap_->getGlobalElement(i);
@@ -419,8 +423,10 @@ namespace FROSch {
                             CoarseMatrix_->insertGlobalValues(globalRow,indicesGlob(),values());
                         }
                     }
-                    CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_); //RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,VERB_EXTREME);
+                    CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_);
+                    
                 } else {
+                    std::cout << "k is not fill complete"<<std::endl;
                     ConstGOVecView indices;
                     ConstSCVecView values;
                     for (LO i = 0; i < numRows; i++) {
@@ -433,9 +439,11 @@ namespace FROSch {
                         }
                         elemsPerRow[i] = numEntries;
                     }
+                    RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout)); CoarseSolveMap_->describe(*fancy,VERB_EXTREME);
                     CoarseMatrix_ = MatrixFactory<SC,LO,GO,NO>::Build(CoarseSolveMap_,elemsPerRow,StaticProfile);
                     for (LO i = 0; i < numRows; i++) {
                         GO globalRow = CoarseSolveMap_->getGlobalElement(i);
+                        std::cout << << " i:" << i << " globRow:" << globalRow << std::endl;
                         k0->getGlobalRowView(globalRow,indices,values);
                         if (indices.size()>0) {
                             CoarseMatrix_->insertGlobalValues(globalRow,indices,values);
