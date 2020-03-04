@@ -315,11 +315,17 @@ namespace FROSch {
             // Build CoarseMatrix_
             
             XMatrixPtr k0 = buildCoarseMatrix();
-            
+            RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout));
             //------------------------------------------------------------------------------------------------------------------------
             // Communicate coarse matrix
             if (!DistributionList_->get("Type","linear").compare("linear")) {
                 XMatrixPtr tmpCoarseMatrix = MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[0],k0->getGlobalMaxNumRowEntries());
+                if (this->MpiComm_->getRank() == 0 ) {
+                    std::cout << this->MpiComm_->getRank() <<"Gathering Map 0:" << std::endl;
+                }
+                this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+                GatheringMaps_[0]->describe(*fancy,Teuchos::VERB_EXTREME);
+                this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
                 {
 #ifdef FROSCH_COARSEOPERATOR_DETAIL_TIMERS
                     FROSCH_TIMER_START_LEVELID(coarseMatrixExportTime,"Export Coarse Matrix");
@@ -513,7 +519,7 @@ namespace FROSch {
     typename CoarseOperator<SC,LO,GO,NO>::XMatrixPtr CoarseOperator<SC,LO,GO,NO>::buildCoarseMatrix()
     {
         FROSCH_TIMER_START_LEVELID(buildCoarseMatrixTime,"CoarseOperator::buildCoarseMatrix");
-        std::cout << this->MpiComm_->getRank() <<"pre build matrix" << std::endl;
+        std::cout << this->MpiComm_->getRank() <<"getBasisMap:" << std::endl;
         this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
         RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout));
         CoarseSpace_->getBasisMap()->describe(*fancy,Teuchos::VERB_EXTREME);
@@ -687,6 +693,15 @@ namespace FROSch {
 #ifdef FROSCH_COARSEOPERATOR_DETAIL_TIMERS
                 FROSCH_TIMER_START_LEVELID(coarseSolveExportersTime,"Build Exporters");
 #endif
+                
+                if (this->MpiComm_->getRank() == 0 ) {
+                    std::cout << this->MpiComm_->getRank() <<"Exporter 0 coarseMap_:" << std::endl;
+                }
+                RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout));
+                this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+                CoarseMap_->describe(*fancy,Teuchos::VERB_EXTREME);
+                this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+                
                 CoarseSolveExporters_[0] = ExportFactory<LO,GO,NO>::Build(CoarseMap_,GatheringMaps_[0]);
                 CoarseSolveExporters_[0]->setDistributorParameters(gatheringCommunicationList); // Set the parameter list for the communication of the exporter
             }
