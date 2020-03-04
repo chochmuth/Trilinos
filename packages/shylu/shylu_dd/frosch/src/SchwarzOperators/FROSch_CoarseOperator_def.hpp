@@ -313,6 +313,8 @@ namespace FROSch {
         FROSCH_TIMER_START_LEVELID(setUpCoarseOperatorTime,"CoarseOperator::setUpCoarseOperator");
         if (!Phi_.is_null()) {
             // Build CoarseMatrix_
+            std::cout << this->MpiComm_->getRank() <<"pre build matrix" << std::endl;
+            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
             XMatrixPtr k0 = buildCoarseMatrix();
             
             //------------------------------------------------------------------------------------------------------------------------
@@ -500,6 +502,11 @@ namespace FROSch {
     typename CoarseOperator<SC,LO,GO,NO>::XMatrixPtr CoarseOperator<SC,LO,GO,NO>::buildCoarseMatrix()
     {
         FROSCH_TIMER_START_LEVELID(buildCoarseMatrixTime,"CoarseOperator::buildCoarseMatrix");
+        std::cout << this->MpiComm_->getRank() <<"pre build matrix" << std::endl;
+        this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+        RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout));
+        CoarseSpace_->getBasisMap()->describe(*fancy);
+        
         XMatrixPtr k0 = MatrixFactory<SC,LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),CoarseSpace_->getBasisMap()->getNodeNumElements());
         
         if (this->ParameterList_->get("Use Triple MatrixMultiply",false)) {
@@ -507,8 +514,16 @@ namespace FROSch {
         } else {
             XMatrixPtr tmp = MatrixFactory<SC,LO,GO,NO>::Build(this->K_->getRowMap(),50);
             MatrixMatrix<SC,LO,GO,NO>::Multiply(*this->K_,false,*Phi_,false,*tmp);
+            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+            std::cout << this->MpiComm_->getRank() <<"coarse matrix phi multiply" << std::endl;
+            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
             MatrixMatrix<SC,LO,GO,NO>::Multiply(*Phi_,true,*tmp,false,*k0);
+            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+            std::cout << this->MpiComm_->getRank() <<"coarse phi matrix phi multiply" << std::endl;
+            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
         }
+        
+
         
         if (this->ParameterList_->get("Write phi and problem",false)) {
             typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
