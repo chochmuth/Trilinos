@@ -313,8 +313,7 @@ namespace FROSch {
         FROSCH_TIMER_START_LEVELID(setUpCoarseOperatorTime,"CoarseOperator::setUpCoarseOperator");
         if (!Phi_.is_null()) {
             // Build CoarseMatrix_
-            std::cout << this->MpiComm_->getRank() <<"pre build matrix" << std::endl;
-            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+            
             XMatrixPtr k0 = buildCoarseMatrix();
             
             //------------------------------------------------------------------------------------------------------------------------
@@ -325,18 +324,30 @@ namespace FROSch {
 #ifdef FROSCH_COARSEOPERATOR_DETAIL_TIMERS
                     FROSCH_TIMER_START_LEVELID(coarseMatrixExportTime,"Export Coarse Matrix");
 #endif
+                    std::cout << this->MpiComm_->getRank() <<"pre export" << std::endl;
+                    this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
                     tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[0],INSERT);
+                    std::cout << this->MpiComm_->getRank() <<"after export" << std::endl;
+                    this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
                 }
                 
                 for (UN j=1; j<GatheringMaps_.size(); j++) {
+                    std::cout << this->MpiComm_->getRank() <<"pre tmpFillcomplete step:"<<j << std::endl;
+                    this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
                     tmpCoarseMatrix->fillComplete();
+                    std::cout << this->MpiComm_->getRank() <<"after tmpFillcomplete step:"<<j << std::endl;
+                    this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
                     k0 = tmpCoarseMatrix;
                     tmpCoarseMatrix = MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[j],k0->getGlobalMaxNumRowEntries());
                     {
 #ifdef FROSCH_COARSEOPERATOR_DETAIL_TIMERS
                         FROSCH_TIMER_START_LEVELID(coarseMatrixExportTime,"Export Coarse Matrix");
 #endif
+                        std::cout << this->MpiComm_->getRank() <<"pre Export tmp matrix:"<<j << std::endl;
+                        this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
                         tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[j],INSERT);
+                        std::cout << this->MpiComm_->getRank() <<"after Export tmp matrix:"<<j << std::endl;
+                        this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
                     }
                 }
                 k0 = tmpCoarseMatrix;
@@ -505,7 +516,7 @@ namespace FROSch {
         std::cout << this->MpiComm_->getRank() <<"pre build matrix" << std::endl;
         this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
         RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout));
-        CoarseSpace_->getBasisMap()->describe(*fancy);
+        CoarseSpace_->getBasisMap()->describe(*fancy,Teuchos::VERB_EXTREME);
         
         XMatrixPtr k0 = MatrixFactory<SC,LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),CoarseSpace_->getBasisMap()->getNodeNumElements());
         
@@ -514,16 +525,12 @@ namespace FROSch {
         } else {
             XMatrixPtr tmp = MatrixFactory<SC,LO,GO,NO>::Build(this->K_->getRowMap(),50);
             MatrixMatrix<SC,LO,GO,NO>::Multiply(*this->K_,false,*Phi_,false,*tmp);
-            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
-            std::cout << this->MpiComm_->getRank() <<"coarse matrix phi multiply" << std::endl;
-            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+            
             MatrixMatrix<SC,LO,GO,NO>::Multiply(*Phi_,true,*tmp,false,*k0);
-            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
-            std::cout << this->MpiComm_->getRank() <<"coarse phi matrix phi multiply" << std::endl;
-            this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+            
         }
         
-
+        
         
         if (this->ParameterList_->get("Write phi and problem",false)) {
             typedef Tpetra::CrsMatrix<SC,LO,GO,NO> TpetraCrsMatrix;
@@ -546,6 +553,9 @@ namespace FROSch {
                 tpetraWriter.writeSparseFile("phi.mm", tpetraMat, "phi", "");
             }
         }
+        this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+        std::cout << this->MpiComm_->getRank() <<"pre return k0" << std::endl;
+        this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
         return k0;
     }
         
