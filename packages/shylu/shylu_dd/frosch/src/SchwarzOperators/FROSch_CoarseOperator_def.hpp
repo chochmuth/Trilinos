@@ -81,7 +81,8 @@ namespace FROSch {
     ,OnLocalSolveComm_(false),
     SwapMap_(),
     SwapExporter_(),
-    CoarseRankRange_(2,0)
+    CoarseRankRange_(2,0),
+    computedCoarseSolveExporter_(false)
     {
         FROSCH_TIMER_START_LEVELID(coarseOperatorTime,"CoarseOperator::CoarseOperator");
         CoarseRankRange_[0] = this->getParameterList()->get("Coarse problem ranks lower bound",0);
@@ -341,30 +342,42 @@ namespace FROSch {
                 
             } else if (!DistributionList_->get("Type","linear").compare("Zoltan2")) {
 #ifdef HAVE_SHYLU_DDFROSCH_ZOLTAN2
-                GatheringMaps_[0] = rcp_const_cast<XMap> (BuildUniqueMap(k0->getRowMap()));
-                CoarseSolveExporters_[0] = ExportFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),GatheringMaps_[0]);
-                
-                if (NumProcsCoarseSolve_ < this->MpiComm_->getSize()) {
+//                RCP<FancyOStream> fancy = fancyOStream(rcpFromRef(std::cout));
+                if (GatheringMaps_[0].is_null())
+                    GatheringMaps_[0] = rcp_const_cast<XMap> (BuildUniqueMap(k0->getRowMap()));
+                                
+                if (CoarseSolveExporters_[0].is_null())
+                    CoarseSolveExporters_[0] = ExportFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),GatheringMaps_[0]);
+                                
+                if (!computedCoarseSolveExporter_){
                     XMatrixPtr k0Unique = MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[0],k0->getGlobalMaxNumRowEntries());
-                    k0Unique->doExport(*k0,*CoarseSolveExporters_[0],INSERT);
+                    k0Unique->doExport(*k0,*CoarseSolveExporters_[0],INSERT); // from repeated matrix to unique matrix
                     k0Unique->fillComplete(GatheringMaps_[0],GatheringMaps_[0]);
                     
-                    if (NumProcsCoarseSolve_<this->MpiComm_->getSize()) {
+                    if (NumProcsCoarseSolve_<this->MpiComm_->getSize()) { //this should always be true, we generally do not want to solve the coarse problem on all ranks
                         ParameterListPtr tmpList = sublist(DistributionList_,"Zoltan2 Parameter");
                         tmpList->set("num_global_parts",NumProcsCoarseSolve_);
                         FROSch::RepartionMatrixZoltan2(k0Unique,tmpList);
                     }
+//                    k0->describe(*fancy, VERB_EXTREME);
                     
                     k0 = k0Unique;
                     GatheringMaps_[0] = k0->getRowMap();
                     CoarseSolveExporters_[0] = ExportFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),GatheringMaps_[0]);
-                    
-                    if (GatheringMaps_[0]->getNodeNumElements()>0) {
-                        OnCoarseSolveComm_=true;
-                    }
-                    CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
-                    CoarseSolveMap_ = MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,GatheringMaps_[0]->getNodeElementList(),0,CoarseSolveComm_);
+                    computedCoarseSolveExporter_ = true;
                 }
+                else{
+                    XMatrixPtr tmpCoarseMatrix = MatrixFactory<SC,LO,GO,NO>::Build(GatheringMaps_[0],k0->getGlobalMaxNumRowEntries());
+                    tmpCoarseMatrix->doExport(*k0,*CoarseSolveExporters_[0],INSERT);
+                    k0 = tmpCoarseMatrix;
+                }
+                
+//                GatheringMaps_[0]->describe(*fancy, VERB_EXTREME);
+                if (GatheringMaps_[0]->getNodeNumElements()>0) {
+                    OnCoarseSolveComm_ = true;
+                }
+                CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
+                CoarseSolveMap_ = MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,GatheringMaps_[0]->getNodeElementList(),0,CoarseSolveComm_);
 #else
                 ThrowErrorMissingPackage("FROSch::CoarseOperator","Zoltan2");
 #endif
@@ -375,6 +388,9 @@ namespace FROSch {
 
             int coarseRankRangeDiff = CoarseRankRange_[1] - CoarseRankRange_[0];
             if (coarseRankRangeDiff < this->MpiComm_->getSize()-1){
+                if (this->Verbose_)
+                    std::cout << "FROSch::CoarseOperator : Using parallel coarse solves." << std::endl;
+                
                 k0->fillComplete();
                 if (SwapExporter_.is_null())
                     SwapExporter_ = ExportFactory<LO,GO,NO>::Build(SwapMap_,GatheringMaps_[GatheringMaps_.size()-1]);

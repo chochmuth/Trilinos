@@ -198,6 +198,8 @@ namespace FROSch {
         
         IntVec CoarseRankRange_;
         
+        bool computedCoarseSolveExporter_;
+        
     };
 }
 
